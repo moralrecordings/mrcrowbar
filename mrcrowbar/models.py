@@ -2,7 +2,6 @@ from copy import deepcopy
 from six import add_metaclass, iteritems, iterkeys
 from mrcrowbar.collections import OrderedDict
 
-from mrcrowbar.transform import import_binary, Transform
 from mrcrowbar.fields import *
 
 
@@ -137,23 +136,52 @@ class ModelMeta(type):
 
 @add_metaclass( ModelMeta )
 class Block:
-    magic = Magic()
+    _magic = Magic()
+    _block_size = 0
 
     def __init__( self, raw_buffer=None ):
-        #self._initial = raw_data
-        #self._data = self.import( raw_data )
+        self.import_data( raw_buffer )
         pass
 
-    def import_binary( self, raw_buffer, **kw ):
-        return import_binary( self.__class__, self, raw_buffer, **kw )
+    def import_data( self, raw_buffer, **kw ):
+        self._data = _import_data( self.__class__, raw_buffer, **kw )
 
-
-class BlockStream:
-    def __init__( self, block_klass, offset, stride, count, fill=b'\x00', **kwargs ):
-        pass
+    def validate( self, **kw ):
+        return _validate( self.__class__, self._data, **kw )
+        
 
 
 class Check:
     def __init__( self, instance, value ):
         pass
 
+
+def _import_data( klass, raw_buffer, **kw ):
+    if raw_buffer:
+        assert type( raw_buffer ) == bytes
+        assert len( raw_buffer ) >= klass._block_size
+        for name in klass._fields:
+            data[name] = klass._fields[name].get_from_buffer( raw_buffer )
+    else:
+        data = {}
+        for name in klass._fields:
+            data[name] = klass._fields[name].default
+    return data
+
+
+def _export_data( klass, instance, **kw ):
+    assert isinstance( instance, klass )
+
+
+def _validate( klass, instance_data, **kw ):
+    for name in klass._fields:
+        klass._fields[name].validate( instance_data[name] )
+    return
+    
+
+class Transform:
+    def export_data( self, buffer ):
+        return b''
+
+    def import_data( self, buffer ):
+        return None

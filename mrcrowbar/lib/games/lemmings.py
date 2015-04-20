@@ -6,6 +6,8 @@ from mrcrowbar import models as mrc
 
 
 class Animated( mrc.Block ):
+    _block_size =       8
+    
     x_raw =             mrc.Int16_BE( 0x00, range=range( -8, 1593 ) )
     y =                 mrc.Int16_BE( 0x02, range=range( -41, 160 ) )
     obj_id =            mrc.UInt16_BE( 0x04, range=range( 0, 16 ) )
@@ -21,6 +23,8 @@ class Animated( mrc.Block ):
 
 
 class Terrain( mrc.Block ):
+    _block_size =       4
+
     x_raw =             mrc.UInt16_BE( 0x00, bitmask=b'\x0f\xff', range=range( 0, 1600 ) )
     draw_back =         mrc.Bits( 0x00, 0b10000000 )
     draw_upsidedown =   mrc.Bits( 0x00, 0b01000000 )
@@ -41,6 +45,8 @@ class Terrain( mrc.Block ):
     
 
 class SteelArea( mrc.Block ):
+    _block_size =       4
+
     x_raw_coarse =      mrc.UInt8( 0x00, range=range( 0, 200 ) )
     x_raw_fine =        mrc.Bits( 0x01, 0b10000000 )
     y_raw =             mrc.UInt8( 0x01, bitmask=b'\x2f', range=range( 0, 157 ) )
@@ -67,6 +73,8 @@ class SteelArea( mrc.Block ):
 
 
 class Level( mrc.Block ):
+    _block_size =       2048
+
     release_rate =      mrc.UInt16_BE( 0x0000, range=range( 0, 251 ) )
     num_released =      mrc.UInt16_BE( 0x0002, range=range( 0, 115 ) )
     num_to_save =       mrc.UInt16_BE( 0x0004, range=range( 0, 115 ) )
@@ -86,7 +94,7 @@ class Level( mrc.Block ):
     animated =          mrc.BlockStream( Animated, 0x0020, stride=0x08, count=32 )
     terrain =           mrc.BlockStream( Terrain, 0x0120, stride=0x04, count=400, fill=b'\xff' )
     steel =             mrc.BlockStream( SteelArea, 0x0760, stride=0x04, count=32 )
-    level_name =        mrc.Bytes( 0x07e0, 32 )
+    level_name =        mrc.Bytes( 0x07e0, 32, default=b'                                ' )
 
     @property
     def camera_x( self ):

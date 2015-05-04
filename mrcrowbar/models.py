@@ -157,13 +157,13 @@ class Check:
 
 
 def _import_data( klass, raw_buffer, **kw ):
+    data = {}
     if raw_buffer:
         assert type( raw_buffer ) == bytes
         assert len( raw_buffer ) >= klass._block_size
         for name in klass._fields:
             data[name] = klass._fields[name].get_from_buffer( raw_buffer )
     else:
-        data = {}
         for name in klass._fields:
             data[name] = klass._fields[name].default
     return data

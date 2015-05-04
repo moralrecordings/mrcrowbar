@@ -1,3 +1,4 @@
+import struct
 import itertools 
 
 _next_position_hint = itertools.count()
@@ -12,6 +13,9 @@ class Field:
         self._position_hint = next( _next_position_hint )
         self.default = default
 
+    def get_from_buffer( self, buffer ):
+        return None
+
     def validate( self, value ):
         pass 
 
@@ -22,7 +26,30 @@ class BlockStream( Field ):
         self.block_klass = block_klass
         self.offset = offset
         self.stride = stride
+        self.count = count
         self.fill = fill
+
+    def get_from_buffer( self, buffer ):
+        assert type( buffer ) == bytes
+        result = []
+        for i in range( self.count ):
+            sub_buffer = buffer[self.offset + i*self.stride:]
+            # truncate input buffer to block size, if present
+            if self.block_klass._block_size:
+                sub_buffer = sub_buffer[:self.block_klass._block_size]
+            # if data matches the fill pattern, leave a Nonw in the list
+            if (sub_buffer == bytes(( self.fill[i % len(self.fill)] for i in range(len(sub_buffer)) ))):
+                result.append( None )
+            else:
+                result.append( self.block_klass( sub_buffer ) )
+
+        return result
+        
+    def validate( self, value ):
+        try:
+            it = iter( value )
+        except TypeError:
+            raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
 
 
 class BlockField( Field ):
@@ -34,10 +61,8 @@ class BlockField( Field ):
 
     def get_from_buffer( self, buffer ):
         assert type( buffer ) == bytes
-        if self.block:
-            return self.block.export_data()
-        else:
-            return (self.fill*int( 1+self.block_klass._block_size/len(self.fill) ))[:self.block_klass._block_size]
+        return self.block_klass( buffer[offset:] )
+        #return (self.fill*int( 1+self.block_klass._block_size/len(self.fill) ))[:self.block_klass._block_size]
 
 
 class Bytes( Field ):
@@ -124,8 +149,8 @@ class ValueField( Field ):
     def get_from_buffer( self, buffer ):
         assert type( buffer ) == bytes
         value = struct.unpack( self.format, self._get_bytes( buffer ) )[0]
-        if self.range:
-            assert value in self.range
+        if self.range and (value not in self.range):
+            print( 'WARNING: value {} outside of range {}'.format( value, self.range ) )
         return value
 
     def validate( self, value ):

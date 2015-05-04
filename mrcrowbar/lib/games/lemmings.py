@@ -101,6 +101,78 @@ class Level( mrc.Block ):
         return self.camera_x_raw - (self.camera_x_raw % 8)
 
 
+class AnimatedInfo( mrc.Block ):
+    _block_size =       28
+
+    anim_flags =        mrc.UInt16_LE( 0x0000 )
+    start_frame =       mrc.UInt8( 0x0002 )
+    end_frame =         mrc.UInt8( 0x0003 )
+    width =             mrc.UInt8( 0x0004 )
+    height =            mrc.UInt8( 0x0005 )
+    frame_data_size =   mrc.UInt16_LE( 0x0006 )
+    mask_rel_offset =   mrc.UInt16_LE( 0x0008 )
+    
+    trigger_x_raw =         mrc.UInt16_LE( 0x000e )
+    trigger_y_raw =         mrc.UInt16_LE( 0x0010 )
+    trigger_width_raw =     mrc.UInt8( 0x0012 )
+    trigger_height_raw =    mrc.UInt8( 0x0013 )
+    trigger_effect_id =     mrc.UInt8( 0x0014 )
+
+    base_offset =       mrc.UInt16_LE( 0x0015 )
+    preview_frame =     mrc.UInt16_LE( 0x0017 )
+
+    sound_id =          mrc.UInt8( 0x001b )
+    
+    @property
+    def trigger_x( self ):
+        return self.trigger_x_raw * 4
+
+    @property
+    def trigger_y( self ):
+        return self.trigger_y_raw * 4 - 4
+
+    @property
+    def trigger_width( self ):
+        return self.trigger_width_raw * 4
+
+    @property
+    def trigger_height( self ):
+        return self.trigger_height_raw * 4
+
+
+
+class TerrainInfo( mrc.Block ):
+    _block_size =       8
+
+    width =             mrc.UInt8( 0x0000 )
+    height =            mrc.UInt8( 0x0001 )
+    base_offset =       mrc.UInt16_LE( 0x0002 )
+    mask_rel_offset =   mrc.UInt16_LE( 0x0004 )
+
+
+class EGAColour( mrc.Block ):
+    _block_size =   1
+    r_raw =         mrc.Bits( 0x0000, 0b00100100 )
+    g_raw =         mrc.Bits( 0x0000, 0b00010010 )
+    b_raw =         mrc.Bits( 0x0000, 0b00001001 )
+
+
+class VGAColour( mrc.Block ):
+    _block_size =   3
+    r_raw =         mrc.UInt8( 0x0000, range=range( 0, 1<<7 ) )
+    g_raw =         mrc.UInt8( 0x0001, range=range( 0, 1<<7 ) )
+    b_raw =         mrc.UInt8( 0x0002, range=range( 0, 1<<7 ) )
+
+
+
+class Style( mrc.Block ):
+    _block_size =   0
+
+    anim_info =     mrc.BlockStream( AnimatedInfo, 0x0000, stride=0x1c, count=16 )
+    terrain_info =  mrc.BlockStream( TerrainInfo, 0x0380, stride=0x08, count=64 )
+
+
+
 class DATCompressor( mrc.Transform ):
     
     def import_data( self, buffer ):
@@ -150,14 +222,13 @@ class DATCompressor( mrc.Transform ):
             decompressed_size = buffer[pointer+4]*0x100 + buffer[pointer+5]
             compressed_size = buffer[pointer+8]*0x100 + buffer[pointer+9]
             
-            print( '----   HEADER   ----' )
-            print( 'bit_count = {}'.format( bit_count ) )
-            print( 'checksum = {}'.format( checksum ) )
-            print( 'decompressed_size = {}'.format( decompressed_size ) )
-            print( 'compressed_size = {}'.format( compressed_size ) )
-            print( '---- END HEADER ----' )
-        
-            print( 'Decompressing data...' )
+            #print( '----   HEADER   ----' )
+            #print( 'bit_count = {}'.format( bit_count ) )
+            #print( 'checksum = {}'.format( checksum ) )
+            #print( 'decompressed_size = {}'.format( decompressed_size ) )
+            #print( 'compressed_size = {}'.format( compressed_size ) )
+            #print( '---- END HEADER ----' )
+            #print( 'Decompressing data...' )
             
             pointer += 10
             total_num_bytes -= 10
@@ -196,7 +267,7 @@ class DATCompressor( mrc.Transform ):
                 if not (state['dptr'] > 0): 
                     break
             
-            print( 'Done!' )
+            #print( 'Done!' )
                     
             if checksum != state['checksum']:
                 print( 'Warning: checksum doesn\'t match header' )

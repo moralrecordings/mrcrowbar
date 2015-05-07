@@ -1,5 +1,6 @@
 import struct
 import itertools 
+from array import array as arr
 
 _next_position_hint = itertools.count()
 
@@ -15,6 +16,12 @@ class Field:
 
     def get_from_buffer( self, buffer ):
         return None
+
+    def update_array_with_value( self, value, array ):
+        assert type( array ) == arr
+        assert array.typecode == 'B'
+        self.validate( value )
+        return
 
     def validate( self, value ):
         pass 
@@ -146,12 +153,37 @@ class ValueField( Field ):
         else:
             return data
 
+    def _set_bytes( self, value, array ):
+        data = struct.pack( self.format, value ) 
+        # force check for no data loss in the value from bitmask
+        if self.bitmask:
+            assert (int.from_bytes( data, byteorder='big' ) & 
+                    int.from_bytes( self.bitmask, byteorder='big' ) ==
+                    int.from_bytes( data, byteorder='big' ))
+        
+            for i in range( self.size ):
+                # set bitmasked areas of target to 0
+                array[i+self.offset] &= (~ self.bitmask[i])
+                # OR target with replacement bitmasked portion
+                array[i+self.offset] |= (data[i] & self.bitmask[i])
+        else:
+            for i in range( self.size ):
+                array[i+self.offset] = data[i]
+        return
+
     def get_from_buffer( self, buffer ):
         assert type( buffer ) == bytes
         value = struct.unpack( self.format, self._get_bytes( buffer ) )[0]
         if self.range and (value not in self.range):
             print( 'WARNING: value {} outside of range {}'.format( value, self.range ) )
         return value
+
+    def update_array_with_value( self, value, array ):
+        super( ValueField, self ).update_array_with_value( value, array )
+        if (len( array ) < self.offset+self.size):
+            array.extend( b'\x00'*(self.offset+self.size-len( array )) )
+        self._set_bytes( value, array )
+        return
 
     def validate( self, value ):
         if (type( value ) != self.format_type):

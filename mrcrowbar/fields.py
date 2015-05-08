@@ -28,7 +28,7 @@ class Field:
 
 
 class BlockStream( Field ):
-    def __init__( self, block_klass, offset, stride, count, fill=b'\x00', **kwargs ):
+    def __init__( self, block_klass, offset, stride, count, fill=None, **kwargs ):
         super( BlockStream, self ).__init__( **kwargs )
         self.block_klass = block_klass
         self.offset = offset
@@ -45,7 +45,7 @@ class BlockStream( Field ):
             if self.block_klass._block_size:
                 sub_buffer = sub_buffer[:self.block_klass._block_size]
             # if data matches the fill pattern, leave a Nonw in the list
-            if (sub_buffer == bytes(( self.fill[i % len(self.fill)] for i in range(len(sub_buffer)) ))):
+            if self.fill and (sub_buffer == bytes(( self.fill[i % len(self.fill)] for i in range(len(sub_buffer)) ))):
                 result.append( None )
             else:
                 result.append( self.block_klass( sub_buffer ) )
@@ -60,7 +60,7 @@ class BlockStream( Field ):
 
 
 class BlockField( Field ):
-    def __init__( self, block_klass, offset, fill=b'\x00', **kwargs ):
+    def __init__( self, block_klass, offset, fill=None, **kwargs ):
         super( BlockField, self ).__init__( **kwargs )
         self.block_klass = block_klass
         self.offset = offset

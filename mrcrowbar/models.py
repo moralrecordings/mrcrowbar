@@ -143,6 +143,12 @@ class Block:
         self.import_data( raw_buffer )
         pass
 
+    def __repr__( self ):
+        return '<{}: {}>'.format( self.__class__.__name__, str( self ) )
+
+    def __str__( self ):
+        return hex( id( self ) )
+
     def import_data( self, raw_buffer, **kw ):
         self._data = _import_data( self.__class__, raw_buffer, **kw )
 
@@ -151,7 +157,7 @@ class Block:
         
 
 
-class Check:
+class Check( object ):
     def __init__( self, instance, value ):
         pass
 

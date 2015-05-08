@@ -3,6 +3,7 @@
 import array
 
 from mrcrowbar import models as mrc
+from mrcrowbar.lib.os import dos
 
 
 class Animated( mrc.Block ):
@@ -91,15 +92,19 @@ class Level( mrc.Block ):
     style_index =       mrc.UInt16_BE( 0x001a )
     custom_index =      mrc.UInt16_BE( 0x001c )
 
-    animated =          mrc.BlockStream( Animated, 0x0020, stride=0x08, count=32 )
+    animated =          mrc.BlockStream( Animated, 0x0020, stride=0x08, count=32, fill=b'\x00' )
     terrain =           mrc.BlockStream( Terrain, 0x0120, stride=0x04, count=400, fill=b'\xff' )
-    steel =             mrc.BlockStream( SteelArea, 0x0760, stride=0x04, count=32 )
+    steel =             mrc.BlockStream( SteelArea, 0x0760, stride=0x04, count=32, fill=b'\x00' )
     level_name =        mrc.Bytes( 0x07e0, 32, default=b'                                ' )
 
     @property
     def camera_x( self ):
         return self.camera_x_raw - (self.camera_x_raw % 8)
 
+
+# groundXo.dat and vgagrX.dat parser
+# source docs: http://www.camanis.net/lemmings/files/docs/lemmings_vgagrx_dat_groundxo_dat_file_format.txt
+# extra special thanks: ccexplore
 
 class AnimatedInfo( mrc.Block ):
     _block_size =       28
@@ -140,7 +145,6 @@ class AnimatedInfo( mrc.Block ):
         return self.trigger_height_raw * 4
 
 
-
 class TerrainInfo( mrc.Block ):
     _block_size =       8
 
@@ -150,27 +154,51 @@ class TerrainInfo( mrc.Block ):
     mask_rel_offset =   mrc.UInt16_LE( 0x0004 )
 
 
-class EGAColour( mrc.Block ):
-    _block_size =   1
-    r_raw =         mrc.Bits( 0x0000, 0b00100100 )
-    g_raw =         mrc.Bits( 0x0000, 0b00010010 )
-    b_raw =         mrc.Bits( 0x0000, 0b00001001 )
-
-
-class VGAColour( mrc.Block ):
-    _block_size =   3
-    r_raw =         mrc.UInt8( 0x0000, range=range( 0, 1<<7 ) )
-    g_raw =         mrc.UInt8( 0x0001, range=range( 0, 1<<7 ) )
-    b_raw =         mrc.UInt8( 0x0002, range=range( 0, 1<<7 ) )
-
-
-
 class Style( mrc.Block ):
-    _block_size =   0
+    _block_size =   1056
 
-    anim_info =     mrc.BlockStream( AnimatedInfo, 0x0000, stride=0x1c, count=16 )
-    terrain_info =  mrc.BlockStream( TerrainInfo, 0x0380, stride=0x08, count=64 )
+    anim_info =     mrc.BlockStream( AnimatedInfo, 0x0000, stride=0x1c, count=16, fill=b'\x00' )
+    terrain_info =  mrc.BlockStream( TerrainInfo, 0x01c0, stride=0x08, count=64, fill=b'\x00' )
 
+    palette_ega_custom      = mrc.BlockStream( dos.EGAColour, 0x03c0, stride=0x01, count=8 )
+    palette_ega_standard    = mrc.BlockStream( dos.EGAColour, 0x03c8, stride=0x01, count=8 )
+    palette_ega_preview     = mrc.BlockStream( dos.EGAColour, 0x03d0, stride=0x01, count=8 )
+    palette_vga_custom      = mrc.BlockStream( dos.VGAColour, 0x03d8, stride=0x03, count=8 )
+    palette_vga_standard    = mrc.BlockStream( dos.VGAColour, 0x03f0, stride=0x03, count=8 )
+    palette_vga_preview     = mrc.BlockStream( dos.VGAColour, 0x0408, stride=0x03, count=8 )
+
+
+class Special( mrc.Block ):
+    palette_vga =           mrc.BlockStream( dos.VGAColour, 0x0000, stride=0x03, count=8 )
+    palette_ega_standard =  mrc.BlockStream( dos.EGAColour, 0x0018, stride=0x01, count=8 )
+    palette_ega_preview  =  mrc.BlockStream( dos.EGAColour, 0x0020, stride=0x01, count=8 )
+
+
+class SpecialCompressor( mrc.Transform ):
+
+    def import_data( self, buffer ):
+        assert type( buffer ) == bytes
+        result = []
+        buf_out = []
+        i = 0
+        while i < len( buffer ):
+            if buffer[i] in range( 0x00, 0x7f ):
+                count = buffer[i]+1
+                buf_out.append( buffer[i+1:i+1+count] )
+                i += count+1
+            elif buffer[i] == 0x80:
+                result.append( b''.join( buf_out ) )
+                buf_out = []
+                i += 1
+            else:
+                count = 257-buffer[i]
+                buf_out.append( buffer[i+1:i+2]*count )
+                i += 2
+
+        if buf_out:
+            print( 'Warning: EOF reached before last RLE block closed' )
+            result.append( b''.join( buf_out ) )
+        return result
 
 
 class DATCompressor( mrc.Transform ):

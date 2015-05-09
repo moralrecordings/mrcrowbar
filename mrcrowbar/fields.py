@@ -28,27 +28,31 @@ class Field:
 
 
 class BlockStream( Field ):
-    def __init__( self, block_klass, offset, stride, count, fill=None, **kwargs ):
+    def __init__( self, block_klass, offset, stride=0, count=0, fill=None, transform=None, **kwargs ):
         super( BlockStream, self ).__init__( **kwargs )
         self.block_klass = block_klass
         self.offset = offset
         self.stride = stride
         self.count = count
         self.fill = fill
+        self.transform = transform
 
     def get_from_buffer( self, buffer ):
         assert type( buffer ) == bytes
         result = []
-        for i in range( self.count ):
-            sub_buffer = buffer[self.offset + i*self.stride:]
-            # truncate input buffer to block size, if present
-            if self.block_klass._block_size:
-                sub_buffer = sub_buffer[:self.block_klass._block_size]
-            # if data matches the fill pattern, leave a Nonw in the list
-            if self.fill and (sub_buffer == bytes(( self.fill[i % len(self.fill)] for i in range(len(sub_buffer)) ))):
-                result.append( None )
-            else:
-                result.append( self.block_klass( sub_buffer ) )
+        if self.transform:
+            result = [self.block_klass( x ) for x in self.transform.import_data( buffer[self.offset:] )]
+        else:
+            for i in range( self.count ):
+                sub_buffer = buffer[self.offset + i*self.stride:]
+                # truncate input buffer to block size, if present
+                if self.block_klass._block_size:
+                    sub_buffer = sub_buffer[:self.block_klass._block_size]
+                # if data matches the fill pattern, leave a Nonw in the list
+                if self.fill and (sub_buffer == bytes(( self.fill[i % len(self.fill)] for i in range(len(sub_buffer)) ))):
+                    result.append( None )
+                else:
+                    result.append( self.block_klass( sub_buffer ) )
 
         return result
         
@@ -57,23 +61,35 @@ class BlockStream( Field ):
             it = iter( value )
         except TypeError:
             raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
+        if self.count:
+            assert len( value ) <= self.count
+        for b in value:
+            if b:
+                assert type( b ) == self.block_klass 
 
 
 class BlockField( Field ):
-    def __init__( self, block_klass, offset, fill=None, **kwargs ):
+    def __init__( self, block_klass, offset, fill=None, transform=None, **kwargs ):
         super( BlockField, self ).__init__( **kwargs )
         self.block_klass = block_klass
         self.offset = offset
         self.fill = fill
+        self.transform = transform
 
     def get_from_buffer( self, buffer ):
         assert type( buffer ) == bytes
-        return self.block_klass( buffer[offset:] )
+        result = None
+        if self.transform:
+            result = self.block_klass( self.transform.import_data( buffer[self.offset:] ) )
+        else:
+            result = self.block_klass( buffer[self.offset:] )
+
+        return result
         #return (self.fill*int( 1+self.block_klass._block_size/len(self.fill) ))[:self.block_klass._block_size]
 
 
 class Bytes( Field ):
-    def __init__( self, offset, length, default=None, **kwargs ):
+    def __init__( self, offset, length=0, fill=b'\x00', default=None, **kwargs ):
         if default is not None:
             assert type( default ) == bytes
             assert len( default ) == length

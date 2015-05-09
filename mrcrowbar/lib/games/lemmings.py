@@ -168,10 +168,45 @@ class Style( mrc.Block ):
     palette_vga_preview     = mrc.BlockStream( dos.VGAColour, 0x0408, stride=0x03, count=8 )
 
 
+
+
+
 class Special( mrc.Block ):
     palette_vga =           mrc.BlockStream( dos.VGAColour, 0x0000, stride=0x03, count=8 )
     palette_ega_standard =  mrc.BlockStream( dos.EGAColour, 0x0018, stride=0x01, count=8 )
     palette_ega_preview  =  mrc.BlockStream( dos.EGAColour, 0x0020, stride=0x01, count=8 )
+
+    
+
+class Planarizer( mrc.Transform ):
+    def __init__( self, width, height, bpp, frame_offset=0, frame_stride=0, frame_count=1 ):
+        self.width = width
+        self.height = height
+        self.bpp = bpp
+        self.frame_offset = frame_offset
+        self.frame_stride = frame_stride
+        self.frame_count = frame_count
+
+    def import_data( self, buffer ):
+        assert type( buffer ) == bytes
+        def get_bit( state ):
+            result = 1 if (buffer[state['index']] & (1 << (7-state['pos']))) else 0
+            state['pos'] += 1
+            state['index'] += state['pos']//8
+            state['pos'] %= 8
+            return result
+
+        raw_image = array( 'B', b'\x00'*self.width*self.height*self.frame_count )
+
+        for f in range( self.frame_count ):
+            state = {'index': self.frame_offset + f*self.frame_stride, 'pos': 0} 
+            for b in range( self.bpp ):
+                for i in range( self.width*self.height ):
+                    raw_image[f*self.width*self.height + i] = get_bit( state ) << b
+
+        return raw_image
+
+    
 
 
 class SpecialCompressor( mrc.Transform ):

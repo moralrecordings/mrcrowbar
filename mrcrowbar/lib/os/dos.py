@@ -36,7 +36,7 @@ class EGAColour( mrc.Block ):
         return ((self.b_high << 1) + self.b_low)/3
 
     def __str__( self ):
-        return '#%02X%02X%02X' % (self.r_8, self.g_8, self.b_8)
+        return '#{:02X}{:02X}{:02X}'.format( self.r_8, self.g_8, self.b_8 )
 
 
 class VGAColour( mrc.Block ):
@@ -70,6 +70,6 @@ class VGAColour( mrc.Block ):
         return self.b_raw/127
 
     def __str__( self ):
-        return '#%02X%02X%02X' % (self.r_8, self.g_8, self.b_8)
+        return '#{:02X}{:02X}{:02X}'.format( self.r_8, self.g_8, self.b_8 )
 
 

@@ -210,7 +210,7 @@ class Special( mrc.Block ):
     palette_ega =           mrc.BlockStream( dos.EGAColour, 0x0018, stride=0x01, count=8 )
     palette_ega_preview  =  mrc.BlockStream( dos.EGAColour, 0x0020, stride=0x01, count=8 )
 
-    image =                 mrc.BlockField( img.RawIndexedImage, 0x0028, transform=SpecialCompressor() )
+    image =                 mrc.BlockField( img.RawIndexedImage, 0x0028, block_kwargs={ 'width': 960, 'height': 160 }, transform=SpecialCompressor() )
 
 
 AnimField = lambda offset, width, height, bpp, frame_count: mrc.BlockField( img.RawIndexedImage, offset, transform=img.Planarizer( width, height, bpp, frame_count=frame_count ) )
@@ -268,6 +268,10 @@ class MainMasks( mrc.Block ):
     number_1 =              AnimField( 0x0174, 8, 8, 1, 1 )
     number_0 =              AnimField( 0x017c, 8, 8, 1, 1 )
 
+
+# DAT compressor
+# source: http://www.camanis.net/lemmings/files/docs/lemmings_dat_file_format.txt
+# extra special thanks: ccexplore
 
 class DATCompressor( mrc.Transform ):
     def import_data( self, buffer ):

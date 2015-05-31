@@ -28,9 +28,10 @@ class Field:
 
 
 class BlockStream( Field ):
-    def __init__( self, block_klass, offset, stride=0, count=0, fill=None, transform=None, **kwargs ):
+    def __init__( self, block_klass, offset, block_kwargs=None, stride=0, count=0, fill=None, transform=None, **kwargs ):
         super( BlockStream, self ).__init__( **kwargs )
         self.block_klass = block_klass
+        self.block_kwargs = block_kwargs if block_kwargs else {}
         self.offset = offset
         self.stride = stride
         self.count = count
@@ -41,7 +42,7 @@ class BlockStream( Field ):
         assert type( buffer ) == bytes
         result = []
         if self.transform:
-            result = [self.block_klass( x ) for x in self.transform.import_data( buffer[self.offset:] )]
+            result = [self.block_klass( x, **self.block_kwargs ) for x in self.transform.import_data( buffer[self.offset:] )]
         else:
             for i in range( self.count ):
                 sub_buffer = buffer[self.offset + i*self.stride:]
@@ -69,9 +70,10 @@ class BlockStream( Field ):
 
 
 class BlockField( Field ):
-    def __init__( self, block_klass, offset, fill=None, transform=None, **kwargs ):
+    def __init__( self, block_klass, offset, block_kwargs=None, fill=None, transform=None, **kwargs ):
         super( BlockField, self ).__init__( **kwargs )
         self.block_klass = block_klass
+        self.block_kwargs = block_kwargs if block_kwargs else {}
         self.offset = offset
         self.fill = fill
         self.transform = transform
@@ -80,33 +82,42 @@ class BlockField( Field ):
         assert type( buffer ) == bytes
         result = None
         if self.transform:
-            result = self.block_klass( self.transform.import_data( buffer[self.offset:] ) )
+            result = self.block_klass( self.transform.import_data( buffer[self.offset:] ), **self.block_kwargs )
         else:
-            result = self.block_klass( buffer[self.offset:] )
+            result = self.block_klass( buffer[self.offset:], **self.block_kwargs )
 
         return result
         #return (self.fill*int( 1+self.block_klass._block_size/len(self.fill) ))[:self.block_klass._block_size]
 
 
 class Bytes( Field ):
-    def __init__( self, offset, length=0, fill=b'\x00', default=None, **kwargs ):
-        if default is not None:
-            assert type( default ) == bytes
-            assert len( default ) == length
+    def __init__( self, offset, length=None, fill=b'\x00', default=None, **kwargs ):
+        if length is not None:
+            if default is not None:
+                assert type( default ) == bytes
+                assert len( default ) == length
+            else:
+                default = b'\x00'*length
         else:
-            default = b'\x00'*length
+            if default is not None:
+                assert type( default ) == bytes
+            else:
+                default = b''
         super( Bytes, self ).__init__( default=default, **kwargs )
         self.offset = offset
         self.length = length
 
     def get_from_buffer( self, buffer ):
         assert type( buffer ) == bytes
-        return buffer[self.offset:self.offset+self.length]
+        if self.length is not None:
+            return buffer[self.offset:self.offset+self.length]
+        else:
+            return buffer[self.offset:]
 
     def validate( self, value ):
         if type( value ) != bytes:
             raise FieldValidationError( 'Expecting type {}, not {}'.format( bytes, type( value ) ) )
-        if (len( value ) != self.length):
+        if (self.length is not None) and (len( value ) != self.length):
             raise FieldValidationError( 'Expecting length of {}, not {}'.format( self.length, len( value ) ) )
         return
 

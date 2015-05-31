@@ -36,6 +36,13 @@ class EGAColour( img.Colour ):
     def b( self ):
         return ((self.b_high << 1) + self.b_low)/3
 
+EGA_DEFAULT_PALETTE = [
+    EGAColour( b'\x00' ), EGAColour( b'\x01' ), EGAColour( b'\x02' ), EGAColour( b'\x03' ),
+    EGAColour( b'\x04' ), EGAColour( b'\x05' ), EGAColour( b'\x14' ), EGAColour( b'\x07' ),
+    EGAColour( b'\x38' ), EGAColour( b'\x39' ), EGAColour( b'\x3a' ), EGAColour( b'\x3b' ),
+    EGAColour( b'\x3c' ), EGAColour( b'\x3d' ), EGAColour( b'\x3e' ), EGAColour( b'\x3f' )
+]
+
 
 class VGAColour( img.Colour ):
     _block_size =   3

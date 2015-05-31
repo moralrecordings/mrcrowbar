@@ -2,7 +2,10 @@
 
 from mrcrowbar import models as mrc
 
+from PIL import Image
+
 import array
+import itertools
 
 
 class Colour( mrc.Block ):
@@ -32,9 +35,34 @@ class Colour( mrc.Block ):
         return '#{:02X}{:02X}{:02X}{:02X}'.format( self.r_8, self.g_8, self.b_8, self.a_8 )
 
 
+class RGBColour( Colour ):
+    _block_size = 3
+
+    r_8 = mrc.UInt8( 0x00 )
+    g_8 = mrc.UInt8( 0x01 )
+    b_8 = mrc.UInt8( 0x02 )
+
+
 class RawIndexedImage( mrc.Block ):
     _width =            0
     _height =           0
+    _palette =          []
+
+    data = mrc.Bytes( 0x0000 )
+
+    def __init__( self, buffer, width=0, height=0, palette=None, **kwargs ):
+        self._width = width
+        self._height = height
+        if palette is not None:
+            self._palette = palette
+        #assert len( buffer ) == width*height
+        super( RawIndexedImage, self ).__init__( buffer, **kwargs )
+
+    def get_image( self ):
+        im = Image.new( 'P', (self._width, self._height) )
+        im.putdata( self.data[:self._width*self._height] )
+        im.putpalette( itertools.chain( *[(c.r_8, c.g_8, c.b_8) for c in self._palette] ) )
+        return im
     
     
 class Planarizer( mrc.Transform ):
@@ -63,5 +91,5 @@ class Planarizer( mrc.Transform ):
                 for i in range( self.width*self.height ):
                     raw_image[f*self.width*self.height + i] += get_bit( state ) << b
 
-        return raw_image
+        return bytes( raw_image )
 

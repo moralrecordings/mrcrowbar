@@ -6,6 +6,7 @@ import itertools
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.os import dos
 from mrcrowbar.lib.images import base as img
+from mrcrowbar.utils import BitStream
 
 
 class Animated( mrc.Block ):
@@ -206,49 +207,89 @@ class SpecialCompressor( mrc.Transform ):
 
 class Special( mrc.Block ):
     palette_vga =           mrc.BlockStream( dos.VGAColour, 0x0000, stride=0x03, count=8 )
-    palette_ega_standard =  mrc.BlockStream( dos.EGAColour, 0x0018, stride=0x01, count=8 )
+    palette_ega =           mrc.BlockStream( dos.EGAColour, 0x0018, stride=0x01, count=8 )
     palette_ega_preview  =  mrc.BlockStream( dos.EGAColour, 0x0020, stride=0x01, count=8 )
 
     image =                 mrc.BlockField( img.RawIndexedImage, 0x0028, transform=SpecialCompressor() )
 
 
+AnimField = lambda offset, width, height, bpp, frame_count: mrc.BlockField( img.RawIndexedImage, offset, transform=img.Planarizer( width, height, bpp, frame_count=frame_count ) )
+
+# the following animation/sprite lookup tables are embedded in the Lemmings executable
+
+class MainAnims( mrc.Block ):
+    anim_walker_r =         AnimField( 0x0000, 16, 10, 2, 8 )
+    anim_bounder_r =        AnimField( 0x0140, 16, 10, 2, 1 )
+    anim_walker_l =         AnimField( 0x0168, 16, 10, 2, 8 )
+    anim_bounder_l =        AnimField( 0x02a8, 16, 10, 2, 1 )
+    anim_digger =           AnimField( 0x02d0, 16, 14, 3, 16 )
+    anim_climber_r =        AnimField( 0x0810, 16, 12, 2, 8 )
+    anim_climber_l =        AnimField( 0x0990, 16, 12, 2, 8 )
+    anim_drowner =          AnimField( 0x0b10, 16, 10, 2, 16 )
+    anim_postclimber_r =    AnimField( 0x0d90, 16, 12, 2, 8 )
+    anim_postclimber_l =    AnimField( 0x0f10, 16, 12, 2, 8 )
+    anim_builder_r =        AnimField( 0x1090, 16, 13, 3, 16 )
+    anim_builder_l =        AnimField( 0x1570, 16, 13, 3, 16 )
+    anim_basher_r =         AnimField( 0x1a50, 16, 10, 3, 32 )
+    anim_basher_l =         AnimField( 0x21d0, 16, 10, 3, 32 )
+    anim_miner_r =          AnimField( 0x2950, 16, 13, 3, 24 )
+    anim_miner_l =          AnimField( 0x30a0, 16, 13, 3, 24 )
+    anim_faller_r =         AnimField( 0x37f0, 16, 10, 2, 4 )
+    anim_faller_l =         AnimField( 0x3890, 16, 10, 2, 4 )
+    anim_prefloater_r =     AnimField( 0x3930, 16, 16, 3, 4 )
+    anim_floater_r =        AnimField( 0x3ab0, 16, 16, 3, 4 )
+    anim_prefloater_l =     AnimField( 0x3c30, 16, 16, 3, 4 )
+    anim_floater_l =        AnimField( 0x3db0, 16, 16, 3, 4 )
+    anim_splatter =         AnimField( 0x3f30, 16, 10, 2, 16 )
+    anim_leaver =           AnimField( 0x41b0, 16, 13, 2, 8 )
+    anim_burner =           AnimField( 0x4350, 16, 14, 4, 14 )
+    anim_blocker =          AnimField( 0x4970, 16, 10, 2, 16 )
+    anim_shrugger_r =       AnimField( 0x4bf0, 16, 10, 2, 8 )
+    anim_shrugger_l =       AnimField( 0x4d30, 16, 10, 2, 8 )
+    anim_goner =            AnimField( 0x4e70, 16, 10, 2, 16 )
+    anim_exploder =         AnimField( 0x5070, 32, 32, 3, 1 )
+
+
+class MainMasks( mrc.Block ):
+    mask_basher_r =         AnimField( 0x0000, 16, 10, 1, 4 )
+    mask_basher_l =         AnimField( 0x0050, 16, 10, 1, 4 )
+    mask_miner_r =          AnimField( 0x00a0, 16, 13, 1, 2 )
+    mask_miner_l =          AnimField( 0x00d4, 16, 13, 1, 2 )
+    mask_exploder =         AnimField( 0x0108, 16, 22, 1, 1 )
+
+    number_9 =              AnimField( 0x0134, 8, 8, 1, 1 )
+    number_8 =              AnimField( 0x013c, 8, 8, 1, 1 )
+    number_7 =              AnimField( 0x0144, 8, 8, 1, 1 )
+    number_6 =              AnimField( 0x014c, 8, 8, 1, 1 )
+    number_5 =              AnimField( 0x0154, 8, 8, 1, 1 )
+    number_4 =              AnimField( 0x015c, 8, 8, 1, 1 )
+    number_3 =              AnimField( 0x0164, 8, 8, 1, 1 )
+    number_2 =              AnimField( 0x016c, 8, 8, 1, 1 )
+    number_1 =              AnimField( 0x0174, 8, 8, 1, 1 )
+    number_0 =              AnimField( 0x017c, 8, 8, 1, 1 )
+
+
 class DATCompressor( mrc.Transform ):
-    
     def import_data( self, buffer ):
         assert type( buffer ) == bytes
-        def get_next_bits( n, state ):
-            result = 0
-            while True:
-                state['bitcnt'] -= 1
-                if state['bitcnt'] == 0:
-                    state['cptr'] -= 1
-                    state['curbits'] = state['cdata'][state['cptr']]
-                    state['checksum'] ^= state['curbits']
-                    state['bitcnt'] = 8
-                result <<= 1;
-                result |= (state['curbits'] & 1)
-                state['curbits'] >>= 1;
-                
-                n -= 1
-                if not n>0: 
-                    break
-            return result
-        
+
+        def xor_checksum( data ):
+            lrc = 0
+            for b in data:
+                lrc ^= b
+            return lrc
+
         def copy_prev_data( blocklen, offset_size, state ):
-            offset = get_next_bits( offset_size, state )
-            for i in range( 0, blocklen ):
+            offset = state['bs'].get_bits( offset_size )
+            for i in range( blocklen ):
                 state['dptr'] -= 1
                 state['ddata'][state['dptr']] = state['ddata'][state['dptr']+offset+1]
             return
         
-        def dump_data( numbytes, state ):
-            while True:
+        def dump_data( num_bytes, state ):
+            for i in range( num_bytes ):
                 state['dptr'] -= 1
-                state['ddata'][state['dptr']] = get_next_bits( 8, state )
-                
-                numbytes -= 1
-                if not numbytes>0:
-                    break
+                state['ddata'][state['dptr']] = state['bs'].get_bits( 8 )
             return
         
         
@@ -274,32 +315,37 @@ class DATCompressor( mrc.Transform ):
             compressed_size -= 10
             
             compressed_data = buffer[pointer:pointer+compressed_size]
-            pointer += compressed_size
+            #print( 'computed checksum = {}'.format( xor_checksum( compressed_data ) ) )
+            if checksum != xor_checksum( compressed_data ):
+                print( 'Warning: checksum doesn\'t match header' )
             
+            pointer += compressed_size
             total_num_bytes -= compressed_size
         
-            state = { 
-                'bitcnt': bit_count+1, 'cptr': (compressed_size-1), 
-                'dptr': decompressed_size, 'cdata': compressed_data, 
-                'ddata': [0]*decompressed_size,
-                'curbits': compressed_data[-1], 'checksum': compressed_data[-1]
-            }
+            bs = BitStream( compressed_data, compressed_size-1, bytes_reverse=True )
+            bs.bits_remaining = bit_count
             
+            state = { 
+                'bs': bs,
+                'dptr': decompressed_size, 
+                'ddata': array.array( 'B', b'\x00'*decompressed_size ),
+            }
+
             while True:
-                if get_next_bits( 1, state )==1:
-                    test = get_next_bits( 2, state )
+                if bs.get_bits( 1 )==1:
+                    test = bs.get_bits( 2 )
                     if test==0:
                         copy_prev_data( 3, 9, state )
                     elif test==1:
                         copy_prev_data( 4, 10, state )
                     elif test==2:
-                        copy_prev_data( get_next_bits( 8, state )+1, 12, state )
+                        copy_prev_data( bs.get_bits( 8 )+1, 12, state )
                     elif test==3:
-                        dump_data( get_next_bits( 8, state )+9, state )
+                        dump_data( bs.get_bits( 8 )+9, state )
                 else:
-                    test = get_next_bits( 1, state )
+                    test = bs.get_bits( 1 )
                     if test==0:
-                        dump_data( get_next_bits( 3, state )+1, state )
+                        dump_data( bs.get_bits( 3 )+1, state )
                     elif test==1:
                         copy_prev_data( 2, 8, state )
                 
@@ -308,13 +354,11 @@ class DATCompressor( mrc.Transform ):
             
             #print( 'Done!' )
                     
-            if checksum != state['checksum']:
-                print( 'Warning: checksum doesn\'t match header' )
-            
             target.append( bytes( state['ddata'] ) )  
             if not total_num_bytes > 0:
                 break
             
         return target
+
 
 

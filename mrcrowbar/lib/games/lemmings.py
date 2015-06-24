@@ -4,7 +4,7 @@ import array
 import itertools
 
 from mrcrowbar import models as mrc
-from mrcrowbar.lib.os import dos
+from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
 from mrcrowbar.utils import BitStream
 
@@ -163,12 +163,12 @@ class Style( mrc.Block ):
     anim_info =     mrc.BlockStream( AnimatedInfo, 0x0000, stride=0x1c, count=16, fill=b'\x00' )
     terrain_info =  mrc.BlockStream( TerrainInfo, 0x01c0, stride=0x08, count=64, fill=b'\x00' )
 
-    palette_ega_custom      = mrc.BlockStream( dos.EGAColour, 0x03c0, stride=0x01, count=8 )
-    palette_ega_standard    = mrc.BlockStream( dos.EGAColour, 0x03c8, stride=0x01, count=8 )
-    palette_ega_preview     = mrc.BlockStream( dos.EGAColour, 0x03d0, stride=0x01, count=8 )
-    palette_vga_custom      = mrc.BlockStream( dos.VGAColour, 0x03d8, stride=0x03, count=8 )
-    palette_vga_standard    = mrc.BlockStream( dos.VGAColour, 0x03f0, stride=0x03, count=8 )
-    palette_vga_preview     = mrc.BlockStream( dos.VGAColour, 0x0408, stride=0x03, count=8 )
+    palette_ega_custom      = mrc.BlockStream( ibm_pc.EGAColour, 0x03c0, stride=0x01, count=8 )
+    palette_ega_standard    = mrc.BlockStream( ibm_pc.EGAColour, 0x03c8, stride=0x01, count=8 )
+    palette_ega_preview     = mrc.BlockStream( ibm_pc.EGAColour, 0x03d0, stride=0x01, count=8 )
+    palette_vga_custom      = mrc.BlockStream( ibm_pc.VGAColour, 0x03d8, stride=0x03, count=8 )
+    palette_vga_standard    = mrc.BlockStream( ibm_pc.VGAColour, 0x03f0, stride=0x03, count=8 )
+    palette_vga_preview     = mrc.BlockStream( ibm_pc.VGAColour, 0x0408, stride=0x03, count=8 )
 
 
 class SpecialCompressor( mrc.Transform ):
@@ -206,9 +206,9 @@ class SpecialCompressor( mrc.Transform ):
 
 
 class Special( mrc.Block ):
-    palette_vga =           mrc.BlockStream( dos.VGAColour, 0x0000, stride=0x03, count=8 )
-    palette_ega =           mrc.BlockStream( dos.EGAColour, 0x0018, stride=0x01, count=8 )
-    palette_ega_preview  =  mrc.BlockStream( dos.EGAColour, 0x0020, stride=0x01, count=8 )
+    palette_vga =           mrc.BlockStream( ibm_pc.VGAColour, 0x0000, stride=0x03, count=8 )
+    palette_ega =           mrc.BlockStream( ibm_pc.EGAColour, 0x0018, stride=0x01, count=8 )
+    palette_ega_preview  =  mrc.BlockStream( ibm_pc.EGAColour, 0x0020, stride=0x01, count=8 )
 
     image =                 mrc.BlockField( img.RawIndexedImage, 0x0028, block_kwargs={ 'width': 960, 'height': 160 }, transform=SpecialCompressor() )
 

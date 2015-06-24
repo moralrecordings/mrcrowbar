@@ -28,13 +28,14 @@ class Field:
 
 
 class BlockStream( Field ):
-    def __init__( self, block_klass, offset, block_kwargs=None, stride=0, count=0, fill=None, transform=None, **kwargs ):
+    def __init__( self, block_klass, offset, block_kwargs=None, stride=0, count=0, stop_check=None, fill=None, transform=None, **kwargs ):
         super( BlockStream, self ).__init__( **kwargs )
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
         self.offset = offset
         self.stride = stride
         self.count = count
+        self.stop_check = stop_check
         self.fill = fill
         self.transform = transform
 
@@ -49,12 +50,17 @@ class BlockStream( Field ):
                 # truncate input buffer to block size, if present
                 if self.block_klass._block_size:
                     sub_buffer = sub_buffer[:self.block_klass._block_size]
-                # if data matches the fill pattern, leave a Nonw in the list
+                # if data matches the fill pattern, leave a None in the list
                 if self.fill and (sub_buffer == bytes(( self.fill[i % len(self.fill)] for i in range(len(sub_buffer)) ))):
                     result.append( None )
                 else:
-                    result.append( self.block_klass( sub_buffer ) )
+                    # run the stop check (if exists): if it returns true, we've hit the end of the stream
+                    if self.stop_check and (self.stop_check( buffer, self.offset+i*self.stride )):
+                        break
 
+                    result.append( self.block_klass( sub_buffer ) )
+                    
+                    
         return result
         
     def validate( self, value ):

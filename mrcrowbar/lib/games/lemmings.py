@@ -213,7 +213,7 @@ class Special( mrc.Block ):
     image =                 mrc.BlockField( img.RawIndexedImage, 0x0028, block_kwargs={ 'width': 960, 'height': 160 }, transform=SpecialCompressor() )
 
 
-AnimField = lambda offset, width, height, bpp, frame_count: mrc.BlockField( img.RawIndexedImage, offset, transform=img.Planarizer( width, height, bpp, frame_count=frame_count ) )
+AnimField = lambda offset, width, height, bpp, frame_count: mrc.BlockField( img.RawIndexedImage, offset, block_kwargs={ 'width': width, 'height': height*frame_count }, transform=img.Planarizer( width, height, bpp, frame_count=frame_count ) )
 
 # the following animation/sprite lookup tables are embedded in the Lemmings executable
 

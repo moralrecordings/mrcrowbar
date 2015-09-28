@@ -31,3 +31,16 @@ class B800Screen( mrc.Block ):
     def text( self ):
         return u'\n'.join( [u''.join( [c.char for c in self.chars[i*self.B800_SCREEN_WIDTH:][:self.B800_SCREEN_WIDTH]] ) for i in range( (len( self.chars )+1)//self.B800_SCREEN_WIDTH )] )
 
+    def print( self ):
+        #from mrcrowbar.lib.hardware import ibm_pc
+        #from x256 import x256
+        #EGA = [x256.from_rgb( c.r_8, c.g_8, c.b_8 ) for c in ibm_pc.EGA_DEFAULT_PALETTE]
+        EGA = [16, 19, 34, 37, 124, 127, 130, 248, 240, 63, 83, 87, 203, 207, 227, 231]
+        result = u''
+        for i in range( (len( self.chars )+1)//self.B800_SCREEN_WIDTH ):
+            for c in self.chars[i*self.B800_SCREEN_WIDTH:][:self.B800_SCREEN_WIDTH]:
+                fg = str( EGA[c.fg_colour] )
+                bg = str( EGA[c.bg_colour] )
+                result += u'\x1b[38;5;{};48;5;{}m{}'.format( fg, bg, c.char )
+            result += u'\x1b[0m\n'
+        print( result )

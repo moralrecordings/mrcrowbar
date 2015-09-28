@@ -51,7 +51,7 @@ class BlockStream( Field ):
                 if self.block_klass._block_size:
                     sub_buffer = sub_buffer[:self.block_klass._block_size]
                 # if data matches the fill pattern, leave a None in the list
-                if self.fill and (sub_buffer == bytes(( self.fill[i % len(self.fill)] for i in range(len(sub_buffer)) ))):
+                if self.fill and (sub_buffer == bytes(( self.fill[j % len(self.fill)] for j in range(len(sub_buffer)) ))):
                     result.append( None )
                 else:
                     # run the stop check (if exists): if it returns true, we've hit the end of the stream

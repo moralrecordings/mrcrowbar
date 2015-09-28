@@ -3,14 +3,15 @@
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.images import base as img
 
+
 class EGAColour( img.Colour ):
     _block_size =   1
-    r_high =        mrc.Bits( 0x0000, 0b00000100 )
-    g_high =        mrc.Bits( 0x0000, 0b00000010 )
-    b_high =        mrc.Bits( 0x0000, 0b00000001 )
-    r_low =         mrc.Bits( 0x0000, 0b00100000 )
-    g_low =         mrc.Bits( 0x0000, 0b00010000 )
-    b_low =         mrc.Bits( 0x0000, 0b00001000 )
+    r_high =        mrc.Bits( 0x00, 0b00000100 )
+    g_high =        mrc.Bits( 0x00, 0b00000010 )
+    b_high =        mrc.Bits( 0x00, 0b00000001 )
+    r_low =         mrc.Bits( 0x00, 0b00100000 )
+    g_low =         mrc.Bits( 0x00, 0b00010000 )
+    b_low =         mrc.Bits( 0x00, 0b00001000 )
 
     @property
     def r_8( self ):
@@ -46,9 +47,9 @@ EGA_DEFAULT_PALETTE = [
 
 class VGAColour( img.Colour ):
     _block_size =   3
-    r_raw =         mrc.UInt8( 0x0000, range=range( 0, 64 ) )
-    g_raw =         mrc.UInt8( 0x0001, range=range( 0, 64 ) )
-    b_raw =         mrc.UInt8( 0x0002, range=range( 0, 64 ) )
+    r_raw =         mrc.UInt8( 0x00, range=range( 0, 64 ) )
+    g_raw =         mrc.UInt8( 0x01, range=range( 0, 64 ) )
+    b_raw =         mrc.UInt8( 0x02, range=range( 0, 64 ) )
 
     @property
     def r_8( self ):
@@ -73,3 +74,7 @@ class VGAColour( img.Colour ):
     @property
     def b( self ):
         return self.b_raw/63
+
+
+
+

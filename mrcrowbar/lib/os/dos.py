@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 from mrcrowbar import models as mrc
+from mrcrowbar.lib.hardware import ibm_pc
 
 # map of DOS code page 437 to Unicode
 CP437 = u"""\x00☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼ !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xa0"""
@@ -11,6 +12,8 @@ decode_nfo = lambda buffer: u'\n'.join( [u''.join( [CP437[y] for y in x] ) for x
 
 class B800Char( mrc.Block ):
     _block_size =   2
+    _palette =      ibm_pc.EGA_DEFAULT_PALETTE
+
     code_point =    mrc.UInt8( 0x00 )
     bg_colour =     mrc.Bits( 0x01, 0b11110000 )
     fg_colour =     mrc.Bits( 0x01, 0b00001111 )
@@ -19,8 +22,19 @@ class B800Char( mrc.Block ):
     def char( self ):
         return CP437[self.code_point]
 
+    @property
+    def ansi_format( self ):
+        fg = '{};{};{}'.format( self._palette[self.fg_colour].r_8, 
+                                self._palette[self.fg_colour].g_8, 
+                                self._palette[self.fg_colour].b_8 )
+        bg = '{};{};{}'.format( self._palette[self.bg_colour].r_8, 
+                                self._palette[self.bg_colour].g_8, 
+                                self._palette[self.bg_colour].b_8 )
+        return u'\x1b[38;2;{};48;2;{}m{}'.format( fg, bg, self.char )
+
     def __str__( self ):
-        return self.char
+        return u'{}\x1b[0m'.format( self.ansi_format )
+        
     
 class B800Screen( mrc.Block ):
     B800_SCREEN_WIDTH =  80
@@ -32,15 +46,9 @@ class B800Screen( mrc.Block ):
         return u'\n'.join( [u''.join( [c.char for c in self.chars[i*self.B800_SCREEN_WIDTH:][:self.B800_SCREEN_WIDTH]] ) for i in range( (len( self.chars )+1)//self.B800_SCREEN_WIDTH )] )
 
     def print( self ):
-        #from mrcrowbar.lib.hardware import ibm_pc
-        #from x256 import x256
-        #EGA = [x256.from_rgb( c.r_8, c.g_8, c.b_8 ) for c in ibm_pc.EGA_DEFAULT_PALETTE]
-        EGA = [16, 19, 34, 37, 124, 127, 130, 248, 240, 63, 83, 87, 203, 207, 227, 231]
         result = u''
         for i in range( (len( self.chars )+1)//self.B800_SCREEN_WIDTH ):
             for c in self.chars[i*self.B800_SCREEN_WIDTH:][:self.B800_SCREEN_WIDTH]:
-                fg = str( EGA[c.fg_colour] )
-                bg = str( EGA[c.bg_colour] )
-                result += u'\x1b[38;5;{};48;5;{}m{}'.format( fg, bg, c.char )
+                result += c.ansi_format
             result += u'\x1b[0m\n'
         print( result )

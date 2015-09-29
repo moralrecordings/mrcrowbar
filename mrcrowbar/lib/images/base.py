@@ -34,6 +34,12 @@ class Colour( mrc.Block ):
     def __str__( self ):
         return '#{:02X}{:02X}{:02X}{:02X}'.format( self.r_8, self.g_8, self.b_8, self.a_8 )
 
+    def __eq__( self, other ):
+        return (self.r_8 == other.r_8) and (self.g_8 == other.g_8) and (self.b_8 == other.b_8) and (self.a_8 == other.a_8)
+
+class Transparent( Colour ):
+    a_8 = 0
+
 
 class RGBColour( Colour ):
     _block_size = 3
@@ -63,6 +69,26 @@ class RawIndexedImage( mrc.Block ):
         im.putdata( self.data[:self._width*self._height] )
         im.putpalette( itertools.chain( *[(c.r_8, c.g_8, c.b_8) for c in self._palette] ) )
         return im
+
+    def print( self ):
+        result = []
+        for y in range( 0, self._height, 2 ):
+            for x in range( 0, self._width ):
+                p1 = self._palette[self.data[self._width*y + x]]
+                p2 = self._palette[self.data[self._width*(y+1) + x]] if (self._width*(y+1) + x) < len( self.data ) else Transparent()
+                if p1.a_8 == 0 and p2.a_8 == 0:
+                    result.append( u'\x1b[0m ' )
+                elif p1 == p2:
+                    result.append( u'\x1b[38;2;{};{};{}m█'.format( p1.r_8, p1.g_8, p1.b_8 ) )
+                elif p1.a_8 == 0 and p2.a_8 != 0:
+                    result.append( u'\x1b[38;2;{};{};{}m▄'.format( p2.r_8, p2.g_8, p2.b_8 ) )
+                elif p1.a_8 != 0 and p2.a_8 == 0:
+                    result.append( u'\x1b[38;2;{};{};{}m▀'.format( p1.r_8, p1.g_8, p1.b_8 ) )
+                else:
+                    result.append( u'\x1b[38;2;{};{};{};48;2;{};{};{}m▀'.format( p1.r_8, p1.g_8, p1.b_8, p2.r_8, p2.g_8, p2.b_8 ) )
+
+            result.append( u'\x1b[0m\n' )
+        print( u''.join( result ) )
     
     
 class Planarizer( mrc.Transform ):

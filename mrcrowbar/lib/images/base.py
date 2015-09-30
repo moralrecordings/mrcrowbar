@@ -85,7 +85,7 @@ class RawIndexedImage( mrc.Block ):
                 elif p1.a_8 != 0 and p2.a_8 == 0:
                     result.append( u'\x1b[38;2;{};{};{}m▀'.format( p1.r_8, p1.g_8, p1.b_8 ) )
                 else:
-                    result.append( u'\x1b[38;2;{};{};{};48;2;{};{};{}m▀'.format( p1.r_8, p1.g_8, p1.b_8, p2.r_8, p2.g_8, p2.b_8 ) )
+                    result.append( u'\x1b[38;2;{};{};{};48;2;{};{};{}m▀\x1b[0m'.format( p1.r_8, p1.g_8, p1.b_8, p2.r_8, p2.g_8, p2.b_8 ) )
 
             result.append( u'\x1b[0m\n' )
         return u''.join( result )

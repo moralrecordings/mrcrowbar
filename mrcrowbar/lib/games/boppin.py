@@ -44,5 +44,17 @@ class Resource( mrc.Block ):
 class BoppinCompressor( mrc.Transform ):
     
     def import_data( self, buffer ):
-        pass
+        lc = lzss.LZSSCompressor()
+        size_comp = mrc.UInt32_LE( 0x00 ).get_from_buffer( buffer )
+
+        if size_comp != len( buffer ):
+            print( 'File not compressed!' )
+            return buffer
+        
+        size_raw = mrc.UInt32_LE( 0x04 ).get_from_buffer( buffer )
+        result = lc.import_data( buffer[8:] )
+        if len( result ) != size_raw:
+            print( 'Was expecting a decompressed size of {}, got {}!'.format( size_raw, len( result ) ) )
+        return result
+
 

@@ -70,7 +70,7 @@ class RawIndexedImage( mrc.Block ):
         im.putpalette( itertools.chain( *[(c.r_8, c.g_8, c.b_8) for c in self._palette] ) )
         return im
 
-    def print( self ):
+    def ansi_format( self ):
         result = []
         for y in range( 0, self._height, 2 ):
             for x in range( 0, self._width ):
@@ -88,8 +88,16 @@ class RawIndexedImage( mrc.Block ):
                     result.append( u'\x1b[38;2;{};{};{};48;2;{};{};{}m▀'.format( p1.r_8, p1.g_8, p1.b_8, p2.r_8, p2.g_8, p2.b_8 ) )
 
             result.append( u'\x1b[0m\n' )
-        print( u''.join( result ) )
+        return u''.join( result )
     
+    def print( self ):
+        print( self.ansi_format() )
+
+    def __str__( self ):
+        return self.ansi_format()
+
+    def __repr__( self ):
+        return '<{}: {} bytes, {}x{}>'.format( self.__class__.__name__, len( self.data ), self._width, self._height )
     
 class Planarizer( mrc.Transform ):
     def __init__( self, width, height, bpp, frame_offset=0, frame_stride=0, frame_count=1 ):

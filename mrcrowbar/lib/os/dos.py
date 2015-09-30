@@ -22,7 +22,6 @@ class B800Char( mrc.Block ):
     def char( self ):
         return CP437[self.code_point]
 
-    @property
     def ansi_format( self ):
         fg = '{};{};{}'.format( self._palette[self.fg_colour].r_8, 
                                 self._palette[self.fg_colour].g_8, 
@@ -33,7 +32,10 @@ class B800Char( mrc.Block ):
         return u'\x1b[38;2;{};48;2;{}m{}'.format( fg, bg, self.char )
 
     def __str__( self ):
-        return u'{}\x1b[0m'.format( self.ansi_format )
+        return u'{}\x1b[0m'.format( self.ansi_format() )
+
+    def __repr__( self ):
+        return '<{}: char {}, bg {}, fg {}>'.format( self.__class__.__name__, self.char, self.bg_colour, self.fg_colour )
         
     
 class B800Screen( mrc.Block ):
@@ -45,10 +47,19 @@ class B800Screen( mrc.Block ):
     def text( self ):
         return u'\n'.join( [u''.join( [c.char for c in self.chars[i*self.B800_SCREEN_WIDTH:][:self.B800_SCREEN_WIDTH]] ) for i in range( (len( self.chars )+1)//self.B800_SCREEN_WIDTH )] )
 
-    def print( self ):
-        result = u''
+    def ansi_format( self ):
+        result = []
         for i in range( (len( self.chars )+1)//self.B800_SCREEN_WIDTH ):
             for c in self.chars[i*self.B800_SCREEN_WIDTH:][:self.B800_SCREEN_WIDTH]:
-                result += c.ansi_format
-            result += u'\x1b[0m\n'
-        print( result )
+                result.append( c.ansi_format() )
+            result.append( u'\x1b[0m\n' )
+        return u''.join( result )
+
+    def print( self ):
+        print( self.ansi_format() )
+
+    def __str__( self ):
+        return self.ansi_format()
+
+    def __repr__( self ):
+        return '<{}: {} chars, {}x{}>'.format( self.__class__.__name__, len( self.chars ), self.B800_SCREEN_WIDTH, 1+(len( self.chars )-1)//self.B800_SCREEN_WIDTH )

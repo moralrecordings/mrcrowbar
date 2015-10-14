@@ -186,8 +186,7 @@ class ValueField( Field ):
         else:
             return data
 
-    def _set_bytes( self, value, array ):
-        data = struct.pack( self.format, value ) 
+    def _set_bytes( self, data, array ):
         # force check for no data loss in the value from bitmask
         if self.bitmask:
             assert (int.from_bytes( data, byteorder='big' ) & 
@@ -215,7 +214,8 @@ class ValueField( Field ):
         super( ValueField, self ).update_array_with_value( value, array )
         if (len( array ) < self.offset+self.size):
             array.extend( b'\x00'*(self.offset+self.size-len( array )) )
-        self._set_bytes( value, array )
+        data = struct.pack( self.format, value ) 
+        self._set_bytes( data, array )
         return
 
     def validate( self, value ):

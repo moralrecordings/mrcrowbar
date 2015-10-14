@@ -1,4 +1,48 @@
 import array
+import struct
+
+from_byte_type =    lambda format, size, buffer: struct.unpack( format, buffer[:size] )[0]
+to_byte_type =      lambda format, value: struct.pack( format, value )
+
+from_int8 =         lambda buffer: from_byte_type( '<b', 1, buffer )
+from_uint8 =        lambda buffer: from_byte_type( '>B', 1, buffer )
+from_uint16_le =    lambda buffer: from_byte_type( '<H', 2, buffer )
+from_uint32_le =    lambda buffer: from_byte_type( '<I', 4, buffer )
+from_uint64_le =    lambda buffer: from_byte_type( '<Q', 8, buffer )
+from_int16_le =     lambda buffer: from_byte_type( '<h', 2, buffer )
+from_int32_le =     lambda buffer: from_byte_type( '<i', 4, buffer )
+from_int64_le =     lambda buffer: from_byte_type( '<q', 8, buffer )
+from_float_le =     lambda buffer: from_byte_type( '<f', 4, buffer )
+from_double_le =    lambda buffer: from_byte_type( '<d', 8, buffer )
+from_uint16_be =    lambda buffer: from_byte_type( '>H', 2, buffer )
+from_uint32_be =    lambda buffer: from_byte_type( '>I', 4, buffer )
+from_uint64_be =    lambda buffer: from_byte_type( '>Q', 8, buffer )
+from_int16_be =     lambda buffer: from_byte_type( '>h', 2, buffer )
+from_int32_be =     lambda buffer: from_byte_type( '>i', 4, buffer )
+from_int64_be =     lambda buffer: from_byte_type( '>q', 8, buffer )
+from_float_be =     lambda buffer: from_byte_type( '>f', 4, buffer )
+from_double_be =    lambda buffer: from_byte_type( '>d', 8, buffer )
+
+to_int8 =           lambda value: to_byte_type( '<b', value )
+to_uint8 =          lambda value: to_byte_type( '>B', value )
+to_uint16_le =      lambda value: to_byte_type( '<H', value )
+to_uint32_le =      lambda value: to_byte_type( '<I', value )
+to_uint64_le =      lambda value: to_byte_type( '<Q', value )
+to_int16_le =       lambda value: to_byte_type( '<h', value )
+to_int32_le =       lambda value: to_byte_type( '<i', value )
+to_int64_le =       lambda value: to_byte_type( '<q', value )
+to_float_le =       lambda value: to_byte_type( '<f', value )
+to_double_le =      lambda value: to_byte_type( '<d', value )
+to_uint16_be =      lambda value: to_byte_type( '>H', value )
+to_uint32_be =      lambda value: to_byte_type( '>I', value )
+to_uint64_be =      lambda value: to_byte_type( '>Q', value )
+to_int16_be =       lambda value: to_byte_type( '>h', value )
+to_int32_be =       lambda value: to_byte_type( '>i', value )
+to_int64_be =       lambda value: to_byte_type( '>q', value )
+to_float_be =       lambda value: to_byte_type( '>f', value )
+to_double_be =      lambda value: to_byte_type( '>d', value )
+
+
 
 class BitStream( object ):
     def __init__( self, buffer, start_offset, bytes_reverse=False, bits_reverse=False ):

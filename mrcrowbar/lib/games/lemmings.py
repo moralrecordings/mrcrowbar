@@ -6,7 +6,8 @@ import itertools
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
-from mrcrowbar.utils import BitStream
+from mrcrowbar import utils
+
 
 
 class Animated( mrc.Block ):
@@ -157,7 +158,7 @@ class TerrainInfo( mrc.Block ):
     mask_rel_offset =   mrc.UInt16_LE( 0x0004 )
 
 
-class Style( mrc.Block ):
+class GroundDAT( mrc.Block ):
     _block_size =   1056
 
     anim_info =     mrc.BlockStream( AnimatedInfo, 0x0000, stride=0x1c, count=16, fill=b'\x00' )
@@ -169,6 +170,12 @@ class Style( mrc.Block ):
     palette_vga_custom      = mrc.BlockStream( ibm_pc.VGAColour, 0x03d8, stride=0x03, count=8 )
     palette_vga_standard    = mrc.BlockStream( ibm_pc.VGAColour, 0x03f0, stride=0x03, count=8 )
     palette_vga_preview     = mrc.BlockStream( ibm_pc.VGAColour, 0x0408, stride=0x03, count=8 )
+
+    @property
+    def palette( self ):
+        if not hasattr( self, '_palette'):
+            self._palette = [img.Transparent()] + self.palette_vga_standard[1:] + self.palette_vga_custom
+        return self._palette
 
 
 class SpecialCompressor( mrc.Transform ):
@@ -301,10 +308,10 @@ class DATCompressor( mrc.Transform ):
         target = []
         total_num_bytes = len( buffer )
         while True:
-            bit_count = buffer[pointer]
-            checksum = buffer[pointer+1]
-            decompressed_size = buffer[pointer+4]*0x100 + buffer[pointer+5]
-            compressed_size = buffer[pointer+8]*0x100 + buffer[pointer+9]
+            bit_count = utils.from_uint8( buffer[pointer:] )
+            checksum = utils.from_uint8( buffer[pointer+1:] )
+            decompressed_size = utils.from_uint16_be( buffer[pointer+4:] )
+            compressed_size = utils.from_uint16_be( buffer[pointer+8:] )
             
             #print( '----   HEADER   ----' )
             #print( 'bit_count = {}'.format( bit_count ) )
@@ -326,7 +333,7 @@ class DATCompressor( mrc.Transform ):
             pointer += compressed_size
             total_num_bytes -= compressed_size
         
-            bs = BitStream( compressed_data, compressed_size-1, bytes_reverse=True )
+            bs = utils.BitStream( compressed_data, compressed_size-1, bytes_reverse=True )
             bs.bits_remaining = bit_count
             
             state = { 
@@ -365,4 +372,51 @@ class DATCompressor( mrc.Transform ):
         return target
 
 
+class DATMiniCompressor( mrc.Transform ):
+    def import_data( self, buffer ):
+        pass
 
+
+class LevelDAT( mrc.Block ):
+    pass
+
+class MainDAT( mrc.Block ):
+    pass
+
+class VgagrDAT( mrc.Block ):
+    pass
+
+class VgaspecDAT( mrc.Block ):
+    pass
+    #special =           mrc.BlockField( Special, 0x0000, transform=DATCompressor() )
+
+
+    
+class LemmingsLoader( mrc.Loader ):
+    LEMMINGS_FILE_CLASS_MAP = {
+        '/(ADLIB).DAT$': None,
+        '/(CGAGR)(\d).DAT$': None,
+        '/(CGAMAIN).DAT$': None,
+        '/(CGASPEC)(\d).DAT$': None,
+        '/(GROUND)(\d)O.DAT$': GroundDAT,
+        '/(LEVEL)00(\d).DAT$': LevelDAT,
+        '/(MAIN).DAT$': MainDAT,
+        '/(ODDTABLE).DAT$': None,
+        '/(RUSSELL).DAT$': None,
+        '/(TGAMAIN).DAT$': None,
+        '/(VGAGR)(\d).DAT$': VgagrDAT,
+        '/(VGASPEC)(\d).DAT$': VgaspecDAT,
+    }
+
+    def __init__( self ):
+        super( LemmingsLoader, self ).__init__( self.LEMMINGS_FILE_CLASS_MAP )
+
+    def post_load( self, verbose=False ):
+        unique_check = set([''.join(x['match']).upper() for x in self._files.values()])
+
+        if len( unique_check ) != len( self._files ):
+            self._files = {}
+            raise Exception( 'Multiple matches found for the same source file! Please ensure that the path passed to load() has only one copy of Lemmings in it.' ) 
+
+        # TODO: wire up inter-file class relations here
+        return

@@ -163,7 +163,7 @@ class CStringN( Field ):
     
 
 class ValueField( Field ):
-    def __init__( self, offset, format, size, format_type, format_range, default=0, bitmask=None, range=None, **kwargs ):
+    def __init__( self, format, size, format_type, format_range, offset, default=0, bitmask=None, range=None, **kwargs ):
         super( ValueField, self ).__init__( default=default, **kwargs )
         self.offset = offset
         self.format = format
@@ -229,18 +229,18 @@ class ValueField( Field ):
 
 
 class Int8( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '<b', 1, int, range(-1<<7, 1<<7), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '<b', 1, int, range( -1<<7, 1<<7 ), *args, **kwargs )
 
 
 class UInt8( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '>B', 1, int, range( 0, 1<<8 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '>B', 1, int, range( 0, 1<<8 ), *args, **kwargs )
 
 
 class Bits( UInt8 ):
-    def __init__( self, offset, bits, default=0, **kwargs ):
-        UInt8.__init__( self, offset, default=default, **kwargs )
+    def __init__( self, offset, bits, default=0, *args, **kwargs ):
+        UInt8.__init__( self, offset, default=default, *args, **kwargs )
         assert type( bits ) == int
         mask_bits = bin( bits ).split('b', 1)[1]
         self.bits = [(1<<i) for i, x in enumerate( reversed( mask_bits ) ) if x == '1']
@@ -255,82 +255,82 @@ class Bits( UInt8 ):
 
 
 class UInt16_LE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '<H', 2, int, range( 0, 1<<16 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '<H', 2, int, range( 0, 1<<16 ), *args, **kwargs )
 
 
 class UInt32_LE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '<I', 4, int, range( 0, 1<<32 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '<I', 4, int, range( 0, 1<<32 ), *args, **kwargs )
 
 
 class UInt64_LE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '<Q', 8, int, range( 0, 1<<64 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '<Q', 8, int, range( 0, 1<<64 ), *args, **kwargs )
 
 
 class Int16_LE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '<h', 2, int, range( -1<<15, 1<<15 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '<h', 2, int, range( -1<<15, 1<<15 ), *args, **kwargs )
 
 
 class Int32_LE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '<i', 4, int, range( -1<<31, 1<<31 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '<i', 4, int, range( -1<<31, 1<<31 ), *args, **kwargs )
 
 
 class Int64_LE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '<q', 8, int, range( -1<<63, 1<<63 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '<q', 8, int, range( -1<<63, 1<<63 ), *args, **kwargs )
 
 
 class Float_LE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '<f', 4, float, None, **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '<f', 4, float, None, *args, **kwargs )
 
 
 class Double_LE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '<d', 8, float, None, **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '<d', 8, float, None, *args, **kwargs )
 
 
 class UInt16_BE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '>H', 2, int, range( 0, 1<<16 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '>H', 2, int, range( 0, 1<<16 ), *args, **kwargs )
 
 
 class UInt32_BE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '>I', 4, int, range( 0, 1<<32 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '>I', 4, int, range( 0, 1<<32 ), *args, **kwargs )
 
 
 class UInt64_BE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '>Q', 8, int, range( 0, 1<<64 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '>Q', 8, int, range( 0, 1<<64 ), *args, **kwargs )
 
 
 class Int16_BE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '>h', 2, int, range( -1<<15, 1<<15 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '>h', 2, int, range( -1<<15, 1<<15 ), *args, **kwargs )
 
 
 class Int32_BE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '>i', 4, int, range( -1<<31, 1<<31 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '>i', 4, int, range( -1<<31, 1<<31 ), *args, **kwargs )
 
 
 class Int64_BE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '>q', 8, int, range( -1<<63, 1<<63 ), **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '>q', 8, int, range( -1<<63, 1<<63 ), *args, **kwargs )
 
 
 class Float_BE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '>f', 4, float, None,  **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '>f', 4, float, None, *args, **kwargs )
 
 
 class Double_BE( ValueField ):
-    def __init__( self, offset, **kwargs ):
-        ValueField.__init__( self, offset, '>d', 8, float, None,  **kwargs )
+    def __init__( self, *args, **kwargs ):
+        ValueField.__init__( self, '>d', 8, float, None, *args, **kwargs )
 
 

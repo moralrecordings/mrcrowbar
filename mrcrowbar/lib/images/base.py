@@ -124,6 +124,17 @@ class Planarizer( mrc.Transform ):
             for b in range( self.bpp ):
                 for i in range( self.width*self.height ):
                     raw_image[f*self.width*self.height + i] += get_bit( state ) << b
+    
+        if self.frame_count > 1:
+            end_offset = self.frame_offset + self.frame_count*self.frame_stride
+        else:
+            bits = self.width*self.height*self.bpp
+            end_offset = self.frame_offset + (bits)//8 + (1 if (bits % 8) else 0)
 
-        return bytes( raw_image )
+        result = {
+            'payload': bytes( raw_image ),
+            'end_offset': end_offset
+        }
+
+        return result
 

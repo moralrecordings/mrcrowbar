@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+"""File format classes for the game Lemmings (DOS, 1991)"""
+
 import array
 import itertools
 
@@ -9,12 +11,150 @@ from mrcrowbar.lib.images import base as img
 from mrcrowbar import utils
 
 
+# DAT compressor
+# source: http://www.camanis.net/lemmings/files/docs/lemmings_dat_file_format.txt
+# extra special thanks: ccexplore
 
-class Animated( mrc.Block ):
+class DATCompressor( mrc.Transform ):
+    def import_data( self, buffer ):
+        assert type( buffer ) == bytes
+
+        def xor_checksum( data ):
+            lrc = 0
+            for b in data:
+                lrc ^= b
+            return lrc
+
+        def copy_prev_data( blocklen, offset_size, state ):
+            offset = state['bs'].get_bits( offset_size )
+            for i in range( blocklen ):
+                state['dptr'] -= 1
+                state['ddata'][state['dptr']] = state['ddata'][state['dptr']+offset+1]
+            return
+        
+        def dump_data( num_bytes, state ):
+            for i in range( num_bytes ):
+                state['dptr'] -= 1
+                state['ddata'][state['dptr']] = state['bs'].get_bits( 8 )
+            return
+        
+        
+        pointer = 0;
+        total_num_bytes = len( buffer )
+        
+        bit_count = utils.from_uint8( buffer[pointer:] )
+        checksum = utils.from_uint8( buffer[pointer+1:] )
+        decompressed_size = utils.from_uint16_be( buffer[pointer+4:] )
+        compressed_size = utils.from_uint16_be( buffer[pointer+8:] )
+        
+        #print( '----   HEADER   ----' )
+        #print( 'bit_count = {}'.format( bit_count ) )
+        #print( 'checksum = {}'.format( checksum ) )
+        #print( 'decompressed_size = {}'.format( decompressed_size ) )
+        #print( 'compressed_size = {}'.format( compressed_size ) )
+        #print( '---- END HEADER ----' )
+        #print( 'Decompressing data...' )
+        
+        pointer += 10
+        total_num_bytes -= 10
+        compressed_size -= 10
+        
+        compressed_data = buffer[pointer:pointer+compressed_size]
+        #print( 'computed checksum = {}'.format( xor_checksum( compressed_data ) ) )
+        if checksum != xor_checksum( compressed_data ):
+            print( 'Warning: checksum doesn\'t match header' )
+        
+        pointer += compressed_size
+        total_num_bytes -= compressed_size
+    
+        bs = utils.BitStream( compressed_data, compressed_size-1, bytes_reverse=True )
+        bs.bits_remaining = bit_count
+        
+        state = { 
+            'bs': bs,
+            'dptr': decompressed_size, 
+            'ddata': array.array( 'B', b'\x00'*decompressed_size ),
+        }
+
+        while True:
+            if bs.get_bits( 1 )==1:
+                test = bs.get_bits( 2 )
+                if test==0:
+                    copy_prev_data( 3, 9, state )
+                elif test==1:
+                    copy_prev_data( 4, 10, state )
+                elif test==2:
+                    copy_prev_data( bs.get_bits( 8 )+1, 12, state )
+                elif test==3:
+                    dump_data( bs.get_bits( 8 )+9, state )
+            else:
+                test = bs.get_bits( 1 )
+                if test==0:
+                    dump_data( bs.get_bits( 3 )+1, state )
+                elif test==1:
+                    copy_prev_data( 2, 8, state )
+            
+            if not (state['dptr'] > 0): 
+                break
+        
+        #print( 'Done!' )
+        
+        result = {
+            'payload': bytes( state['ddata'] ),
+            'end_offset': pointer
+        }
+
+        return result
+
+
+class SpecialCompressor( mrc.Transform ):
+    DECOMPRESSED_SIZE = 14400    
+
+    def import_data( self, buffer ):
+        assert type( buffer ) == bytes
+        result = []
+        buf_out = []
+        i = 0
+        while i < len( buffer ):
+            if buffer[i] in range( 0x00, 0x80 ):
+                count = buffer[i]+1
+                buf_out.append( buffer[i+1:i+1+count] )
+                i += count+1
+            elif buffer[i] == 0x80:
+                product = b''.join( buf_out )
+                if len( product ) != self.DECOMPRESSED_SIZE:
+                    print( 'Warning: was expecting {} bytes of data, got {}'.format( self.DECOMPRESSED_SIZE, len( product ) ) )
+                result.append( product )
+                buf_out = []
+                i += 1
+            else:
+                count = 257-buffer[i]
+                buf_out.append( buffer[i+1:i+2]*count )
+                i += 2
+
+        if buf_out:
+            print( 'Warning: EOF reached before last RLE block closed' )
+            result.append( b''.join( buf_out ) )
+
+        # result is a 960x160 3bpp image, divided into 4x 40 scanline segments
+        pl = img.Planarizer( 960, 40, 3 )
+        unpack = [pl.import_data( x )['payload'] for x in result]
+        
+        result = {
+            'payload': bytes( itertools.chain( *unpack ) ),
+            'end_offset': i
+        }
+
+        return result
+
+
+# source: http://www.camanis.net/lemmings/files/docs/lemmings_lvl_file_format.txt
+
+class Interactive( mrc.Block ):
     _block_size =       8
     
     x_raw =             mrc.Int16_BE( 0x00, range=range( -8, 1593 ) )
-    y =                 mrc.Int16_BE( 0x02, range=range( -41, 160 ) )
+    y =                 mrc.Int16_BE( 0x02, range=range( -41, 201 ) )
     obj_id =            mrc.UInt16_BE( 0x04, range=range( 0, 16 ) )
     draw_back =         mrc.Bits( 0x06, 0b10000000 )
     draw_masked =       mrc.Bits( 0x06, 0b01000000 )
@@ -30,11 +170,11 @@ class Animated( mrc.Block ):
 class Terrain( mrc.Block ):
     _block_size =       4
 
-    x_raw =             mrc.UInt16_BE( 0x00, bitmask=b'\x0f\xff', range=range( 0, 1600 ) )
+    x_raw =             mrc.UInt16_BE( 0x00, bitmask=b'\x0f\xff' )
     draw_back =         mrc.Bits( 0x00, 0b10000000 )
     draw_upsidedown =   mrc.Bits( 0x00, 0b01000000 )
     draw_erase =        mrc.Bits( 0x00, 0b00100000 )
-    y_raw_coarse =      mrc.Int8( 0x02, range=range( -17, 82 ) )
+    y_raw_coarse =      mrc.Int8( 0x02 )
     y_raw_fine =        mrc.Bits( 0x03, 0b10000000 )
     obj_id =            mrc.UInt8( 0x03, bitmask=b'\x3f', range=range( 0, 64 ) )
 
@@ -78,6 +218,32 @@ class SteelArea( mrc.Block ):
 
 
 class Level( mrc.Block ):
+    """
+    Represents a single level.
+
+    Fields:
+    release_rate -- Minimum Lemming release-rate 
+    num_released -- Number of Lemmings released
+    num_to_save -- Number of Lemmings required to save
+    time_limit_mins -- Time limit for the level (in minutes)
+    num_climbers -- Number of Climbers
+    num_floaters -- Number of Floaters
+    num_bombers -- Number of Bombers
+    num_blockers -- Number of Blockers
+    num_builders -- Number of Builders
+    num_bashers -- Number of Bashers
+    num_miners -- Number of Miners
+    num_diggers -- Number of Diggers
+    camera_x_raw -- Starting x position of the camera
+
+    style_index -- Index denoting which graphical Style to use
+    custom_index -- Index denoting which Special graphic to use (optional)
+
+    interactives -- List of Interactive object references (32 slots)
+    terrains -- List of Terrain object references (400 slots)
+    steel_areas -- List of SteelArea object references (32 slots)
+    name -- Name of the level (ASCII string)
+    """
     _block_size =       2048
 
     release_rate =      mrc.UInt16_BE( 0x0000, range=range( 0, 251 ) )
@@ -93,13 +259,14 @@ class Level( mrc.Block ):
     num_miners =        mrc.UInt16_BE( 0x0014, range=range( 0, 251 ) )
     num_diggers =       mrc.UInt16_BE( 0x0016, range=range( 0, 251 ) )
     camera_x_raw =      mrc.UInt16_BE( 0x0018, range=range( 0, 1265 ) )
+    
     style_index =       mrc.UInt16_BE( 0x001a )
     custom_index =      mrc.UInt16_BE( 0x001c )
 
-    animated =          mrc.BlockStream( Animated, 0x0020, stride=0x08, count=32, fill=b'\x00' )
-    terrain =           mrc.BlockStream( Terrain, 0x0120, stride=0x04, count=400, fill=b'\xff' )
-    steel =             mrc.BlockStream( SteelArea, 0x0760, stride=0x04, count=32, fill=b'\x00' )
-    level_name =        mrc.Bytes( 0x07e0, 32, default=b'                                ' )
+    interactives =      mrc.BlockList( Interactive, 0x0020, stride=0x08, count=32, fill=b'\x00' )
+    terrains =          mrc.BlockList( Terrain, 0x0120, stride=0x04, count=400, fill=b'\xff' )
+    steel_areas =       mrc.BlockList( SteelArea, 0x0760, stride=0x04, count=32, fill=b'\x00' )
+    name =              mrc.Bytes( 0x07e0, 32, default=b'                                ' )
 
     @property
     def camera_x( self ):
@@ -107,10 +274,10 @@ class Level( mrc.Block ):
 
 
 # groundXo.dat and vgagrX.dat parser
-# source docs: http://www.camanis.net/lemmings/files/docs/lemmings_vgagrx_dat_groundxo_dat_file_format.txt
+# source: http://www.camanis.net/lemmings/files/docs/lemmings_vgagrx_dat_groundxo_dat_file_format.txt
 # extra special thanks: ccexplore
 
-class AnimatedInfo( mrc.Block ):
+class InteractiveInfo( mrc.Block ):
     _block_size =       28
 
     anim_flags =        mrc.UInt16_LE( 0x0000 )
@@ -158,64 +325,10 @@ class TerrainInfo( mrc.Block ):
     mask_rel_offset =   mrc.UInt16_LE( 0x0004 )
 
 
-class GroundDAT( mrc.Block ):
-    _block_size =   1056
-
-    anim_info =     mrc.BlockStream( AnimatedInfo, 0x0000, stride=0x1c, count=16, fill=b'\x00' )
-    terrain_info =  mrc.BlockStream( TerrainInfo, 0x01c0, stride=0x08, count=64, fill=b'\x00' )
-
-    palette_ega_custom      = mrc.BlockStream( ibm_pc.EGAColour, 0x03c0, stride=0x01, count=8 )
-    palette_ega_standard    = mrc.BlockStream( ibm_pc.EGAColour, 0x03c8, stride=0x01, count=8 )
-    palette_ega_preview     = mrc.BlockStream( ibm_pc.EGAColour, 0x03d0, stride=0x01, count=8 )
-    palette_vga_custom      = mrc.BlockStream( ibm_pc.VGAColour, 0x03d8, stride=0x03, count=8 )
-    palette_vga_standard    = mrc.BlockStream( ibm_pc.VGAColour, 0x03f0, stride=0x03, count=8 )
-    palette_vga_preview     = mrc.BlockStream( ibm_pc.VGAColour, 0x0408, stride=0x03, count=8 )
-
-    @property
-    def palette( self ):
-        if not hasattr( self, '_palette'):
-            self._palette = [img.Transparent()] + self.palette_vga_standard[1:] + self.palette_vga_custom
-        return self._palette
-
-
-class SpecialCompressor( mrc.Transform ):
-
-    def import_data( self, buffer ):
-        assert type( buffer ) == bytes
-        result = []
-        buf_out = []
-        i = 0
-        while i < len( buffer ):
-            if buffer[i] in range( 0x00, 0x80 ):
-                count = buffer[i]+1
-                buf_out.append( buffer[i+1:i+1+count] )
-                i += count+1
-            elif buffer[i] == 0x80:
-                product = b''.join( buf_out )
-                if len( product ) != 14400:
-                    print( 'Warning: was expecting 14400 bytes of data, got {}'.format( len( product ) ) )
-                result.append( product )
-                buf_out = []
-                i += 1
-            else:
-                count = 257-buffer[i]
-                buf_out.append( buffer[i+1:i+2]*count )
-                i += 2
-
-        if buf_out:
-            print( 'Warning: EOF reached before last RLE block closed' )
-            result.append( b''.join( buf_out ) )
-
-        # result is a 960x160 3bpp image, divided into 4x 40 scanline segments
-        pl = img.Planarizer( 960, 40, 3 )
-        unpack = [pl.import_data(x) for x in result]
-        return bytes( itertools.chain( *unpack ) )
-
-
 class Special( mrc.Block ):
-    palette_vga =           mrc.BlockStream( ibm_pc.VGAColour, 0x0000, stride=0x03, count=8 )
-    palette_ega =           mrc.BlockStream( ibm_pc.EGAColour, 0x0018, stride=0x01, count=8 )
-    palette_ega_preview  =  mrc.BlockStream( ibm_pc.EGAColour, 0x0020, stride=0x01, count=8 )
+    palette_vga =           mrc.BlockList( ibm_pc.VGAColour, 0x0000, stride=0x03, count=8 )
+    palette_ega =           mrc.BlockList( ibm_pc.EGAColour, 0x0018, stride=0x01, count=8 )
+    palette_ega_preview  =  mrc.BlockList( ibm_pc.EGAColour, 0x0020, stride=0x01, count=8 )
 
     image =                 mrc.BlockField( img.RawIndexedImage, 0x0028, block_kwargs={ 'width': 960, 'height': 160 }, transform=SpecialCompressor() )
 
@@ -275,124 +388,69 @@ class MainMasks( mrc.Block ):
     number_1 =              AnimField( 0x0174, 8, 8, 1, 1 )
     number_0 =              AnimField( 0x017c, 8, 8, 1, 1 )
 
+class MainHUDGraphicsHP( mrc.Block ):
+    pass
 
-# DAT compressor
-# source: http://www.camanis.net/lemmings/files/docs/lemmings_dat_file_format.txt
-# extra special thanks: ccexplore
+class MainMenuGraphics( mrc.Block ):
+    pass
 
-class DATCompressor( mrc.Transform ):
-    def import_data( self, buffer ):
-        assert type( buffer ) == bytes
+class MainMenuAnims( mrc.Block ):
+    pass
 
-        def xor_checksum( data ):
-            lrc = 0
-            for b in data:
-                lrc ^= b
-            return lrc
+class MainSection5( mrc.Block ):
+    pass
 
-        def copy_prev_data( blocklen, offset_size, state ):
-            offset = state['bs'].get_bits( offset_size )
-            for i in range( blocklen ):
-                state['dptr'] -= 1
-                state['ddata'][state['dptr']] = state['ddata'][state['dptr']+offset+1]
-            return
-        
-        def dump_data( num_bytes, state ):
-            for i in range( num_bytes ):
-                state['dptr'] -= 1
-                state['ddata'][state['dptr']] = state['bs'].get_bits( 8 )
-            return
-        
-        
-        pointer = 0;
-        target = []
-        total_num_bytes = len( buffer )
-        while True:
-            bit_count = utils.from_uint8( buffer[pointer:] )
-            checksum = utils.from_uint8( buffer[pointer+1:] )
-            decompressed_size = utils.from_uint16_be( buffer[pointer+4:] )
-            compressed_size = utils.from_uint16_be( buffer[pointer+8:] )
-            
-            #print( '----   HEADER   ----' )
-            #print( 'bit_count = {}'.format( bit_count ) )
-            #print( 'checksum = {}'.format( checksum ) )
-            #print( 'decompressed_size = {}'.format( decompressed_size ) )
-            #print( 'compressed_size = {}'.format( compressed_size ) )
-            #print( '---- END HEADER ----' )
-            #print( 'Decompressing data...' )
-            
-            pointer += 10
-            total_num_bytes -= 10
-            compressed_size -= 10
-            
-            compressed_data = buffer[pointer:pointer+compressed_size]
-            #print( 'computed checksum = {}'.format( xor_checksum( compressed_data ) ) )
-            if checksum != xor_checksum( compressed_data ):
-                print( 'Warning: checksum doesn\'t match header' )
-            
-            pointer += compressed_size
-            total_num_bytes -= compressed_size
-        
-            bs = utils.BitStream( compressed_data, compressed_size-1, bytes_reverse=True )
-            bs.bits_remaining = bit_count
-            
-            state = { 
-                'bs': bs,
-                'dptr': decompressed_size, 
-                'ddata': array.array( 'B', b'\x00'*decompressed_size ),
-            }
-
-            while True:
-                if bs.get_bits( 1 )==1:
-                    test = bs.get_bits( 2 )
-                    if test==0:
-                        copy_prev_data( 3, 9, state )
-                    elif test==1:
-                        copy_prev_data( 4, 10, state )
-                    elif test==2:
-                        copy_prev_data( bs.get_bits( 8 )+1, 12, state )
-                    elif test==3:
-                        dump_data( bs.get_bits( 8 )+9, state )
-                else:
-                    test = bs.get_bits( 1 )
-                    if test==0:
-                        dump_data( bs.get_bits( 3 )+1, state )
-                    elif test==1:
-                        copy_prev_data( 2, 8, state )
-                
-                if not (state['dptr'] > 0): 
-                    break
-            
-            #print( 'Done!' )
-                    
-            target.append( bytes( state['ddata'] ) )  
-            if not total_num_bytes > 0:
-                break
-            
-        return target
+class MainHUDGraphics( mrc.Block ):
+    pass
 
 
-class DATMiniCompressor( mrc.Transform ):
-    def import_data( self, buffer ):
-        pass
+
+
+class GroundDAT( mrc.Block ):
+    _block_size =   1056
+
+    interactive_info        = mrc.BlockList( InteractiveInfo, 0x0000, stride=0x1c, count=16, fill=b'\x00' )
+    terrain_info            = mrc.BlockList( TerrainInfo, 0x01c0, stride=0x08, count=64, fill=b'\x00' )
+
+    palette_ega_custom      = mrc.BlockList( ibm_pc.EGAColour, 0x03c0, stride=0x01, count=8 )
+    palette_ega_standard    = mrc.BlockList( ibm_pc.EGAColour, 0x03c8, stride=0x01, count=8 )
+    palette_ega_preview     = mrc.BlockList( ibm_pc.EGAColour, 0x03d0, stride=0x01, count=8 )
+    palette_vga_custom      = mrc.BlockList( ibm_pc.VGAColour, 0x03d8, stride=0x03, count=8 )
+    palette_vga_standard    = mrc.BlockList( ibm_pc.VGAColour, 0x03f0, stride=0x03, count=8 )
+    palette_vga_preview     = mrc.BlockList( ibm_pc.VGAColour, 0x0408, stride=0x03, count=8 )
+
+    @property
+    def palette( self ):
+        if not hasattr( self, '_palette'):
+            self._palette = [img.Transparent()] + self.palette_vga_standard[1:] + self.palette_vga_custom
+        return self._palette
 
 
 class LevelDAT( mrc.Block ):
+    levels  = mrc.BlockStream( Level, 0x0000, transform=DATCompressor() );
     pass
 
+
 class MainDAT( mrc.Block ):
-    pass
+    main_anims = mrc.BlockField( MainAnims, 0x0000, transform=DATCompressor() )
+    #main_masks = mrc.BlockField( MainMasks, transform=DATCompressor() )
+    #main_hud_graphics_hp = mrc.BlockField( MainHUDGraphicsHP, transform=DATCompressor() )
+    #main_menu_graphics = mrc.BlockField( MainMenuGraphics, transform=DATCompressor() )
+    #main_menu_anims = mrc.BlockField( MainMenuAnims, transform=DATCompressor() )
+    #main_section_5 = mrc.BlockField( MainSection5, transform=DATCompressor() )
+    #main_hud_graphics = mrc.BlockField( MainHUDGraphics, transform=DATCompressor() )
+
 
 class VgagrDAT( mrc.Block ):
     pass
 
+
 class VgaspecDAT( mrc.Block ):
-    pass
-    #special =           mrc.BlockField( Special, 0x0000, transform=DATCompressor() )
+    special = mrc.BlockField( Special, 0x0000, transform=DATCompressor() )
 
 
     
-class LemmingsLoader( mrc.Loader ):
+class Loader( mrc.Loader ):
     LEMMINGS_FILE_CLASS_MAP = {
         '/(ADLIB).DAT$': None,
         '/(CGAGR)(\d).DAT$': None,
@@ -409,7 +467,7 @@ class LemmingsLoader( mrc.Loader ):
     }
 
     def __init__( self ):
-        super( LemmingsLoader, self ).__init__( self.LEMMINGS_FILE_CLASS_MAP )
+        super( Loader, self ).__init__( self.LEMMINGS_FILE_CLASS_MAP )
 
     def post_load( self, verbose=False ):
         unique_check = set([''.join(x['match']).upper() for x in self._files.values()])

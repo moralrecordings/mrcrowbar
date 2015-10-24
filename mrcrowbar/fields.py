@@ -10,6 +10,8 @@ class FieldValidationError( Exception ):
 
 
 class Field:
+    _field_size = 0
+
     def __init__( self, default=None, **kwargs ):
         self._position_hint = next( _next_position_hint )
         self.default = default
@@ -23,13 +25,41 @@ class Field:
         self.validate( value )
         return
 
+    def size( self ):
+        return self._field_size
+
     def validate( self, value ):
         pass 
 
 
 class BlockStream( Field ):
-    def __init__( self, block_klass, offset, block_kwargs=None, stride=0, count=0, stop_check=None, fill=None, transform=None, **kwargs ):
+    def __init__( self, block_klass, offset, block_kwargs=None, transform=None, **kwargs ):
         super( BlockStream, self ).__init__( **kwargs )
+        self.block_klass = block_klass
+        self.offset = offset
+        self.block_kwargs = block_kwargs if block_kwargs else {}
+        self.transform = transform
+
+    def get_from_buffer( self, buffer ):
+        assert type( buffer ) == bytes
+        result = []
+        if self.transform:
+            pointer = self.offset
+            while pointer < len( buffer ):
+                data = self.transform.import_data( buffer[pointer:] )
+                result.append( self.block_klass( data['payload'], **self.block_kwargs ) )
+                pointer += data['end_offset']
+        else:
+            block = self.block_klass( buffer[pointer:], **self.block_kwargs )
+            assert block.size() > 0
+            result.append( block )
+            pointer += block.size()
+        return result
+
+
+class BlockList( Field ):
+    def __init__( self, block_klass, offset, block_kwargs=None, stride=0, count=0, stop_check=None, fill=None, **kwargs ):
+        super( BlockList, self ).__init__( **kwargs )
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
         self.offset = offset
@@ -37,28 +67,24 @@ class BlockStream( Field ):
         self.count = count
         self.stop_check = stop_check
         self.fill = fill
-        self.transform = transform
 
     def get_from_buffer( self, buffer ):
         assert type( buffer ) == bytes
         result = []
-        if self.transform:
-            result = [self.block_klass( x, **self.block_kwargs ) for x in self.transform.import_data( buffer[self.offset:] )]
-        else:
-            for i in range( self.count ):
-                sub_buffer = buffer[self.offset + i*self.stride:]
-                # truncate input buffer to block size, if present
-                if self.block_klass._block_size:
-                    sub_buffer = sub_buffer[:self.block_klass._block_size]
-                # if data matches the fill pattern, leave a None in the list
-                if self.fill and (sub_buffer == bytes(( self.fill[j % len(self.fill)] for j in range(len(sub_buffer)) ))):
-                    result.append( None )
-                else:
-                    # run the stop check (if exists): if it returns true, we've hit the end of the stream
-                    if self.stop_check and (self.stop_check( buffer, self.offset+i*self.stride )):
-                        break
+        for i in range( self.count ):
+            sub_buffer = buffer[self.offset + i*self.stride:]
+            # truncate input buffer to block size, if present
+            if self.block_klass._block_size:
+                sub_buffer = sub_buffer[:self.block_klass._block_size]
+            # if data matches the fill pattern, leave a None in the list
+            if self.fill and (sub_buffer == bytes(( self.fill[j % len(self.fill)] for j in range(len(sub_buffer)) ))):
+                result.append( None )
+            else:
+                # run the stop check (if exists): if it returns true, we've hit the end of the stream
+                if self.stop_check and (self.stop_check( buffer, self.offset+i*self.stride )):
+                    break
 
-                    result.append( self.block_klass( sub_buffer ) )
+                result.append( self.block_klass( sub_buffer ) )
                     
                     
         return result
@@ -76,7 +102,7 @@ class BlockStream( Field ):
 
 
 class BlockField( Field ):
-    def __init__( self, block_klass, offset, block_kwargs=None, fill=None, transform=None, **kwargs ):
+    def __init__( self, block_klass, offset=None, block_kwargs=None, fill=None, transform=None, **kwargs ):
         super( BlockField, self ).__init__( **kwargs )
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
@@ -88,7 +114,7 @@ class BlockField( Field ):
         assert type( buffer ) == bytes
         result = None
         if self.transform:
-            result = self.block_klass( self.transform.import_data( buffer[self.offset:] ), **self.block_kwargs )
+            result = self.block_klass( self.transform.import_data( buffer[self.offset:] )['payload'], **self.block_kwargs )
         else:
             result = self.block_klass( buffer[self.offset:], **self.block_kwargs )
 
@@ -112,6 +138,8 @@ class Bytes( Field ):
         super( Bytes, self ).__init__( default=default, **kwargs )
         self.offset = offset
         self.length = length
+        if length:
+            self._field_size = length
 
     def get_from_buffer( self, buffer ):
         assert type( buffer ) == bytes
@@ -148,17 +176,17 @@ class CStringN( Field ):
         assert type( default ) == bytes
         super( CStringN, self ).__init__( default=default, **kwargs )
         self.offset = offset
-        self.length = length
+        self._field_size = length
 
     def get_from_buffer( self, buffer ):
         assert type( buffer ) == bytes
-        return buffer[self.offset:self.offset+self.length].split( b'\x00', 1, **kwargs )[0]
+        return buffer[self.offset:self.offset+self._field_size].split( b'\x00', 1, **kwargs )[0]
 
     def validate( self, value ):
         if type( value ) != bytes:
             raise FieldValidationError( 'Expecting type {}, not {}'.format( bytes, type( value ) ) )
-        if (len( value ) > self.length):
-            raise FieldValidationError( 'Expecting length <= {}, not {}'.format( self.length, len( value ) ) )
+        if (len( value ) > self._field_size):
+            raise FieldValidationError( 'Expecting length <= {}, not {}'.format( self._field_size, len( value ) ) )
         return
     
 
@@ -172,17 +200,17 @@ class ValueField( Field ):
         if bitmask:
             assert type( bitmask ) == bytes
             assert len( bitmask ) == size
-        self.size = size
+        self._field_size = size
         self.bitmask = bitmask
         self.range = range
 
     def _get_bytes( self, buffer ):
-        data = buffer[self.offset:self.offset+self.size]
-        assert len( data ) == self.size
+        data = buffer[self.offset:self.offset+self._field_size]
+        assert len( data ) == self._field_size
         if self.bitmask:
             return (int.from_bytes( data, byteorder='big' ) & 
                     int.from_bytes( self.bitmask, byteorder='big' )
-                    ).to_bytes( self.size, byteorder='big' )
+                    ).to_bytes( self._field_size, byteorder='big' )
         else:
             return data
 
@@ -193,13 +221,13 @@ class ValueField( Field ):
                     int.from_bytes( self.bitmask, byteorder='big' ) ==
                     int.from_bytes( data, byteorder='big' ))
         
-            for i in range( self.size ):
+            for i in range( self._field_size ):
                 # set bitmasked areas of target to 0
                 array[i+self.offset] &= (~ self.bitmask[i])
                 # OR target with replacement bitmasked portion
                 array[i+self.offset] |= (data[i] & self.bitmask[i])
         else:
-            for i in range( self.size ):
+            for i in range( self._field_size ):
                 array[i+self.offset] = data[i]
         return
 
@@ -212,8 +240,8 @@ class ValueField( Field ):
 
     def update_array_with_value( self, value, array ):
         super( ValueField, self ).update_array_with_value( value, array )
-        if (len( array ) < self.offset+self.size):
-            array.extend( b'\x00'*(self.offset+self.size-len( array )) )
+        if (len( array ) < self.offset+self._field_size):
+            array.extend( b'\x00'*(self.offset+self._field_size-len( array )) )
         data = struct.pack( self.format, value ) 
         self._set_bytes( data, array )
         return

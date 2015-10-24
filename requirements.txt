@@ -1,2 +1,2 @@
 six
-Pillow==2.8.1
+Pillow>=2.8.1

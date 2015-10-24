@@ -120,6 +120,7 @@ class ModelMeta(type):
             field.owner_model = klass
             if hasattr(field, 'field'):
                 set_owner_model(field.field, klass)
+
         for field_name, field in fields.items():
             set_owner_model(field, klass)
             field.name = field_name
@@ -154,6 +155,9 @@ class Block:
 
     def import_data( self, raw_buffer, **kw ):
         self._data = _import_data( self.__class__, raw_buffer, **kw )
+
+    def size( self ):
+        return self._block_size
 
     def validate( self, **kw ):
         return _validate( self.__class__, self._data, **kw )

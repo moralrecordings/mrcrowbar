@@ -7,7 +7,7 @@ import itertools
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
-from mrcrowbar.utils import BitStream
+from mrcrowbar.utils import BitReader
 
 
 class SplashEGA( mrc.Block ):

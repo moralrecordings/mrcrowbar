@@ -44,7 +44,7 @@ to_double_be =      lambda value: to_byte_type( '>d', value )
 
 
 
-class BitStream( object ):
+class BitReader( object ):
     def __init__( self, buffer, start_offset, bytes_reverse=False, bits_reverse=False ):
         assert type( buffer ) == bytes
         self.buffer = buffer

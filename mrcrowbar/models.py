@@ -194,13 +194,14 @@ def _validate( klass, instance_data, **kw ):
 
 class Transform:
     def export_data( self, buffer ):
+        return None
+    
+    def import_data( self, buffer ):
         return {
             'payload': b'',
             'end_offset': 0
         }
 
-    def import_data( self, buffer ):
-        return None
 
 
 class Loader:

@@ -3,7 +3,7 @@
 import array
 
 from mrcrowbar import models as mrc
-from mrcrowbar.utils import BitStream, BitWriter
+from mrcrowbar.utils import BitReader, BitWriter
 
 
 

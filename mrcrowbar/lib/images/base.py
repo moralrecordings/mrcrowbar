@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 from mrcrowbar import models as mrc
+from mrcrowbar import utils
 
 from PIL import Image
 
@@ -108,22 +109,20 @@ class Planarizer( mrc.Transform ):
         self.frame_stride = frame_stride
         self.frame_count = frame_count
 
+    def export_data( self, buffer ):
+        assert type( buffer ) == bytes
+
+        
+
     def import_data( self, buffer ):
         assert type( buffer ) == bytes
-        def get_bit( state ):
-            result = 1 if (buffer[state['index']] & (1 << (7-state['pos']))) else 0
-            state['pos'] += 1
-            state['index'] += state['pos']//8
-            state['pos'] %= 8
-            return result
-
         raw_image = array.array( 'B', b'\x00'*self.width*self.height*self.frame_count )
 
         for f in range( self.frame_count ):
-            state = {'index': self.frame_offset + f*self.frame_stride, 'pos': 0} 
+            stream = utils.BitReader( buffer, self.frame_offset+f*self.frame_stride, bits_reverse=True )
             for b in range( self.bpp ):
                 for i in range( self.width*self.height ):
-                    raw_image[f*self.width*self.height + i] += get_bit( state ) << b
+                    raw_image[f*self.width*self.height + i] += stream.get_bits( 1 ) << b
     
         if self.frame_count > 1:
             end_offset = self.frame_offset + self.frame_count*self.frame_stride

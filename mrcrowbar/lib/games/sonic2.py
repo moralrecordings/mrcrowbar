@@ -6,7 +6,7 @@ import itertools
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import megadrive as md
 from mrcrowbar.lib.images import base as img
-from mrcrowbar.utils import BitStream
+from mrcrowbar.utils import BitReader
 
 
 
@@ -48,7 +48,7 @@ class NemesisCompressor( mrc.Transform ):
                 }
                 index += 2
 
-        bs = BitStream( buffer[index+1:], 0, bits_reverse=True )
+        bs = BitReader( buffer[index+1:], 0, bits_reverse=True )
 
         state = {
             'output': array.array( 'B', b'\x00'*64*pattern_count ),

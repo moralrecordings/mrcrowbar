@@ -454,14 +454,14 @@ class Loader( mrc.Loader ):
     LEMMINGS_FILE_CLASS_MAP = {
         '/(ADLIB).DAT$': None,
         '/(CGAGR)(\d).DAT$': None,
-        '/(CGAMAIN).DAT$': None,
+        '/(CGAMAIN)().DAT$': None,
         '/(CGASPEC)(\d).DAT$': None,
         '/(GROUND)(\d)O.DAT$': GroundDAT,
         '/(LEVEL)00(\d).DAT$': LevelDAT,
-        '/(MAIN).DAT$': MainDAT,
-        '/(ODDTABLE).DAT$': None,
-        '/(RUSSELL).DAT$': None,
-        '/(TGAMAIN).DAT$': None,
+        '/(MAIN)().DAT$': MainDAT,
+        '/(ODDTABLE)().DAT$': None,
+        '/(RUSSELL)().DAT$': None,
+        '/(TGAMAIN)().DAT$': None,
         '/(VGAGR)(\d).DAT$': VgagrDAT,
         '/(VGASPEC)(\d).DAT$': VgaspecDAT,
     }
@@ -475,6 +475,16 @@ class Loader( mrc.Loader ):
         if len( unique_check ) != len( self._files ):
             self._files = {}
             raise Exception( 'Multiple matches found for the same source file! Please ensure that the path passed to load() has only one copy of Lemmings in it.' ) 
+
+        file_map = {}
+        for x in self._files.values():
+            print( x )
+            file_map[(x['match'][0].upper(), int( x['match'][1] ) if x['match'][1] else None )] = x['obj']
+        
+        for key, obj in file_map.items():
+            if key[0] == 'VGASPEC':
+                # for special stages, hook up image field to show the VGA palette by default
+                obj.special.image._palette = obj.special.palette_vga
 
         # TODO: wire up inter-file class relations here
         return

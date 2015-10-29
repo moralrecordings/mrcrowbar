@@ -71,12 +71,18 @@ class RawIndexedImage( mrc.Block ):
         im.putpalette( itertools.chain( *[(c.r_8, c.g_8, c.b_8) for c in self._palette] ) )
         return im
 
-    def ansi_format( self ):
+    def ansi_format( self, x_start=0, y_start=0, width=None, height=None ):
+        assert x_start in range( 0, self._width )
+        assert y_start in range( 0, self._height )
+        if not width:
+            width = self._width-x_start
+        if not height:
+            height = self._height-y_start
         result = []
-        for y in range( 0, self._height, 2 ):
-            for x in range( 0, self._width ):
-                p1 = self._palette[self.data[self._width*y + x]]
-                p2 = self._palette[self.data[self._width*(y+1) + x]] if (self._width*(y+1) + x) < len( self.data ) else Transparent()
+        for y in range( 0, height, 2 ):
+            for x in range( 0, width ):
+                p1 = self._palette[self.data[self._width*(y_start+y) + (x_start+x)]]
+                p2 = self._palette[self.data[self._width*(y_start+y+1) + (x_start+x)]] if (self._width*(y_start+y+1) + (x_start+x)) < len( self.data ) else Transparent()
                 if p1.a_8 == 0 and p2.a_8 == 0:
                     result.append( u'\x1b[0m ' )
                 elif p1 == p2:
@@ -91,8 +97,8 @@ class RawIndexedImage( mrc.Block ):
             result.append( u'\x1b[0m\n' )
         return u''.join( result )
     
-    def print( self ):
-        print( self.ansi_format() )
+    def print( self, *args, **kwargs ):
+        print( self.ansi_format( *args, **kwargs ) )
 
     def __str__( self ):
         return self.ansi_format()

@@ -5,7 +5,6 @@ from mrcrowbar import utils
 
 from PIL import Image
 
-import array
 import itertools
 
 
@@ -122,7 +121,7 @@ class Planarizer( mrc.Transform ):
 
     def import_data( self, buffer ):
         assert type( buffer ) == bytes
-        raw_image = array.array( 'B', b'\x00'*self.width*self.height*self.frame_count )
+        raw_image = bytearray( self.width*self.height*self.frame_count )
 
         for f in range( self.frame_count ):
             stream = utils.BitReader( buffer, self.frame_offset+f*self.frame_stride, bits_reverse=True )

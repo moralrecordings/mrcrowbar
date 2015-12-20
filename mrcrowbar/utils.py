@@ -1,4 +1,3 @@
-import array
 import struct
 
 from_byte_type =    lambda format, size, buffer: struct.unpack( format, buffer[:size] )[0]
@@ -88,7 +87,7 @@ class BitReader( object ):
 
 class BitWriter( object ):
     def __init__( self, bytes_reverse=False, bits_reverse=False ):
-        self.output = array.array( 'B' )
+        self.output = bytearray()
         self.bits_reverse = bits_reverse
         self.bytes_reverse = bytes_reverse
         self.bits_remaining = 8

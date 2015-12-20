@@ -2,7 +2,6 @@
 
 """File format classes for the game Lemmings (DOS, 1991)"""
 
-import array
 import itertools
 
 from mrcrowbar import models as mrc
@@ -73,7 +72,7 @@ class DATCompressor( mrc.Transform ):
         state = { 
             'bs': bs,
             'dptr': decompressed_size, 
-            'ddata': array.array( 'B', b'\x00'*decompressed_size ),
+            'ddata': bytearray( decompressed_size ),
         }
 
         while True:

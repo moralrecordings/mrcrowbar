@@ -1,7 +1,5 @@
 #!/usr/bin/python3
 
-import array
-
 from mrcrowbar import models as mrc
 from mrcrowbar.utils import BitReader, BitWriter
 
@@ -16,8 +14,8 @@ class LZSSCompressor( mrc.Transform ):
     def import_data( self, buffer ):
         r = self.N - self.F
         flags = 0
-        text_buf = array.array( 'B', b' '*(self.N+self.F-1) );
-        result = array.array( 'B', b'' )
+        text_buf = bytearray( b' '*(self.N+self.F-1) );
+        result = bytearray()
         index = 0
 
         try:

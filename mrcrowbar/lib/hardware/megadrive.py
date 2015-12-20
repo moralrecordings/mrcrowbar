@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-import array
 import itertools
 
 from mrcrowbar import models as mrc
@@ -47,7 +46,7 @@ class SuperMagicDriveInterleave( mrc.Transform ):
     def import_data( self, buffer ):
         
         def deinterleave_block( block ):
-            output = array.array( 'B', b'\x00'*len( block ) )
+            output = bytearray( len( block ) )
             for i in range( len( output ) ):
                 if (i % 2):
                     index = i//2
@@ -56,7 +55,7 @@ class SuperMagicDriveInterleave( mrc.Transform ):
                 output[i] = block[index]
             return output
 
-        output = array.array( 'B', b'\x00'*(len( buffer )-512) )
+        output = bytearray( len( buffer )-512 )
 
         for i in range( 0, len( buffer )-512, 16384 ):
             block = buffer[512:][i:i+16384]

@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-import array
 import itertools
 
 from mrcrowbar import models as mrc
@@ -51,10 +50,10 @@ class NemesisCompressor( mrc.Transform ):
         bs = BitReader( buffer[index+1:], 0, bits_reverse=True )
 
         state = {
-            'output': array.array( 'B', b'\x00'*64*pattern_count ),
+            'output': bytearray( 64*pattern_count ),
             'output_index': 0,
             'current_row': [],
-            'prev_row': array.array( 'B', b'\x00'*8 )
+            'prev_row': bytearray( 8 )
         }
 
         def push_pal( pal, state ):

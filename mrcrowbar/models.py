@@ -142,6 +142,7 @@ class ModelMeta(type):
 class Block:
     _magic = Magic()
     _block_size = 0
+    _parent = None
 
     def __init__( self, raw_buffer=None ):
         self.import_data( raw_buffer )
@@ -154,7 +155,19 @@ class Block:
         return hex( id( self ) )
 
     def import_data( self, raw_buffer, **kw ):
-        self._data = _import_data( self.__class__, raw_buffer, **kw )
+        klass = self.__class__
+        if raw_buffer:
+            assert type( raw_buffer ) == bytes
+            assert len( raw_buffer ) >= klass._block_size
+        
+        self._data = {}
+
+        for name in klass._fields:
+            if raw_buffer:
+                self._data[name] = klass._fields[name].get_from_buffer( raw_buffer, parent=self )
+            else:
+                self._data[name] = klass._fields[name].default
+        return
 
     def size( self ):
         return self._block_size
@@ -167,19 +180,6 @@ class Block:
 class Check( object ):
     def __init__( self, instance, value ):
         pass
-
-
-def _import_data( klass, raw_buffer, **kw ):
-    data = {}
-    if raw_buffer:
-        assert type( raw_buffer ) == bytes
-        assert len( raw_buffer ) >= klass._block_size
-        for name in klass._fields:
-            data[name] = klass._fields[name].get_from_buffer( raw_buffer )
-    else:
-        for name in klass._fields:
-            data[name] = klass._fields[name].default
-    return data
 
 
 def _export_data( klass, instance, **kw ):

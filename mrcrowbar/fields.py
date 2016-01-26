@@ -1,6 +1,5 @@
 import struct
 import itertools 
-from array import array as arr
 
 _next_position_hint = itertools.count()
 
@@ -16,12 +15,11 @@ class Field:
         self._position_hint = next( _next_position_hint )
         self.default = default
 
-    def get_from_buffer( self, buffer ):
+    def get_from_buffer( self, buffer, **kwargs ):
         return None
 
     def update_array_with_value( self, value, array ):
-        assert type( array ) == arr
-        assert array.typecode == 'B'
+        assert type( array ) == bytearray
         self.validate( value )
         return
 
@@ -40,18 +38,21 @@ class BlockStream( Field ):
         self.block_kwargs = block_kwargs if block_kwargs else {}
         self.transform = transform
 
-    def get_from_buffer( self, buffer ):
+    def get_from_buffer( self, buffer, parent=None ):
         assert type( buffer ) == bytes
         result = []
         if self.transform:
             pointer = self.offset
             while pointer < len( buffer ):
                 data = self.transform.import_data( buffer[pointer:] )
-                result.append( self.block_klass( data['payload'], **self.block_kwargs ) )
+                block = self.block_klass( data['payload'], **self.block_kwargs )
+                block._parent = parent
+                result.append( block )
                 pointer += data['end_offset']
         else:
             block = self.block_klass( buffer[pointer:], **self.block_kwargs )
             assert block.size() > 0
+            block._parent = parent
             result.append( block )
             pointer += block.size()
         return result
@@ -68,7 +69,7 @@ class BlockList( Field ):
         self.stop_check = stop_check
         self.fill = fill
 
-    def get_from_buffer( self, buffer ):
+    def get_from_buffer( self, buffer, parent=None ):
         assert type( buffer ) == bytes
         result = []
         for i in range( self.count ):
@@ -83,8 +84,9 @@ class BlockList( Field ):
                 # run the stop check (if exists): if it returns true, we've hit the end of the stream
                 if self.stop_check and (self.stop_check( buffer, self.offset+i*self.stride )):
                     break
-
-                result.append( self.block_klass( sub_buffer ) )
+                block = self.block_klass( sub_buffer )
+                block._parent = parent
+                result.append( block )
                     
                     
         return result
@@ -110,7 +112,7 @@ class BlockField( Field ):
         self.fill = fill
         self.transform = transform
 
-    def get_from_buffer( self, buffer ):
+    def get_from_buffer( self, buffer, parent=None ):
         assert type( buffer ) == bytes
         result = None
         if self.transform:
@@ -118,6 +120,7 @@ class BlockField( Field ):
         else:
             result = self.block_klass( buffer[self.offset:], **self.block_kwargs )
 
+        result._parent = parent
         return result
         #return (self.fill*int( 1+self.block_klass._block_size/len(self.fill) ))[:self.block_klass._block_size]
 
@@ -141,7 +144,7 @@ class Bytes( Field ):
         if length:
             self._field_size = length
 
-    def get_from_buffer( self, buffer ):
+    def get_from_buffer( self, buffer, **kwargs ):
         assert type( buffer ) == bytes
         if self.length is not None:
             return buffer[self.offset:self.offset+self.length]
@@ -162,7 +165,7 @@ class CString( Field ):
         super( CString, self ).__init__( default=default, **kwargs )
         self.offset = offset
 
-    def get_from_buffer( self, buffer ):
+    def get_from_buffer( self, buffer, **kwargs ):
         assert type( buffer ) == bytes
         return buffer.split( b'\x00', 1, **kwargs )[0]
 
@@ -178,7 +181,7 @@ class CStringN( Field ):
         self.offset = offset
         self._field_size = length
 
-    def get_from_buffer( self, buffer ):
+    def get_from_buffer( self, buffer, **kwargs ):
         assert type( buffer ) == bytes
         return buffer[self.offset:self.offset+self._field_size].split( b'\x00', 1, **kwargs )[0]
 
@@ -231,7 +234,7 @@ class ValueField( Field ):
                 array[i+self.offset] = data[i]
         return
 
-    def get_from_buffer( self, buffer ):
+    def get_from_buffer( self, buffer, **kwargs ):
         assert type( buffer ) == bytes
         value = struct.unpack( self.format, self._get_bytes( buffer ) )[0]
         if self.range and (value not in self.range):
@@ -274,7 +277,7 @@ class Bits( UInt8 ):
         self.bits = [(1<<i) for i, x in enumerate( reversed( mask_bits ) ) if x == '1']
         self.format_range = range( 0, 1<<len(self.bits) )
 
-    def get_from_buffer( self, buffer ):
+    def get_from_buffer( self, buffer, **kwargs ):
         result = UInt8.get_from_buffer( self, buffer )
         value = 0
         for i, x in enumerate( self.bits ):

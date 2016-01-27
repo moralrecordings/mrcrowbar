@@ -169,28 +169,30 @@ class Block:
                 self._data[name] = klass._fields[name].default
         return
 
+    def export_data( self, **kw ):
+        klass = self.__class__
+
+        output = bytearray( b'\x00'*klass._block_size )
+
+        for name in klass._fields:
+            klass._fields[name].update_buffer_with_value( self._data[name], output )
+        return output
+
+
     def size( self ):
         return self._block_size
 
     def validate( self, **kw ):
-        return _validate( self.__class__, self._data, **kw )
-        
+        klass = self.__class__
+        for name in klass._fields:
+            klass._fields[name].validate( self._data[name] )
+        return
 
 
 class Check( object ):
     def __init__( self, instance, value ):
         pass
 
-
-def _export_data( klass, instance, **kw ):
-    assert isinstance( instance, klass )
-
-
-def _validate( klass, instance_data, **kw ):
-    for name in klass._fields:
-        klass._fields[name].validate( instance_data[name] )
-    return
-    
 
 class Transform:
     def export_data( self, buffer ):

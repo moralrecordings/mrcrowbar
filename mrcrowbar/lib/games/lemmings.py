@@ -12,7 +12,7 @@ from mrcrowbar import utils
 
 # DAT compressor
 # source: http://www.camanis.net/lemmings/files/docs/lemmings_dat_file_format.txt
-# extra special thanks: ccexplore
+# extra special thanks: ccexplore, Mindless
 
 class DATCompressor( mrc.Transform ):
     def import_data( self, buffer ):
@@ -76,7 +76,7 @@ class DATCompressor( mrc.Transform ):
         }
 
         while True:
-            if bs.get_bits( 1 )==1:
+            if bs.get_bits( 1 ) == 1:
                 test = bs.get_bits( 2 )
                 if test==0:
                     copy_prev_data( 3, 9, state )
@@ -262,9 +262,9 @@ class Level( mrc.Block ):
     style_index =       mrc.UInt16_BE( 0x001a )
     custom_index =      mrc.UInt16_BE( 0x001c )
 
-    interactives =      mrc.BlockList( Interactive, 0x0020, stride=0x08, count=32, fill=b'\x00' )
-    terrains =          mrc.BlockList( Terrain, 0x0120, stride=0x04, count=400, fill=b'\xff' )
-    steel_areas =       mrc.BlockList( SteelArea, 0x0760, stride=0x04, count=32, fill=b'\x00' )
+    interactives =      mrc.BlockList( Interactive, 0x0020, count=32, fill=b'\x00' )
+    terrains =          mrc.BlockList( Terrain, 0x0120, count=400, fill=b'\xff' )
+    steel_areas =       mrc.BlockList( SteelArea, 0x0760, count=32, fill=b'\x00' )
     name =              mrc.Bytes( 0x07e0, 32, default=b'                                ' )
 
     @property
@@ -286,6 +286,9 @@ class InteractiveInfo( mrc.Block ):
     height =            mrc.UInt8( 0x0005 )
     frame_data_size =   mrc.UInt16_LE( 0x0006 )
     mask_rel_offset =   mrc.UInt16_LE( 0x0008 )
+
+    unknown_1 =         mrc.UInt16_LE( 0x000a )
+    unknown_2 =         mrc.UInt16_LE( 0x000c )
     
     trigger_x_raw =         mrc.UInt16_LE( 0x000e )
     trigger_y_raw =         mrc.UInt16_LE( 0x0010 )
@@ -295,6 +298,8 @@ class InteractiveInfo( mrc.Block ):
 
     base_offset =       mrc.UInt16_LE( 0x0015 )
     preview_frame =     mrc.UInt16_LE( 0x0017 )
+
+    unknown_3 =         mrc.UInt16_LE( 0x0019 )
 
     sound_id =          mrc.UInt8( 0x001b )
     
@@ -317,17 +322,21 @@ class InteractiveInfo( mrc.Block ):
 
 class TerrainInfo( mrc.Block ):
     _block_size =       8
+    _vgagr =            None
 
     width =             mrc.UInt8( 0x0000 )
     height =            mrc.UInt8( 0x0001 )
     base_offset =       mrc.UInt16_LE( 0x0002 )
     mask_rel_offset =   mrc.UInt16_LE( 0x0004 )
+    unknown_1 =         mrc.UInt16_LE( 0x0006 )
+
+    # vgagr =           mrc.StoreRef( "_vgagr", img.RawIndexedImage, block_kwargs={ 'width': 
 
 
 class Special( mrc.Block ):
-    palette_vga =           mrc.BlockList( ibm_pc.VGAColour, 0x0000, stride=0x03, count=8 )
-    palette_ega =           mrc.BlockList( ibm_pc.EGAColour, 0x0018, stride=0x01, count=8 )
-    palette_ega_preview  =  mrc.BlockList( ibm_pc.EGAColour, 0x0020, stride=0x01, count=8 )
+    palette_vga =           mrc.BlockList( ibm_pc.VGAColour, 0x0000, count=8 )
+    palette_ega =           mrc.BlockList( ibm_pc.EGAColour, 0x0018, count=8 )
+    palette_ega_preview  =  mrc.BlockList( ibm_pc.EGAColour, 0x0020, count=8 )
 
     image =                 mrc.BlockField( img.RawIndexedImage, 0x0028, block_kwargs={ 'width': 960, 'height': 160 }, transform=SpecialCompressor() )
 
@@ -408,19 +417,19 @@ class MainHUDGraphics( mrc.Block ):
 class GroundDAT( mrc.Block ):
     _block_size =   1056
 
-    interactive_info        = mrc.BlockList( InteractiveInfo, 0x0000, stride=0x1c, count=16, fill=b'\x00' )
-    terrain_info            = mrc.BlockList( TerrainInfo, 0x01c0, stride=0x08, count=64, fill=b'\x00' )
+    interactive_info        = mrc.BlockList( InteractiveInfo, 0x0000, count=16, fill=b'\x00' )
+    terrain_info            = mrc.BlockList( TerrainInfo, 0x01c0, count=64, fill=b'\x00' )
 
-    palette_ega_custom      = mrc.BlockList( ibm_pc.EGAColour, 0x03c0, stride=0x01, count=8 )
-    palette_ega_standard    = mrc.BlockList( ibm_pc.EGAColour, 0x03c8, stride=0x01, count=8 )
-    palette_ega_preview     = mrc.BlockList( ibm_pc.EGAColour, 0x03d0, stride=0x01, count=8 )
-    palette_vga_custom      = mrc.BlockList( ibm_pc.VGAColour, 0x03d8, stride=0x03, count=8 )
-    palette_vga_standard    = mrc.BlockList( ibm_pc.VGAColour, 0x03f0, stride=0x03, count=8 )
-    palette_vga_preview     = mrc.BlockList( ibm_pc.VGAColour, 0x0408, stride=0x03, count=8 )
+    palette_ega_custom      = mrc.BlockList( ibm_pc.EGAColour, 0x03c0, count=8 )
+    palette_ega_standard    = mrc.BlockList( ibm_pc.EGAColour, 0x03c8, count=8 )
+    palette_ega_preview     = mrc.BlockList( ibm_pc.EGAColour, 0x03d0, count=8 )
+    palette_vga_custom      = mrc.BlockList( ibm_pc.VGAColour, 0x03d8, count=8 )
+    palette_vga_standard    = mrc.BlockList( ibm_pc.VGAColour, 0x03f0, count=8 )
+    palette_vga_preview     = mrc.BlockList( ibm_pc.VGAColour, 0x0408, count=8 )
 
     @property
     def palette( self ):
-        if not hasattr( self, '_palette'):
+        if not hasattr( self, '_palette' ):
             self._palette = [img.Transparent()] + self.palette_vga_standard[1:] + self.palette_vga_custom
         return self._palette
 
@@ -441,6 +450,8 @@ class MainDAT( mrc.Block ):
 
 
 class VgagrDAT( mrc.Block ):
+    # store = mrc.Store( 0x0000 )
+
     pass
 
 

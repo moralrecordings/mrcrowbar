@@ -6,6 +6,7 @@ from mrcrowbar import utils
 from PIL import Image
 
 import itertools
+import math
 
 
 class Colour( mrc.Block ):
@@ -116,11 +117,29 @@ class Planarizer( mrc.Transform ):
 
     def export_data( self, buffer ):
         assert type( buffer ) == bytes
+        if self.frame_count == 1:
+            assert len( buffer ) >= self.frame_offset + self.width*self.height 
+        else:
+            assert len( buffer ) >= self.frame_offset + self.frame_count*self.frame_stride
 
-        
+        stream = utils.BitWriter( bits_reverse=True )
+        for f in range( self.frame_count ):
+            for b in range( self.bpp ):
+                for i in range( self.width*self.height ):
+                    stream.put_bits( 1 if (buffer[f*self.width*self.height + i] & (1 << b)) else 0, 1 )
+
+        result = {
+            'payload': stream.get_buffer()
+        }
+        return result
+
 
     def import_data( self, buffer ):
         assert type( buffer ) == bytes
+        if self.frame_count == 1:
+            assert len( buffer ) >= self.frame_offset + math.ceil( (self.bpp*self.width*self.height)/8 )
+        else:
+            assert len( buffer ) >= self.frame_offset + self.frame_count*self.frame_stride
         raw_image = bytearray( self.width*self.height*self.frame_count )
 
         for f in range( self.frame_count ):

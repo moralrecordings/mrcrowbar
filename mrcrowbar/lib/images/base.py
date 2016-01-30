@@ -38,6 +38,7 @@ class Colour( mrc.Block ):
     def __eq__( self, other ):
         return (self.r_8 == other.r_8) and (self.g_8 == other.g_8) and (self.b_8 == other.b_8) and (self.a_8 == other.a_8)
 
+
 class Transparent( Colour ):
     a_8 = 0
 
@@ -68,7 +69,7 @@ class RawIndexedImage( mrc.Block ):
     def get_image( self ):
         im = Image.new( 'P', (self._width, self._height) )
         im.putdata( self.data[:self._width*self._height] )
-        im.putpalette( itertools.chain( *[(c.r_8, c.g_8, c.b_8) for c in self._palette] ) )
+        im.putpalette( itertools.chain( *((c.r_8, c.g_8, c.b_8) for c in self._palette) ) )
         return im
 
     def ansi_format( self, x_start=0, y_start=0, width=None, height=None ):
@@ -106,11 +107,13 @@ class RawIndexedImage( mrc.Block ):
     def __repr__( self ):
         return '<{}: {} bytes, {}x{}>'.format( self.__class__.__name__, len( self.data ), self._width, self._height )
     
+
 class Planarizer( mrc.Transform ):
-    def __init__( self, width, height, bpp, frame_offset=0, frame_stride=0, frame_count=1 ):
+    def __init__( self, width, height, bpp, plane_padding=0, frame_offset=0, frame_stride=0, frame_count=1 ):
         self.width = width
         self.height = height
         self.bpp = bpp
+        self.plane_padding = plane_padding
         self.frame_offset = frame_offset
         self.frame_stride = frame_stride
         self.frame_count = frame_count
@@ -127,6 +130,7 @@ class Planarizer( mrc.Transform ):
             for b in range( self.bpp ):
                 for i in range( self.width*self.height ):
                     stream.put_bits( 1 if (buffer[f*self.width*self.height + i] & (1 << b)) else 0, 1 )
+                stream.put_bits( self.plane_padding, 0 )
 
         result = {
             'payload': stream.get_buffer()
@@ -146,7 +150,8 @@ class Planarizer( mrc.Transform ):
             stream = utils.BitReader( buffer, self.frame_offset+f*self.frame_stride, bits_reverse=True )
             for b in range( self.bpp ):
                 for i in range( self.width*self.height ):
-                    raw_image[f*self.width*self.height + i] += stream.get_bits( 1 ) << b
+                    raw_image[f*(self.width*self.height+self.plane_padding) + i] += stream.get_bits( 1 ) << b
+                stream.get_bits( self.plane_padding )
     
         if self.frame_count > 1:
             end_offset = self.frame_offset + self.frame_count*self.frame_stride

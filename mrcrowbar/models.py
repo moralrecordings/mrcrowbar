@@ -12,6 +12,10 @@ class Magic:
     pass
 
 
+class Store:
+    pass
+
+
 # how do we define a block?
 
 # - we want to be able to scan through a stream of bollocks and identify a magic number
@@ -70,13 +74,13 @@ class FieldDescriptor(object):
         del instance._fields[self.name]
 
 
-class ModelMeta(type):
+class ModelMeta( type ):
 
     """
     Meta class for Models.
     """
 
-    def __new__(mcs, name, bases, attrs):
+    def __new__( mcs, name, bases, attrs ):
         """
         This metaclass adds four attributes to host classes: mcs._fields,
         mcs._serializables, mcs._validator_functions, and mcs._options.
@@ -92,6 +96,8 @@ class ModelMeta(type):
 
         # Structures used to accumulate meta info
         fields = OrderedDict()
+        stores = OrderedDict()
+
         serializables = {}
         #validator_functions = {}  # Model level
 
@@ -104,6 +110,8 @@ class ModelMeta(type):
         for key, value in iteritems(attrs):
             if isinstance(value, Field):
                 fields[key] = value
+            elif isinstance(value, Store):
+                stores[key] = value
 
         # Convert list of types into fields for new klass
         fields.sort(key=lambda i: i[1]._position_hint)
@@ -112,6 +120,7 @@ class ModelMeta(type):
 
         # Ready meta data to be klass attributes
         attrs['_fields'] = fields
+        attrs['_stores'] = stores
 
         klass = type.__new__(mcs, name, bases, attrs)
 
@@ -205,7 +214,40 @@ class Transform:
         }
 
 
+class ForeignProp:
+    def __init__( self, block, property, null=True, block_class=None ):
+        assert block is not None
+        self.block = block
+        self.property = property
+        self.null = null
+        self.block_class = block_class
 
+    def __get__( self, instance, owner ):
+        return getattr( instance.block, instance.property )
+
+    def __set__( self, instance, value ):
+        if (self.null and value is None):
+            pass
+        else:
+            assert issubclass( value, self.block_class )
+        setattr( instance.block, instance.property, value )
+
+
+class LookupTable( Store ):
+    def __init__( self, offset, length=None, fill=b'\x00', **kwargs ):
+        super( LookupTable, self ).__init__( **kwargs )
+        self.offset = offset
+        self.length = length
+        self.fill = fill
+        self.length = length
+
+    def import_data( self, buffer ):
+        pass
+
+    def export_data( self ):
+        return b''
+    
+    
 class Loader:
     def __init__( self, file_class_map, case_sensitive=False ):
         self.file_class_map = file_class_map

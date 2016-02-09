@@ -109,6 +109,8 @@ class DATCompressor( mrc.Transform ):
 class SpecialCompressor( mrc.Transform ):
     DECOMPRESSED_SIZE = 14400    
 
+    plan = img.Planarizer( 960, 40, 3 )
+
     def import_data( self, buffer ):
         assert type( buffer ) == bytes
         result = []
@@ -136,8 +138,7 @@ class SpecialCompressor( mrc.Transform ):
             result.append( b''.join( buf_out ) )
 
         # result is a 960x160 3bpp image, divided into 4x 40 scanline segments
-        pl = img.Planarizer( 960, 40, 3 )
-        unpack = [pl.import_data( x )['payload'] for x in result]
+        unpack = (self.plan.import_data( x )['payload'] for x in result)
         
         result = {
             'payload': bytes( itertools.chain( *unpack ) ),
@@ -489,7 +490,7 @@ class Loader( mrc.Loader ):
         file_map = {}
         for x in self._files.values():
             print( x )
-            file_map[(x['match'][0].upper(), int( x['match'][1] ) if x['match'][1] else None )] = x['obj']
+            file_map[(x['match'][0].upper(), int( x['match'][1] ) if len( x['match'] )>1 else None )] = x['obj']
         
         for key, obj in file_map.items():
             if key[0] == 'VGASPEC':

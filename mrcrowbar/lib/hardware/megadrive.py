@@ -8,6 +8,21 @@ from mrcrowbar.lib.images import base as img
 
 # source: http://segaretro.org/Palette#Mega_Drive_Palette
 
+class VDPBlockMapping8( mrc.Block ):
+    _block_size = 2
+    priority        = mrc.Bits( 0x0000, 0b10000000 )
+    palette_line    = mrc.Bits( 0x0000, 0b01100000 )
+    flip_horiz      = mrc.Bits( 0x0000, 0b00010000 )
+    flip_vert       = mrc.Bits( 0x0000, 0b00001000 )
+
+    tile_index_high = mrc.Bits( 0x0000, 0b00000111 )
+    tile_index_low  = mrc.UInt8( 0x0001 )
+    
+    @property
+    def tile_index( self ):
+        return ((tile_index_high << 8) + tile_index_low) * 0x20
+
+
 class VDPColour( img.Colour ):
     _block_size =   2
     b_raw = mrc.Bits( 0x0000, 0b00001110 )
@@ -28,15 +43,15 @@ class VDPColour( img.Colour ):
 
     @property
     def r( self ):
-        return self.r_raw/7
+        return self.r_raw/8
 
     @property
     def g( self ):
-        return self.g_raw/7
+        return self.g_raw/8
 
     @property
     def b( self ):
-        return self.b_raw/7
+        return self.b_raw/8
 
 
 

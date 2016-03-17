@@ -8,7 +8,7 @@ class FieldValidationError( Exception ):
     pass
 
 
-class Field:
+class Field( object ):
     _field_size = 0
 
     def __init__( self, default=None, **kwargs ):

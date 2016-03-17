@@ -203,7 +203,7 @@ class Check( object ):
         pass
 
 
-class Transform:
+class Transform( object ):
     def export_data( self, buffer ):
         return None
     
@@ -214,7 +214,24 @@ class Transform:
         }
 
 
-class ForeignProp:
+# screw whatever it was I was saying before about foreign properties
+# first, we should have views
+# - views should have references 1 level deep, i.e. properties on the parent object
+# - they can, however, refer to foreign properties
+
+# on Block creation time, first there's a process which wires up the fields to data
+# from the object (including injection). then, there's a process which injects the 
+# parent object into each of the foreignprop/views 
+
+# foreignprops would be evaluated once at runtime, this value would be cached.
+# these properties would be safeguarded against set operations.
+
+class View( object ):
+    def __init__( self, property ):
+        pass
+
+
+class ForeignProp( object ):
     def __init__( self, block, property, null=True, block_class=None ):
         assert block is not None
         self.block = block
@@ -248,7 +265,7 @@ class LookupTable( Store ):
         return b''
     
     
-class Loader:
+class Loader( object ):
     def __init__( self, file_class_map, case_sensitive=False ):
         self.file_class_map = file_class_map
         self.re_flags = re.IGNORECASE if not case_sensitive else 0

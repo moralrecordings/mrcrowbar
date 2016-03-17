@@ -8,6 +8,68 @@ from mrcrowbar.lib.images import base as img
 from mrcrowbar.utils import BitReader
 
 
+class LevelPalette( mrc.Block ):
+    _block_size = 32
+    palette =   mrc.BlockStream( md.VDPColour, 0x0000, stride=0x02, count=16 )
+
+
+# source: http://segaretro.org/Enigma_compression
+
+class EnigmaCompressor( mrc.Transform ):
+    def __init__( self, starting_tile ):
+        assert type( starting_tile ) == md.VDPBlockMapping8
+        self.starting_tile = starting_tile
+
+    def import_data( self, buffer ):
+        assert type( buffer ) == bytes
+        inline_copy_bits = buffer[0]
+
+        high_priority_flag = mrc.Bits( 0x01, 0b00010000 ).get_from_buffer( buffer )
+        palette_offset = mrc.Bits( 0x01, 0b00001100 ).get_from_buffer( buffer )
+        flip_horiz = mrc.Bits( 0x01, 0b00000010 ).get_from_buffer( buffer )
+        flip_vert = mrc.Bits( 0x01, 0b00000001 ).get_from_buffer( buffer )
+
+        incremental_copy = mrc.UInt16_BE( 0x02 ).get_from_buffer( buffer )
+        literal_copy = mrc.UInt16_BE( 0x04 ).get_from_buffer( buffer )
+
+        bs = BitStream( buffer[0x06:], 0, bits_reverse=True )
+        output = bytearray()
+        #while True:
+        #    test = bs.get_bits( 1 )
+        #    if test == 1:
+        #        test = bs.get_bits( 2 )
+        #        repeat_count = bs.get_bits( 4 )+1
+        #        if (test == 3) and (repeat_count == 0x0f):
+        #            break
+        #        
+        #        if high_priority_flag:
+        #
+        # 
+        #        if test == 0:
+        #            
+        #        elif test == 1:
+        #
+        #        elif test == 2:
+        #        
+        #        else:
+        #
+        #    else:
+        #        test = bs.get_bits( 1 )
+        #        repeat_count = bs.get_bits( 4 )+1
+        #        if test == 0:
+        #            for i in range( repeat_count ):
+        #                output.append( (incremental_copy >> 8) )
+        #                output.append( (incremental_copy & 0xff ) )
+        #                incremental_copy += 1
+        #        else:
+        #            for i in range( repeat_count ):
+        #                output.append( (literal_copy >> 8) )
+        #                output.append( (literal_copy & 0xff) )
+
+
+
+
+
 
 # source: http://segaretro.org/Nemesis_compression
 

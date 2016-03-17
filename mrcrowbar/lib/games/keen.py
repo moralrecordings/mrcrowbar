@@ -80,11 +80,18 @@ class EGAHead( mrc.Block ):
     sprite_compressed   = mrc.Bits( 0x2e, 0b00000001 )
 
 
+class EGAHeadBitmapRef( mrc.Block ):
+    width_raw           = mrc.UInt16_LE( 0x00 )
+    height              = mrc.UInt16_LE( 0x02 )
+    location            = mrc.UInt32_LE( 0x04 )
+    name                = mrc.CStringN( 0x08, 8 )
+
+
 class EGAHeadSpriteRef( mrc.Block ):
     width_raw           = mrc.UInt16_LE( 0x00 )
     height              = mrc.UInt16_LE( 0x02 )
     prog_offset         = mrc.UInt16_LE( 0x04 )
-    location            = mrc.UInt16_LE( 0x06 )
+    location_raw        = mrc.UInt16_LE( 0x06 )
     hitbox_left         = mrc.UInt16_LE( 0x08 )
     hitbox_top          = mrc.UInt16_LE( 0x0a )
     hitbox_right        = mrc.UInt16_LE( 0x0c )
@@ -93,10 +100,14 @@ class EGAHeadSpriteRef( mrc.Block ):
     horiz_offset        = mrc.UInt16_LE( 0x1c )
     vert_offset         = mrc.UInt16_LE( 0x1e )
 
+    @property
+    def location( self ):
+        return self.location_raw*16
 
 
 class PreviewCompressor( mrc.Transform ):
     rle = RLECompressor()
+    # each plane is stored with (192 bytes)*8 = 1536 bits padding at the end
     plan = img.Planarizer( 320, 200, 4, plane_padding=1536 ) 
     
     def import_data( self, buffer ):

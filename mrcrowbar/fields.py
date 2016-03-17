@@ -30,6 +30,11 @@ class Field( object ):
         pass 
 
 
+class Ref( object ):
+    def __init__( self, path ):
+        self.path = path.split('.')
+
+
 class BlockStream( Field ):
     def __init__( self, block_klass, offset, block_kwargs=None, transform=None, **kwargs ):
         super( BlockStream, self ).__init__( **kwargs )

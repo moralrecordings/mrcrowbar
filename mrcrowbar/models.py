@@ -25,7 +25,7 @@ class Store:
 
 # borrowed from schematic
 
-class FieldDescriptor(object):
+class FieldDescriptor( object ):
 
     """
     The FieldDescriptor serves as a wrapper for Types that converts them into
@@ -34,14 +34,14 @@ class FieldDescriptor(object):
     A field is then the merger of a Type and it's Model.
     """
 
-    def __init__(self, name):
+    def __init__( self, name ):
         """
         :param name:
             The field's name
         """
         self.name = name
 
-    def __get__(self, instance, cls):
+    def __get__( self, instance, cls ):
         """
         Checks the field name against the definition of the model and returns
         the corresponding data for valid fields or raises the appropriate error
@@ -50,28 +50,55 @@ class FieldDescriptor(object):
         try:
             if instance is None:
                 return cls._fields[self.name]
-            return instance._data[self.name]
+            return instance._field_data[self.name]
         except KeyError:
-            raise AttributeError(self.name)
+            raise AttributeError( self.name )
 
-    def __set__(self, instance, value):
+    def __set__( self, instance, value ):
         """
         Checks the field name against a model and sets the value.
         """
         from .types.compound import ModelType
         field = instance._fields[self.name]
-        if not isinstance(value, Model) and isinstance(field, ModelType):
-            value = field.model_class(value)
-        instance._data[self.name] = value
+        if not isinstance( value, Model ) and isinstance( field, ModelType ):
+            value = field.model_class( value )
+        instance._field_data[self.name] = value
 
-    def __delete__(self, instance):
+    def __delete__( self, instance ):
         """
         Checks the field name against a model and deletes the field.
         """
         if self.name not in instance._fields:
-            raise AttributeError('%r has no attribute %r' %
-                                 (type(instance).__name__, self.name))
+            raise AttributeError( "{} has no attribute {}".format( 
+                                    type( instance ).__name__, self.name ) )
         del instance._fields[self.name]
+
+
+class RefDescriptor( object ):
+    
+    def __init__( self, name ):
+        self.name = name
+
+    def __get__( self, instance, cls ):
+        try:
+            if instance is None:
+                return cls._refs[self.name]
+            # FIXME: don't cache until we evaluate if the performance suffers
+            if True: #self.name not in instance._ref_cache:
+                path = instance._refs[self.name].path
+                target = instance
+                for attr in path:
+                    target = getattr( target, attr )
+                instance._ref_cache[self.name] = target
+            return instance._ref_cache[self.name]
+        except KeyError:
+            raise AttributeError( self.name )
+    
+    def __set__( self, instance, value ):
+        raise AttributeError( "can't set Ref directly" )
+
+    def __delete__( self, instance ):
+        raise AttributeError( "can't delete Ref" )
 
 
 class ModelMeta( type ):
@@ -96,7 +123,7 @@ class ModelMeta( type ):
 
         # Structures used to accumulate meta info
         fields = OrderedDict()
-        stores = OrderedDict()
+        refs = OrderedDict()
 
         serializables = {}
         #validator_functions = {}  # Model level
@@ -107,28 +134,30 @@ class ModelMeta( type ):
                 fields.update(deepcopy(base._fields))
 
         # Parse this class's attributes into meta structures
-        for key, value in iteritems(attrs):
-            if isinstance(value, Field):
+        for key, value in iteritems( attrs ):
+            if isinstance( value, Field ):
                 fields[key] = value
-            elif isinstance(value, Store):
-                stores[key] = value
+            elif isinstance( value, Ref ):
+                refs[key] = value
 
         # Convert list of types into fields for new klass
-        fields.sort(key=lambda i: i[1]._position_hint)
-        for key, field in iteritems(fields):
-            attrs[key] = FieldDescriptor(key)
+        fields.sort( key=lambda i: i[1]._position_hint )
+        for key, field in iteritems( fields ):
+            attrs[key] = FieldDescriptor( key )
+        for key, ref in iteritems( refs ):
+            attrs[key] = RefDescriptor( key )
 
         # Ready meta data to be klass attributes
         attrs['_fields'] = fields
-        attrs['_stores'] = stores
+        attrs['_refs'] = refs
 
         klass = type.__new__(mcs, name, bases, attrs)
 
         # Add reference to klass to each field instance
-        def set_owner_model(field, klass):
+        def set_owner_model( field, klass ):
             field.owner_model = klass
-            if hasattr(field, 'field'):
-                set_owner_model(field.field, klass)
+            if hasattr( field, 'field' ):
+                set_owner_model( field.field, klass )
 
         for field_name, field in fields.items():
             set_owner_model(field, klass)
@@ -143,8 +172,12 @@ class ModelMeta( type ):
         return klass
 
     @property
-    def fields(cls):
+    def fields( cls ):
         return cls._fields
+
+    @property
+    def refs( cls ):
+        return cls._refs
 
 
 @add_metaclass( ModelMeta )
@@ -154,6 +187,8 @@ class Block:
     _parent = None
 
     def __init__( self, raw_buffer=None ):
+        self._field_data = {}
+        self._ref_cache = {}
         self.import_data( raw_buffer )
         pass
 
@@ -169,13 +204,13 @@ class Block:
             assert type( raw_buffer ) == bytes
             assert len( raw_buffer ) >= klass._block_size
         
-        self._data = {}
+        self._field_data = {}
 
         for name in klass._fields:
             if raw_buffer:
-                self._data[name] = klass._fields[name].get_from_buffer( raw_buffer, parent=self )
+                self._field_data[name] = klass._fields[name].get_from_buffer( raw_buffer, parent=self )
             else:
-                self._data[name] = klass._fields[name].default
+                self._field_data[name] = klass._fields[name].default
         return
 
     def export_data( self, **kw ):
@@ -184,7 +219,7 @@ class Block:
         output = bytearray( b'\x00'*klass._block_size )
 
         for name in klass._fields:
-            klass._fields[name].update_buffer_with_value( self._data[name], output )
+            klass._fields[name].update_buffer_with_value( self._field_data[name], output )
         return output
 
 
@@ -194,7 +229,7 @@ class Block:
     def validate( self, **kw ):
         klass = self.__class__
         for name in klass._fields:
-            klass._fields[name].validate( self._data[name] )
+            klass._fields[name].validate( self._field_data[name] )
         return
 
 
@@ -226,28 +261,10 @@ class Transform( object ):
 # foreignprops would be evaluated once at runtime, this value would be cached.
 # these properties would be safeguarded against set operations.
 
+
 class View( object ):
     def __init__( self, property ):
         pass
-
-
-class ForeignProp( object ):
-    def __init__( self, block, property, null=True, block_class=None ):
-        assert block is not None
-        self.block = block
-        self.property = property
-        self.null = null
-        self.block_class = block_class
-
-    def __get__( self, instance, owner ):
-        return getattr( instance.block, instance.property )
-
-    def __set__( self, instance, value ):
-        if (self.null and value is None):
-            pass
-        else:
-            assert issubclass( value, self.block_class )
-        setattr( instance.block, instance.property, value )
 
 
 class LookupTable( Store ):

@@ -58,11 +58,14 @@ class FieldDescriptor( object ):
         """
         Checks the field name against a model and sets the value.
         """
-        from .types.compound import ModelType
-        field = instance._fields[self.name]
-        if not isinstance( value, Model ) and isinstance( field, ModelType ):
-            value = field.model_class( value )
+        #from .types.compound import ModelType
+        #field = instance._fields[self.name]
+        #if not isinstance( value, Model ) and isinstance( field, ModelType ):
+        #    value = field.model_class( value )
+        if instance is None:
+            return
         instance._field_data[self.name] = value
+        return
 
     def __delete__( self, instance ):
         """
@@ -85,17 +88,16 @@ class RefDescriptor( object ):
                 return cls._refs[self.name]
             # FIXME: don't cache until we evaluate if the performance suffers
             if True: #self.name not in instance._ref_cache:
-                path = instance._refs[self.name].path
-                target = instance
-                for attr in path:
-                    target = getattr( target, attr )
-                instance._ref_cache[self.name] = target
+                instance._ref_cache[self.name] = instance._refs[self.name].get( instance )
             return instance._ref_cache[self.name]
         except KeyError:
             raise AttributeError( self.name )
     
     def __set__( self, instance, value ):
-        raise AttributeError( "can't set Ref directly" )
+        if instance is None:
+            return
+        instance._refs[self.name].set( instance, value )
+        return
 
     def __delete__( self, instance ):
         raise AttributeError( "can't delete Ref" )
@@ -129,9 +131,9 @@ class ModelMeta( type ):
         #validator_functions = {}  # Model level
 
         # Accumulate metas info from parent classes
-        for base in reversed(bases):
-            if hasattr(base, '_fields'):
-                fields.update(deepcopy(base._fields))
+        #for base in reversed(bases):
+        #    if hasattr(base, '_fields'):
+        #        fields.update(deepcopy(base._fields))
 
         # Parse this class's attributes into meta structures
         for key, value in iteritems( attrs ):
@@ -151,23 +153,23 @@ class ModelMeta( type ):
         attrs['_fields'] = fields
         attrs['_refs'] = refs
 
-        klass = type.__new__(mcs, name, bases, attrs)
+        klass = type.__new__( mcs, name, bases, attrs )
 
         # Add reference to klass to each field instance
-        def set_owner_model( field, klass ):
-            field.owner_model = klass
-            if hasattr( field, 'field' ):
-                set_owner_model( field.field, klass )
+        #def set_owner_model( field, klass ):
+        #    field.owner_model = klass
+        #    if hasattr( field, 'field' ):
+        #        set_owner_model( field.field, klass )
 
         for field_name, field in fields.items():
-            set_owner_model(field, klass)
-            field.name = field_name
+        #    set_owner_model(field, klass)
+            field._name = field_name
 
         # Register class on ancestor models
-        klass._subclasses = []
-        for base in klass.__mro__[1:]:
-            if isinstance(base, ModelMeta):
-                base._subclasses.append(klass)
+        #klass._subclasses = []
+        #for base in klass.__mro__[1:]:
+        #    if isinstance(base, ModelMeta):
+        #        base._subclasses.append(klass)
 
         return klass
 

@@ -51,6 +51,20 @@ class RGBColour( Colour ):
     b_8 = mrc.UInt8( 0x02 )
 
 
+class IndexedImage( mrc.View ):
+    _width =    0
+    _height =   0
+    _palette =  []
+
+    def __init__( self, data_prop, width=0, height=0, palette=None, **kwargs ):
+        self.data_prop = data_prop
+        self._width = width
+        self._height = height
+        if palette is not None:
+            self._palette = palette
+        super( IndexedImage, self ).__init__( **kwargs )
+
+
 class RawIndexedImage( mrc.Block ):
     _width =            0
     _height =           0

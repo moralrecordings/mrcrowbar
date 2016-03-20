@@ -31,8 +31,25 @@ class Field( object ):
 
 
 class Ref( object ):
-    def __init__( self, path ):
-        self.path = path.split('.')
+    # very simple path syntax for now: walk down the chain of properties
+    def __init__( self, path, allow_write=False ):
+        self.path = path.split( '.' )
+        self.allow_write = allow_write 
+
+    def get( self, instance ):
+        target = instance
+        for attr in self.path:
+            target = getattr( target, attr )
+        return target
+
+    def set( self, instance, value ):
+        if not self.allow_write:
+            raise AttributeError( "can't set Ref directly" )
+        target = instance
+        for attr in self.path[:-1]:
+            target = getattr( target, attr )
+        setattr( target, self.path[-1], value )
+        return
 
 
 class BlockStream( Field ):
@@ -68,10 +85,22 @@ class BlockList( Field ):
         super( BlockList, self ).__init__( **kwargs )
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
-        self.offset = offset
-        self.count = count
+        self._offset = offset
+        self._count = count
         self.stop_check = stop_check
         self.fill = fill
+
+    @property
+    def offset( self ):
+        if type( self._offset ) == Ref:
+            return self._offset.get( )
+        return self._offset
+
+    @property
+    def count( self ):
+        if type( self._count ) == Ref:
+            return self._count.get( )
+        return self._count
 
     def get_from_buffer( self, buffer, parent=None ):
         assert type( buffer ) == bytes

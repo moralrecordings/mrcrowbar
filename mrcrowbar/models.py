@@ -1,4 +1,3 @@
-from copy import deepcopy
 from six import add_metaclass, iteritems, iterkeys
 
 import os, re
@@ -77,8 +76,7 @@ class FieldDescriptor( object ):
         del instance._fields[self.name]
 
 
-class RefDescriptor( object ):
-    
+class RefDescriptor( object ):    
     def __init__( self, name ):
         self.name = name
 
@@ -130,17 +128,14 @@ class ModelMeta( type ):
         serializables = {}
         #validator_functions = {}  # Model level
 
-        # Accumulate metas info from parent classes
-        #for base in reversed(bases):
-        #    if hasattr(base, '_fields'):
-        #        fields.update(deepcopy(base._fields))
-
         # Parse this class's attributes into meta structures
         for key, value in iteritems( attrs ):
             if isinstance( value, Field ):
                 fields[key] = value
             elif isinstance( value, Ref ):
                 refs[key] = value
+        #    elif isinstance( value, View ):
+        #        views[key] = value
 
         # Convert list of types into fields for new klass
         fields.sort( key=lambda i: i[1]._position_hint )
@@ -183,7 +178,7 @@ class ModelMeta( type ):
 
 
 @add_metaclass( ModelMeta )
-class Block:
+class Block( object ):
     _magic = Magic()
     _block_size = 0
     _parent = None
@@ -191,14 +186,15 @@ class Block:
     def __init__( self, raw_buffer=None ):
         self._field_data = {}
         self._ref_cache = {}
+        
+        # start the initial load of data
         self.import_data( raw_buffer )
-        pass
+        
 
     def __repr__( self ):
         return '<{}: {}>'.format( self.__class__.__name__, str( self ) )
 
     def __str__( self ):
-        return hex( id( self ) )
 
     def import_data( self, raw_buffer, **kw ):
         klass = self.__class__
@@ -221,9 +217,8 @@ class Block:
         output = bytearray( b'\x00'*klass._block_size )
 
         for name in klass._fields:
-            klass._fields[name].update_buffer_with_value( self._field_data[name], output )
+            klass._fields[name].update_buffer_with_value( self._field_data[name], output, parent=self )
         return output
-
 
     def size( self ):
         return self._block_size
@@ -231,7 +226,7 @@ class Block:
     def validate( self, **kw ):
         klass = self.__class__
         for name in klass._fields:
-            klass._fields[name].validate( self._field_data[name] )
+            klass._fields[name].validate( self._field_data[name], parent=self )
         return
 
 
@@ -264,9 +259,6 @@ class Transform( object ):
 # these properties would be safeguarded against set operations.
 
 
-class View( object ):
-    def __init__( self, property ):
-        pass
 
 
 class LookupTable( Store ):

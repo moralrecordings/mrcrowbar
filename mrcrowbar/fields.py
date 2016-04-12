@@ -9,24 +9,19 @@ class FieldValidationError( Exception ):
 
 
 class Field( object ):
-    _field_size = 0
-
     def __init__( self, default=None, **kwargs ):
         self._position_hint = next( _next_position_hint )
         self.default = default
 
-    def get_from_buffer( self, buffer, **kwargs ):
+    def get_from_buffer( self, buffer, parent=None ):
         return None
 
-    def update_buffer_with_value( self, value, buffer ):
+    def update_buffer_with_value( self, value, buffer, parent=None ):
         assert type( buffer ) == bytearray
         self.validate( value )
         return
 
-    def size( self ):
-        return self._field_size
-
-    def validate( self, value ):
+    def validate( self, value, parent=None ):
         pass 
 
 
@@ -52,6 +47,22 @@ class Ref( object ):
         return
 
 
+def property_get( prop, parent ):
+    if type( prop ) == Ref:
+        return prop.get( parent )
+    return prop
+
+def property_set( prop, parent, value ):
+    if type( prop ) == Ref:
+        return prop.set( parent, value )
+    raise AttributeError( "property was declared as a constant" )
+
+
+class View( object ):
+    def __init__( self, parent, *args, **kwargs ):
+        self._parent = parent
+
+
 class BlockStream( Field ):
     def __init__( self, block_klass, offset, block_kwargs=None, transform=None, **kwargs ):
         super( BlockStream, self ).__init__( **kwargs )
@@ -62,21 +73,23 @@ class BlockStream( Field ):
 
     def get_from_buffer( self, buffer, parent=None ):
         assert type( buffer ) == bytes
+        offset = property_get( self.offset, parent )
+
+        pointer = offset
         result = []
-        if self.transform:
-            pointer = self.offset
-            while pointer < len( buffer ):
+        while pointer < len( buffer ):
+            if self.transform:
                 data = self.transform.import_data( buffer[pointer:] )
                 block = self.block_klass( data['payload'], **self.block_kwargs )
                 block._parent = parent
                 result.append( block )
                 pointer += data['end_offset']
-        else:
-            block = self.block_klass( buffer[pointer:], **self.block_kwargs )
-            assert block.size() > 0
-            block._parent = parent
-            result.append( block )
-            pointer += block.size()
+            else:
+                block = self.block_klass( buffer[pointer:], **self.block_kwargs )
+                assert block.size() > 0
+                block._parent = parent
+                result.append( block )
+                pointer += block.size()
         return result
 
 
@@ -85,45 +98,38 @@ class BlockList( Field ):
         super( BlockList, self ).__init__( **kwargs )
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
-        self._offset = offset
-        self._count = count
+        self.offset = offset
+        self.count = count
         self.stop_check = stop_check
         self.fill = fill
 
-    @property
-    def offset( self ):
-        if type( self._offset ) == Ref:
-            return self._offset.get( )
-        return self._offset
-
-    @property
-    def count( self ):
-        if type( self._count ) == Ref:
-            return self._count.get( )
-        return self._count
-
     def get_from_buffer( self, buffer, parent=None ):
         assert type( buffer ) == bytes
+        offset = property_get( self.offset, parent )
+        count = property_get( self.count, parent )
+
         result = []
         stride = self.block_klass._block_size
-        for i in range( self.count ):
-            sub_buffer = buffer[self.offset + i*stride:][:stride]
+        for i in range( count ):
+            sub_buffer = buffer[offset + i*stride:][:stride]
             # if data matches the fill pattern, leave a None in the list
             if self.fill and (sub_buffer == bytes(( self.fill[j % len(self.fill)] for j in range(len(sub_buffer)) ))):
                 result.append( None )
             else:
                 # run the stop check (if exists): if it returns true, we've hit the end of the stream
-                if self.stop_check and (self.stop_check( buffer, self.offset+i*stride )):
+                if self.stop_check and (self.stop_check( buffer, offset+i*stride )):
                     break
                 block = self.block_klass( sub_buffer )
                 block._parent = parent
                 result.append( block )
                     
-                    
         return result
         
-    def update_buffer_with_value( self, value, buffer ):
-        super( BlockList, self ).update_buffer_with_value( value, buffer )
+    def update_buffer_with_value( self, value, buffer, parent=None ):
+        super( BlockList, self ).update_buffer_with_value( value, buffer, parent )
+        offset = property_get( self.offset, parent )
+        count = property_get( self.count, parent )
+
         block_data = bytearray()
         stride = self.block_klass._block_size
         for b in value:
@@ -134,22 +140,25 @@ class BlockList( Field ):
                     block_data += b'\x00'*stride
             else:
                 block_data += b.export_data()
-        if len( buffer ) < self.offset+len( block_data ):
-            buffer.extend( b'\x00'*(self.offset+len( block_data )-len( buffer )) )
-        buffer[self.offset:self.offset+len( block_data )] = block_data
+        if len( buffer ) < offset+len( block_data ):
+            buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )
+        buffer[offset:offset+len( block_data )] = block_data
         return
 
+    def validate( self, value, parent=None ):
+        offset = property_get( self.offset, parent )
+        count = property_get( self.count, parent )
 
-    def validate( self, value ):
         try:
             it = iter( value )
         except TypeError:
             raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
-        if self.count:
-            assert len( value ) <= self.count
+        if count:
+            assert len( value ) <= count
         for b in value:
             if (b is not None) and (not isinstance( b, self.block_klass )):
                  raise FieldValidationError( 'Expecting block class {}, not {}'.format( self.block_klass, type( b ) ) )
+
 
 class BlockField( Field ):
     def __init__( self, block_klass, offset=None, block_kwargs=None, fill=None, transform=None, **kwargs ):
@@ -172,8 +181,8 @@ class BlockField( Field ):
         return result
         #return (self.fill*int( 1+self.block_klass._block_size/len(self.fill) ))[:self.block_klass._block_size]
 
-    def update_buffer_with_value( self, value, buffer ):
-        super( BlockField, self ).update_buffer_with_value( value, buffer )
+    def update_buffer_with_value( self, value, buffer, parent=None ):
+        super( BlockField, self ).update_buffer_with_value( value, buffer, parent )
         if self.transform:
             block_data = self.transform.export_data( value.export_data() )
         else:
@@ -188,7 +197,6 @@ class BlockField( Field ):
             raise FieldValidationError( 'Expecting block class {}, not {}'.format( self.block_klass, type( value ) ) )
         return
         
-
 
 class Bytes( Field ):
     def __init__( self, offset, length=None, default=None, **kwargs ):
@@ -206,30 +214,37 @@ class Bytes( Field ):
         super( Bytes, self ).__init__( default=default, **kwargs )
         self.offset = offset
         self.length = length
-        if length:
-            self._field_size = length
 
-    def get_from_buffer( self, buffer, **kwargs ):
+    def get_from_buffer( self, buffer, parent=None, **kwargs ):
         assert type( buffer ) == bytes
-        if self.length is not None:
-            return buffer[self.offset:self.offset+self.length]
-        else:
-            return buffer[self.offset:]
+        offset = property_get( self.offset, parent )
+        length = property_get( self.length, parent )
 
-    def update_buffer_with_value( self, value, buffer ):
-        super( Bytes, self ).update_buffer_with_value( value, buffer )
+        if length is not None:
+            return buffer[offset:offset+length]
+        else:
+            return buffer[offset:]
+
+    def update_buffer_with_value( self, value, buffer, parent=None ):
+        super( Bytes, self ).update_buffer_with_value( value, buffer, parent )
+        offset = property_get( self.offset, parent )
+        length = property_get( self.length, parent )
+        
         block_data = value
-        if len( buffer ) < self.offset+len( block_data ):
-            buffer.extend( b'\x00'*(self.offset+len( block_data )-len( buffer )) )    
-        buffer[self.offset:self.offset+len( block_data )] = block_data
+        if len( buffer ) < offset+len( block_data ):
+            buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )    
+        buffer[offset:offset+len( block_data )] = block_data
         return
 
 
-    def validate( self, value ):
+    def validate( self, value, parent=None ):
+        offset = property_get( self.offset, parent )
+        length = property_get( self.length, parent )
+
         if type( value ) != bytes:
             raise FieldValidationError( 'Expecting type {}, not {}'.format( bytes, type( value ) ) )
-        if (self.length is not None) and (len( value ) != self.length):
-            raise FieldValidationError( 'Expecting length of {}, not {}'.format( self.length, len( value ) ) )
+        if (length is not None) and (len( value ) != length):
+            raise FieldValidationError( 'Expecting length of {}, not {}'.format( length, len( value ) ) )
         return
 
 
@@ -239,52 +254,65 @@ class CString( Field ):
         super( CString, self ).__init__( default=default, **kwargs )
         self.offset = offset
 
-    def get_from_buffer( self, buffer, **kwargs ):
+    def get_from_buffer( self, buffer, parent=None ):
         assert type( buffer ) == bytes
-        return buffer.split( b'\x00', 1, **kwargs )[0]
+        offset = property_get( self.offset, parent )
 
-    def update_buffer_with_value( self, value, buffer ):
-        super( CString, self ).update_buffer_with_value( value, buffer )
+        return buffer[offset:].split( b'\x00', 1 )[0]
+
+    def update_buffer_with_value( self, value, buffer, parent=None ):
+        super( CString, self ).update_buffer_with_value( value, buffer, parent )
+        offset = property_get( self.offset, parent )
+
         block_data = value + b'\x00'
-        if len( buffer ) < self.offset+len( block_data ):
-            buffer.extend( b'\x00'*(self.offset+len( block_data )-len( buffer )) )    
-        buffer[self.offset:self.offset+len( block_data )] = block_data
+        if len( buffer ) < offset+len( block_data ):
+            buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )    
+        buffer[offset:offset+len( block_data )] = block_data
         return
 
-    def validate( self, value ):
+    def validate( self, value, parent=None ):
         if type( value ) != bytes:
             raise FieldValidationError( 'Expecting type {}, not {}'.format( bytes, type( value ) ) )
         return 
+
 
 class CStringN( Field ):
     def __init__( self, offset, length, default=b'', **kwargs ):
         assert type( default ) == bytes
         super( CStringN, self ).__init__( default=default, **kwargs )
         self.offset = offset
-        self._field_size = length
+        self.length = length
 
-    def get_from_buffer( self, buffer, **kwargs ):
+    def get_from_buffer( self, buffer, parent=None ):
         assert type( buffer ) == bytes
-        return buffer[self.offset:self.offset+self._field_size].split( b'\x00', 1, **kwargs )[0]
+        offset = property_get( self.offset, parent )
+        length = property_get( self.length, parent )
 
-    def update_buffer_with_value( self, value, buffer ):
-        super( CStringN, self ).update_buffer_with_value( value, buffer )
-        block_data = value + b'\x00'*(self._field_size - len( value ))
-        if len( buffer ) < self.offset+len( block_data ):
-            buffer.extend( b'\x00'*(self.offset+len( block_data )-len( buffer )) )    
-        buffer[self.offset:self.offset+len( block_data )] = block_data
+        return buffer[offset:offset+length].split( b'\x00', 1 )[0]
+
+    def update_buffer_with_value( self, value, buffer, parent=None ):
+        super( CStringN, self ).update_buffer_with_value( value, buffer, parent )
+        offset = property_get( self.offset, parent )
+        length = property_get( self.length, parent )
+
+        block_data = value + b'\x00'*(length - len( value ))
+        if len( buffer ) < offset+len( block_data ):
+            buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )    
+        buffer[offset:offset+len( block_data )] = block_data
         return
 
-    def validate( self, value ):
+    def validate( self, value, parent=None ):
+        length = property_get( self.length, parent )
+
         if type( value ) != bytes:
             raise FieldValidationError( 'Expecting type {}, not {}'.format( bytes, type( value ) ) )
-        if (len( value ) > self._field_size):
-            raise FieldValidationError( 'Expecting length <= {}, not {}'.format( self._field_size, len( value ) ) )
+        if (len( value ) > length):
+            raise FieldValidationError( 'Expecting length <= {}, not {}'.format( length, len( value ) ) )
         return
     
 
 class ValueField( Field ):
-    def __init__( self, format, size, format_type, format_range, offset, default=0, bitmask=None, range=None, **kwargs ):
+    def __init__( self, format, field_size, format_type, format_range, offset, default=0, bitmask=None, range=None, **kwargs ):
         super( ValueField, self ).__init__( default=default, **kwargs )
         self.offset = offset
         self.format = format
@@ -292,54 +320,52 @@ class ValueField( Field ):
         self.format_range = format_range
         if bitmask:
             assert type( bitmask ) == bytes
-            assert len( bitmask ) == size
-        self._field_size = size
+            assert len( bitmask ) == field_size
+        self.field_size = field_size
         self.bitmask = bitmask
         self.range = range
 
-    def _get_bytes( self, buffer ):
-        data = buffer[self.offset:self.offset+self._field_size]
-        assert len( data ) == self._field_size
-        if self.bitmask:
-            return (int.from_bytes( data, byteorder='big' ) & 
-                    int.from_bytes( self.bitmask, byteorder='big' )
-                    ).to_bytes( self._field_size, byteorder='big' )
-        else:
-            return data
+    def get_from_buffer( self, buffer, parent=None ):
+        assert type( buffer ) == bytes
+        offset = property_get( self.offset, parent )
 
-    def _set_bytes( self, data, array ):
+        data = buffer[offset:offset+self.field_size]
+        assert len( data ) == self.field_size
+        if self.bitmask:
+            data = (int.from_bytes( data, byteorder='big' ) & 
+                    int.from_bytes( self.bitmask, byteorder='big' )
+                    ).to_bytes( self.field_size, byteorder='big' )
+
+        value = struct.unpack( self.format, data )[0]
+        if self.range and (value not in self.range):
+            print( 'WARNING: value {} outside of range {}'.format( value, self.range ) )
+        return value
+
+    def update_buffer_with_value( self, value, buffer, parent=None ):
+        super( ValueField, self ).update_buffer_with_value( value, buffer, parent )
+        offset = property_get( self.offset, parent )
+
+        if (len( buffer ) < offset+self.field_size):
+            buffer.extend( b'\x00'*(offset+self.field_size-len( buffer )) )
+        data = struct.pack( self.format, value ) 
+        
         # force check for no data loss in the value from bitmask
         if self.bitmask:
             assert (int.from_bytes( data, byteorder='big' ) & 
                     int.from_bytes( self.bitmask, byteorder='big' ) ==
                     int.from_bytes( data, byteorder='big' ))
         
-            for i in range( self._field_size ):
+            for i in range( self.field_size ):
                 # set bitmasked areas of target to 0
-                array[i+self.offset] &= (~ self.bitmask[i])
+                array[i+offset] &= (~ self.bitmask[i])
                 # OR target with replacement bitmasked portion
-                array[i+self.offset] |= (data[i] & self.bitmask[i])
+                array[i+offset] |= (data[i] & self.bitmask[i])
         else:
-            for i in range( self._field_size ):
-                array[i+self.offset] = data[i]
+            for i in range( self.field_size ):
+                array[i+offset] = data[i]
         return
 
-    def get_from_buffer( self, buffer, **kwargs ):
-        assert type( buffer ) == bytes
-        value = struct.unpack( self.format, self._get_bytes( buffer ) )[0]
-        if self.range and (value not in self.range):
-            print( 'WARNING: value {} outside of range {}'.format( value, self.range ) )
-        return value
-
-    def update_buffer_with_value( self, value, buffer ):
-        super( ValueField, self ).update_buffer_with_value( value, buffer )
-        if (len( buffer ) < self.offset+self._field_size):
-            buffer.extend( b'\x00'*(self.offset+self._field_size-len( buffer )) )
-        data = struct.pack( self.format, value ) 
-        self._set_bytes( data, buffer )
-        return
-
-    def validate( self, value ):
+    def validate( self, value, parent=None ):
         if (type( value ) != self.format_type):
             raise FieldValidationError( 'Expecting type {}, not {}'.format( self.format_type, type( value ) ) )
         if self.format_range and (value not in self.format_range):
@@ -367,19 +393,21 @@ class Bits( UInt8 ):
         self.bits = [(1<<i) for i, x in enumerate( reversed( mask_bits ) ) if x == '1']
         self.format_range = range( 0, 1<<len( self.bits ) )
 
-    def get_from_buffer( self, buffer, **kwargs ):
-        result = UInt8.get_from_buffer( self, buffer )
+    def get_from_buffer( self, buffer, parent=None ):
+        result = UInt8.get_from_buffer( self, buffer, parent )
         value = 0
         for i, x in enumerate( self.bits ):
             value += (1 << i) if (result & x) else 0
         return value
 
-    def update_buffer_with_value( self, value, buffer ):
-        super( ValueField, self ).update_buffer_with_value( value, buffer )
+    def update_buffer_with_value( self, value, buffer, parent=None ):
+        super( ValueField, self ).update_buffer_with_value( value, buffer, parent )
+        offset = property_get( self.offset, parent )
+
         for i, x in enumerate( self.bits ):
-            buffer[self.offset] &= 0xff - x
+            buffer[offset] &= 0xff - x
             if (value & (1 << i)):
-                buffer[self.offset] |= x
+                buffer[offset] |= x
         return
 
 

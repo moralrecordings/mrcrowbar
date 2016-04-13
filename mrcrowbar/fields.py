@@ -171,11 +171,13 @@ class BlockField( Field ):
 
     def get_from_buffer( self, buffer, parent=None ):
         assert type( buffer ) == bytes
+        offset = property_get( self.offset, parent )
+
         result = None
         if self.transform:
-            result = self.block_klass( self.transform.import_data( buffer[self.offset:] )['payload'], **self.block_kwargs )
+            result = self.block_klass( self.transform.import_data( buffer[offset:] )['payload'], **self.block_kwargs )
         else:
-            result = self.block_klass( buffer[self.offset:], **self.block_kwargs )
+            result = self.block_klass( buffer[offset:], **self.block_kwargs )
 
         result._parent = parent
         return result
@@ -183,13 +185,15 @@ class BlockField( Field ):
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
         super( BlockField, self ).update_buffer_with_value( value, buffer, parent )
+        offset = property_get( self.offset, parent )
+
         if self.transform:
             block_data = self.transform.export_data( value.export_data() )
         else:
             block_data = value.export_data()
-        if len( buffer ) < self.offset+len( block_data ):
-            buffer.extend( b'\x00'*(self.offset+len( block_data )-len( buffer )) )
-        buffer[self.offset:self.offset+len( block_data )] = block_data
+        if len( buffer ) < offset+len( block_data ):
+            buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )
+        buffer[offset:offset+len( block_data )] = block_data
         return
 
     def validate( self, value ):
@@ -199,43 +203,43 @@ class BlockField( Field ):
         
 
 class Bytes( Field ):
-    def __init__( self, offset, length=None, default=None, **kwargs ):
-        if length is not None:
-            if default is not None:
-                assert type( default ) == bytes
-                assert len( default ) == length
-            else:
-                default = b'\x00'*length
+    def __init__( self, offset, length=None, default=None, transform=None, **kwargs ):
+        if default is not None:
+            assert type( default ) == bytes
         else:
-            if default is not None:
-                assert type( default ) == bytes
-            else:
-                default = b''
+            default = b''
         super( Bytes, self ).__init__( default=default, **kwargs )
         self.offset = offset
         self.length = length
+        self.transform = transform
 
     def get_from_buffer( self, buffer, parent=None, **kwargs ):
         assert type( buffer ) == bytes
         offset = property_get( self.offset, parent )
         length = property_get( self.length, parent )
 
+        data = buffer[offset:]
         if length is not None:
-            return buffer[offset:offset+length]
-        else:
-            return buffer[offset:]
+            data = buffer[offset:offset+length]
+
+        if self.transform:
+            data = self.transform.import_data( data )['payload']
+    
+        return data
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
         super( Bytes, self ).update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
         length = property_get( self.length, parent )
         
-        block_data = value
-        if len( buffer ) < offset+len( block_data ):
-            buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )    
-        buffer[offset:offset+len( block_data )] = block_data
-        return
+        data = value
+        if self.transform:
+            data = self.transform.export_data( data )
 
+        if len( buffer ) < offset+len( data ):
+            buffer.extend( b'\x00'*(offset+len( data )-len( buffer )) )    
+        buffer[offset:offset+len( data )] = data
+        return
 
     def validate( self, value, parent=None ):
         offset = property_get( self.offset, parent )
@@ -387,21 +391,21 @@ class UInt8( ValueField ):
 
 class Bits( UInt8 ):
     def __init__( self, offset, bits, default=0, *args, **kwargs ):
-        UInt8.__init__( self, offset, default=default, *args, **kwargs )
+        super( Bits, self ).__init__( offset, default=default, *args, **kwargs )
         assert type( bits ) == int
         mask_bits = bin( bits ).split( 'b', 1 )[1]
         self.bits = [(1<<i) for i, x in enumerate( reversed( mask_bits ) ) if x == '1']
         self.format_range = range( 0, 1<<len( self.bits ) )
 
     def get_from_buffer( self, buffer, parent=None ):
-        result = UInt8.get_from_buffer( self, buffer, parent )
+        result = super( Bits, self ).get_from_buffer( buffer, parent )
         value = 0
         for i, x in enumerate( self.bits ):
             value += (1 << i) if (result & x) else 0
         return value
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        super( ValueField, self ).update_buffer_with_value( value, buffer, parent )
+        super( Bits, self ).update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
 
         for i, x in enumerate( self.bits ):

@@ -198,7 +198,7 @@ class RawIndexedImage( mrc.Block ):
     
 
 class Planarizer( mrc.Transform ):
-    def __init__( self, width: int, height: int, bpp: int, plane_padding: int=0, frame_offset: int=0, frame_stride: int=0, frame_count: int=1 ):
+    def __init__( self, width: int, height: int, bpp: int, plane_padding: int=0, frame_offset: int=0, frame_stride: int=None, frame_count: int=1 ):
         assert (width*height) % 8 == 0
         self.width = width
         self.height = height
@@ -206,8 +206,11 @@ class Planarizer( mrc.Transform ):
         self.bpp = bpp
         self.plane_padding = plane_padding
         self.frame_offset = frame_offset
-        self.frame_stride = frame_stride
         self.frame_count = frame_count
+        if frame_count >= 2 and frame_stride is None:
+            self.frame_stride = self.bpp*((self.width*self.height//8)+self.plane_padding)
+        else:
+            self.frame_stride = frame_stride
 
 
     def import_data( self, buffer: bytes ):

@@ -195,6 +195,7 @@ class Block( object ):
         return '<{}: {}>'.format( self.__class__.__name__, str( self ) )
 
     def __str__( self ):
+        return hex( id( self ) )
 
     def import_data( self, raw_buffer, **kw ):
         klass = self.__class__

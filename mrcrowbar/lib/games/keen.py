@@ -107,8 +107,8 @@ class EGAHeadSpriteRef( mrc.Block ):
 
 class PreviewCompressor( mrc.Transform ):
     rle = RLECompressor()
-    # each plane is stored with (192 bytes)*8 = 1536 bits padding at the end
-    plan = img.Planarizer( 320, 200, 4, plane_padding=1536 ) 
+    # each plane is stored with 192 bytes padding at the end
+    plan = img.Planarizer( 320, 200, 4, plane_padding=192 ) 
     
     def import_data( self, buffer ):
         assert type( buffer ) == bytes
@@ -146,7 +146,7 @@ class LevelTile( mrc.Block ):
     tile_id         = mrc.UInt16_LE( 0x00 )
 
 
-class KeenLoader( mrc.Loader ):
+class Loader( mrc.Loader ):
     KEEN_FILE_CLASS_MAP = {
         '/FINALE.CK[1-3]$': Preview,
         '/PREVIEW[2-3].CK1': Preview

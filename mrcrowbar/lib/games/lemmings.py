@@ -339,7 +339,11 @@ class Special( mrc.Block ):
     palette_ega =           mrc.BlockList( ibm_pc.EGAColour, 0x0018, count=8 )
     palette_ega_preview  =  mrc.BlockList( ibm_pc.EGAColour, 0x0020, count=8 )
 
-    image =                 mrc.BlockField( img.RawIndexedImage, 0x0028, block_kwargs={ 'width': 960, 'height': 160 }, transform=SpecialCompressor() )
+    image_data           =  mrc.Bytes( 0x0028, transform=SpecialCompressor() )
+
+    def __init__( self, *args, **kwargs ):
+        mrc.Block.__init__( self, *args, **kwargs )
+        self.image = img.IndexedImage( self, width=960, height=160, source=mrc.Ref( 'image_data' ) )
 
 
 AnimField = lambda offset, width, height, bpp, frame_count: mrc.BlockField( img.RawIndexedImage, offset, block_kwargs={ 'width': width, 'height': height*frame_count }, transform=img.Planarizer( width, height, bpp, frame_count=frame_count ) )

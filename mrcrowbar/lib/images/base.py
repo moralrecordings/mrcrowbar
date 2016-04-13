@@ -3,7 +3,7 @@
 from mrcrowbar import models as mrc
 from mrcrowbar import utils
 
-from PIL import Image
+import PIL
 
 import itertools
 import math
@@ -51,18 +51,91 @@ class RGBColour( Colour ):
     b_8 = mrc.UInt8( 0x02 )
 
 
-class IndexedImage( mrc.View ):
-    _width =    0
-    _height =   0
-    _palette =  []
-
-    def __init__( self, data_prop, width=0, height=0, palette=None, **kwargs ):
-        self.data_prop = data_prop
+class Image( mrc.View ):
+    def __init__( self, parent, width, height ):
+        super( Image, self ).__init__( parent )
         self._width = width
         self._height = height
-        if palette is not None:
-            self._palette = palette
-        super( IndexedImage, self ).__init__( **kwargs )
+ 
+    @property
+    def width( self ):
+        return mrc.property_get( self._width, self._parent )
+
+    @width.setter
+    def width( self, value ):
+        return mrc.property_set( self._width, self._parent, value )
+
+    @property
+    def height( self ):
+        return mrc.property_get( self._height, self._parent )
+
+    @height.setter
+    def height( self, value ):
+        return mrc.property_set( self._height, self._parent, value )
+
+
+class IndexedImage( Image ):
+    def __init__( self, parent, width, height, source, palette=None ):
+        super( IndexedImage, self ).__init__( parent, width, height )
+        self._source = source
+        self._palette = palette if (palette is not None) else []
+
+    @property
+    def source( self ):
+        return mrc.property_get( self._source, self._parent )
+
+    @source.setter
+    def source( self, value ):
+        return mrc.property_set( self._source, self._parent, value )
+
+    @property
+    def palette( self ):
+        return mrc.property_get( self._palette, self._parent )
+
+    @palette.setter
+    def palette( self, value ):
+        return mrc.property_set( self._palette, self._parent, value )
+
+    def get_image( self ):
+        im = PIL.Image.new( 'P', (self.width, self.height) )
+        im.putdata( self.source[:self.width, self.height] )
+        im.putpalette( itertools.chain( *((c.r_8, c.g_8, c.b_8) for c in self.palette) ) )
+        return im
+
+    def ansi_format( self, x_start=0, y_start=0, width=None, height=None ):
+        assert x_start in range( 0, self.width )
+        assert y_start in range( 0, self.height )
+        if not width:
+            width = self.width-x_start
+        if not height:
+            height = self.height-y_start
+        result = []
+        for y in range( 0, height, 2 ):
+            for x in range( 0, width ):
+                p1 = self.palette[self.source[self.width*(y_start+y) + (x_start+x)]]
+                p2 = self.palette[self.source[self.width*(y_start+y+1) + (x_start+x)]] if (self.width*(y_start+y+1) + (x_start+x)) < len( self.source ) else Transparent()
+                if p1.a_8 == 0 and p2.a_8 == 0:
+                    result.append( u'\x1b[0m ' )
+                elif p1 == p2:
+                    result.append( u'\x1b[38;2;{};{};{}m█'.format( p1.r_8, p1.g_8, p1.b_8 ) )
+                elif p1.a_8 == 0 and p2.a_8 != 0:
+                    result.append( u'\x1b[38;2;{};{};{}m▄'.format( p2.r_8, p2.g_8, p2.b_8 ) )
+                elif p1.a_8 != 0 and p2.a_8 == 0:
+                    result.append( u'\x1b[38;2;{};{};{}m▀'.format( p1.r_8, p1.g_8, p1.b_8 ) )
+                else:
+                    result.append( u'\x1b[38;2;{};{};{};48;2;{};{};{}m▀\x1b[0m'.format( p1.r_8, p1.g_8, p1.b_8, p2.r_8, p2.g_8, p2.b_8 ) )
+
+            result.append( u'\x1b[0m\n' )
+        return u''.join( result )
+    
+    def print( self, *args, **kwargs ):
+        print( self.ansi_format( *args, **kwargs ) )
+
+    def __str__( self ):
+        return self.ansi_format()
+
+    def __repr__( self ):
+        return '<{}: {} bytes, {}x{}>'.format( self.__class__.__name__, self.width*self.height, self.width, self.height )
 
 
 class RawIndexedImage( mrc.Block ):
@@ -81,7 +154,7 @@ class RawIndexedImage( mrc.Block ):
         super( RawIndexedImage, self ).__init__( buffer, **kwargs )
 
     def get_image( self ):
-        im = Image.new( 'P', (self._width, self._height) )
+        im = PIL.Image.new( 'P', (self._width, self._height) )
         im.putdata( self.data[:self._width*self._height] )
         im.putpalette( itertools.chain( *((c.r_8, c.g_8, c.b_8) for c in self._palette) ) )
         return im

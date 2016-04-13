@@ -42,6 +42,23 @@ to_float_be =       lambda value: to_byte_type( '>f', value )
 to_double_be =      lambda value: to_byte_type( '>d', value )
 
 
+def unpack_bits(byte):
+    """Expand a bitfield into a 64-bit int (8 bytes)"""
+    y =          byte & (0x00000000000000ff)
+    y = (y | (y<<28)) & (0x0000000f0000000f)
+    y = (y | (y<<14)) & (0x0003000300030003)
+    y =  (y | (y<<7)) & (0x0101010101010101)
+    return y
+
+
+def pack_bits(longbits):
+    """Crunch a 64-bit int (8 bytes) into a bitfield"""
+    y =      longbits & (0x0101010101010101)
+    y =  (y | (y>>7)) & (0x0003000300030003)
+    y = (y | (y>>14)) & (0x0000000f0000000f)
+    y = (y | (y>>28)) & (0x00000000000000ff)
+    return y
+
 
 class BitReader( object ):
     def __init__( self, buffer, start_offset, bytes_reverse=False, bits_reverse=False ):

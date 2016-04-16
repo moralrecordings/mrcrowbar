@@ -11,10 +11,6 @@ class Magic:
     pass
 
 
-class Store:
-    pass
-
-
 # how do we define a block?
 
 # - we want to be able to scan through a stream of bollocks and identify a magic number
@@ -183,9 +179,10 @@ class Block( object ):
     _block_size = 0
     _parent = None
 
-    def __init__( self, raw_buffer=None ):
+    def __init__( self, raw_buffer=None, parent=None ):
         self._field_data = {}
         self._ref_cache = {}
+        self._parent = parent
         
         # start the initial load of data
         self.import_data( raw_buffer )
@@ -237,10 +234,10 @@ class Check( object ):
 
 
 class Transform( object ):
-    def export_data( self, buffer ):
+    def export_data( self, buffer, parent=None ):
         return None
     
-    def import_data( self, buffer ):
+    def import_data( self, buffer, parent=None ):
         return {
             'payload': b'',
             'end_offset': 0
@@ -262,19 +259,50 @@ class Transform( object ):
 
 
 
-class LookupTable( Store ):
-    def __init__( self, offset, length=None, fill=b'\x00', **kwargs ):
-        super( LookupTable, self ).__init__( **kwargs )
-        self.offset = offset
-        self.length = length
+class Store( View ):
+    def __init__( self, parent, source, fill=b'\x00', **kwargs ):
+        super( Store, self ).__init__( parent )
+        self._source = source
         self.fill = fill
-        self.length = length
+        self.refs = OrderedDict()
 
-    def import_data( self, buffer ):
-        pass
+    @property
+    def source( self ):
+        return property_get( self._source, self._parent )
 
-    def export_data( self ):
-        return b''
+    @source.setter
+    def source( self, value ):
+        return property_set( self._source, self._parent, value )
+
+    def get_object( self, instance, offset, size, block_klass, block_kwargs=None ):
+        key = (instance, offset, size, block_klass)
+        offset = property_get( offset, instance )
+        size = property_get( size, instance )
+        block_kwargs = block_kwargs if block_kwargs else {}
+
+        if key not in self.refs:
+            self.refs[key] = block_klass( raw_buffer=self.source[offset:offset+size], parent=instance, **block_kwargs )
+        return self.refs[key]
+
+
+class StoreRef( Ref ):
+    def __init__( self, store, offset, size, block_klass, block_kwargs=None ):
+        self.store = store
+        self.offset = offset
+        self.size = size
+        self.block_klass = block_klass
+        self.block_kwargs = block_kwargs
+   
+    def __str__( self ):
+        return hex( id( self ) )
+
+    def get( self, instance ):
+        store = property_get( self.store, instance )
+        
+        return store.get_object( instance, self.offset, self.size, self.block_klass, self.block_kwargs )
+
+    def set( self, instance ):
+        raise AttributeError( "can't set StoreRef directly" )
     
     
 class Loader( object ):
@@ -282,10 +310,10 @@ class Loader( object ):
         self.file_class_map = file_class_map
         self.re_flags = re.IGNORECASE if not case_sensitive else 0
         self.file_re_map = { key: re.compile( key, flags=self.re_flags ) for key, klass in file_class_map.items() if klass } 
-        self._files = {}
+        self._files = OrderedDict()
 
     def load( self, target_path, verbose=False ):
-        target_path = os.path.abspath( target_path )
+        #target_path = os.path.abspath( target_path )
         for root, subFolders, files in os.walk( target_path ):
             for f in files:
                 full_path = os.path.join( root, f )

@@ -12,7 +12,7 @@ from mrcrowbar import utils
 # source: http://www.shikadi.net/moddingwiki/Keen_1-3_RLE_compression
 
 class RLECompressor( mrc.Transform ):
-    def import_data( self, buffer ):
+    def import_data( self, buffer, parent=None ):
         final_length = utils.from_uint32_le( buffer[0:4] )
         i = 4
         out = bytearray()
@@ -35,7 +35,7 @@ class RLECompressor( mrc.Transform ):
 # source: http://www.shikadi.net/moddingwiki/RLEW_compression
 
 class RLEWCompressor( mrc.Transform ):
-    def import_data( self, buffer ):
+    def import_data( self, buffer, parent=None ):
         final_length = utils.from_uint32_le( buffer[0:4] )
         i = 4
         out = bytearray()
@@ -110,7 +110,7 @@ class PreviewCompressor( mrc.Transform ):
     # each plane is stored with 192 bytes padding at the end
     plan = img.Planarizer( 320, 200, 4, plane_padding=192 ) 
     
-    def import_data( self, buffer ):
+    def import_data( self, buffer, parent=None ):
         assert type( buffer ) == bytes
         stage_1 = self.rle.import_data( buffer )
         stage_2 = self.plan.import_data( stage_1['payload'] )
@@ -122,11 +122,11 @@ class PreviewCompressor( mrc.Transform ):
 
 
 class Preview( mrc.Block ):
-    image               = mrc.BlockField( img.RawIndexedImage, 0x0000, block_kwargs={ 'width': 320, 'height': 200, 'palette': ibm_pc.EGA_DEFAULT_PALETTE }, transform=PreviewCompressor() )
+    image_data          = mrc.Bytes( 0x0000, transform=PreviewCompressor() )
 
-
-class PreviewFile( mrc.Block ):
-    data                = mrc.BlockField( Preview, 0x0000, transform=RLECompressor() )
+    def __init__( self, *args, **kwargs ):
+        mrc.Block.__init__( self, *args, **kwargs )
+        self.image = img.IndexedImage( self, width=320, height=200, palette=ibm_pc.EGA_DEFAULT_PALETTE, source=mrc.Ref( 'image_data' ) )
 
 
 # source: http://www.shikadi.net/moddingwiki/Commander_Keen_1-3_Level_format

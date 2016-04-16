@@ -9,6 +9,8 @@ from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
 from mrcrowbar.utils import BitReader
 
+# source: http://ttf.mine.nu/techdocs.htm
+
 
 class SplashEGA( mrc.Block ):
     image =     mrc.BlockField( img.RawIndexedImage, 0x0000, block_kwargs={ 'width': 320, 'height': 200, 'palette': ibm_pc.EGA_DEFAULT_PALETTE }, transform=img.Planarizer( 320, 200, 4 ) )
@@ -68,11 +70,19 @@ SPREXP_SQZ_SIZE_TABLE = (
     (32, 28), (40, 32), (32, 33), (16, 9)
 )
 
+
 class ZIVCompressor( mrc.Transform ):
-    def import_data( self, buffer ):
+    def import_data( self, buffer, parent=None ):
         assert type( buffer ) == bytes
         
         decompressed_size = ((buffer[0] & 0x0f) << 16) + (buffer[2] << 8) + buffer[3]
 
 
-        
+class Loader( mrc.Loader ):
+    TITUS_FILE_CLASS_MAP = {
+        '/TITRE.SQZ$': SplashVGA,
+        '/TITREEGA.SQZ$': SplashEGA,
+    }
+
+    def __init__( self ):
+        super( Loader, self ).__init__( self.TITUS_FILE_CLASS_MAP )

@@ -43,7 +43,7 @@ class Resource( mrc.Block ):
 
 class BoppinCompressor( mrc.Transform ):
     
-    def import_data( self, buffer ):
+    def import_data( self, buffer, parent=None ):
         lc = lzss.LZSSCompressor()
         size_comp = mrc.UInt32_LE( 0x00 ).get_from_buffer( buffer )
 

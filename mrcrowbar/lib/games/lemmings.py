@@ -15,7 +15,7 @@ from mrcrowbar import utils
 # extra special thanks: ccexplore, Mindless
 
 class DATCompressor( mrc.Transform ):
-    def import_data( self, buffer ):
+    def import_data( self, buffer, parent=None ):
         assert type( buffer ) == bytes
 
         def xor_checksum( data ):
@@ -111,7 +111,7 @@ class SpecialCompressor( mrc.Transform ):
 
     plan = img.Planarizer( 960, 40, 3 )
 
-    def import_data( self, buffer ):
+    def import_data( self, buffer, parent=None ):
         assert type( buffer ) == bytes
         result = []
         buf_out = []
@@ -148,7 +148,44 @@ class SpecialCompressor( mrc.Transform ):
         return result
 
 
+# this palette is actually stored in the first half of each GroundDat palette block,
+# but it's handy to have a static copy for e.g. checking out the MainAnims block
+LEMMINGS_VGA_DEFAULT_PALETTE = (
+    ibm_pc.VGAColour( b'\x00\x00\x00' ),
+    ibm_pc.VGAColour( b'\x10\x10\x38' ),
+    ibm_pc.VGAColour( b'\x00\x2c\x00' ),
+    ibm_pc.VGAColour( b'\x3c\x34\x34' ),
+    ibm_pc.VGAColour( b'\x3c\x3c\x00' ),
+    ibm_pc.VGAColour( b'\x3c\x08\x08' ),
+    ibm_pc.VGAColour( b'\x20\x20\x20' ),
+    ibm_pc.VGAColour( b'\x38\x20\x08' ),  # dirt colour
+)
+
+
+# the following palette is embedded in the Lemmings executable
+LEMMINGS_VGA_MENU_PALETTE = (
+    ibm_pc.VGAColour( b'\x00\x00\x00' ),
+    ibm_pc.VGAColour( b'\x20\x10\x08' ),
+    ibm_pc.VGAColour( b'\x18\x0c\x08' ),
+    ibm_pc.VGAColour( b'\x0c\x00\x04' ),
+    ibm_pc.VGAColour( b'\x08\x02\x1f' ),
+    ibm_pc.VGAColour( b'\x10\x0b\x24' ),
+    ibm_pc.VGAColour( b'\x1a\x16\x29' ),
+    ibm_pc.VGAColour( b'\x26\x23\x2f' ),
+    ibm_pc.VGAColour( b'\x00\x14\x00' ),
+    ibm_pc.VGAColour( b'\x00\x18\x04' ),
+    ibm_pc.VGAColour( b'\x00\x1c\x08' ),
+    ibm_pc.VGAColour( b'\x00\x20\x10' ),
+    ibm_pc.VGAColour( b'\x34\x34\x34' ),
+    ibm_pc.VGAColour( b'\x2c\x2c\x00' ),
+    ibm_pc.VGAColour( b'\x10\x14\x2c' ),
+    ibm_pc.VGAColour( b'\x38\x20\x24' ),
+)
+
+##########
+# levelXXX.dat parser
 # source: http://www.camanis.net/lemmings/files/docs/lemmings_lvl_file_format.txt
+##########
 
 class Interactive( mrc.Block ):
     _block_size =       8
@@ -273,9 +310,23 @@ class Level( mrc.Block ):
         return self.camera_x_raw - (self.camera_x_raw % 8)
 
 
+class LevelDAT( mrc.Block ):
+    levels  = mrc.BlockStream( Level, 0x0000, transform=DATCompressor() );
+
+
+##########
 # groundXo.dat and vgagrX.dat parser
 # source: http://www.camanis.net/lemmings/files/docs/lemmings_vgagrx_dat_groundxo_dat_file_format.txt
 # extra special thanks: ccexplore
+##########
+
+class VgagrImage( mrc.Block ):
+    image_data =        mrc.Bytes( 0x0000, transform=img.Planarizer( mrc.Ref( '_parent.width' ), mrc.Ref( '_parent.height' ), 4 ) )
+
+    def __init__( self, *args, **kwargs ):
+        mrc.Block.__init__( self, *args, **kwargs )
+        self.image = img.IndexedImage( self, width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), source=mrc.Ref( 'image_data' ), palette=mrc.Ref( '_parent._parent.palette' )  )
+
 
 class InteractiveInfo( mrc.Block ):
     _block_size =       28
@@ -323,7 +374,6 @@ class InteractiveInfo( mrc.Block ):
 
 class TerrainInfo( mrc.Block ):
     _block_size =       8
-    _vgagr =            None
 
     width =             mrc.UInt8( 0x0000 )
     height =            mrc.UInt8( 0x0001 )
@@ -331,25 +381,63 @@ class TerrainInfo( mrc.Block ):
     mask_rel_offset =   mrc.UInt16_LE( 0x0004 )
     unknown_1 =         mrc.UInt16_LE( 0x0006 )
 
-    # vgagr =           mrc.StoreRef( "_vgagr", img.RawIndexedImage, block_kwargs={ 'width': 
+    vgagr =             mrc.StoreRef( mrc.Ref( '_parent._vgagr.store' ), mrc.Ref( 'base_offset' ), mrc.Ref( 'size' ), VgagrImage )
+
+    @property
+    def size( self ):
+        return self.width*self.height//2
+
+    @property
+    def mask_size( self ):
+        return self.width*self.height//16
 
 
-class Special( mrc.Block ):
-    palette_vga =           mrc.BlockList( ibm_pc.VGAColour, 0x0000, count=8 )
-    palette_ega =           mrc.BlockList( ibm_pc.EGAColour, 0x0018, count=8 )
-    palette_ega_preview  =  mrc.BlockList( ibm_pc.EGAColour, 0x0020, count=8 )
+class GroundDAT( mrc.Block ):
+    _block_size =   1056
+    _vgagr = None           # should be manually pointed at the relevant VgagrDAT object
 
-    image_data           =  mrc.Bytes( 0x0028, transform=SpecialCompressor() )
+    interactive_info        = mrc.BlockList( InteractiveInfo, 0x0000, count=16, fill=b'\x00' )
+    terrain_info            = mrc.BlockList( TerrainInfo, 0x01c0, count=64, fill=b'\x00' )
 
+    palette_ega_custom      = mrc.BlockList( ibm_pc.EGAColour, 0x03c0, count=8 )
+    palette_ega_standard    = mrc.BlockList( ibm_pc.EGAColour, 0x03c8, count=8 )
+    palette_ega_preview     = mrc.BlockList( ibm_pc.EGAColour, 0x03d0, count=8 )
+    palette_vga_custom      = mrc.BlockList( ibm_pc.VGAColour, 0x03d8, count=8 )
+    palette_vga_standard    = mrc.BlockList( ibm_pc.VGAColour, 0x03f0, count=8 )
+    palette_vga_preview     = mrc.BlockList( ibm_pc.VGAColour, 0x0408, count=8 )
+
+    @property
+    def palette( self ):
+        if not hasattr( self, '_palette' ):
+            self._palette = [img.Transparent()] + self.palette_vga_standard[1:] + self.palette_vga_custom
+        return self._palette
+
+
+class VgagrDAT( mrc.Block ):
+    data = mrc.Bytes( 0x0000, transform=DATCompressor() )
+    
     def __init__( self, *args, **kwargs ):
         mrc.Block.__init__( self, *args, **kwargs )
-        self.image = img.IndexedImage( self, width=960, height=160, source=mrc.Ref( 'image_data' ) )
+        self.store = mrc.Store( self, mrc.Ref( 'data' ) )
 
 
-AnimField = lambda offset, width, height, bpp, frame_count: mrc.BlockField( img.RawIndexedImage, offset, block_kwargs={ 'width': width, 'height': height*frame_count }, transform=img.Planarizer( width, height, bpp, frame_count=frame_count ) )
+##########
+# main.dat parser
+# source: http://www.camanis.net/lemmings/files/docs/lemmings_main_dat_file_format.txt
+##########
+
+AnimField = lambda offset, width, height, bpp, frame_count: mrc.BlockField( img.RawIndexedImage, offset, block_kwargs={ 'width': width, 'height': height*frame_count, 'palette': LEMMINGS_VGA_DEFAULT_PALETTE }, transform=img.Planarizer( width, height, bpp, frame_count=frame_count ) )
+
+
+class Anim( mrc.Block ):
+    image_data           =  mrc.Bytes( 0x0000 )
+
+    def __init__( self, width, height, bpp, frame_count, *args, **kwargs ):
+        mrc.Block.__init__( self, *args, **kwargs )
+        self.image = img.IndexedImage( self, width=width, height=height, source=mrc.Ref( 'image_data' ) )
+
 
 # the following animation/sprite lookup tables are embedded in the Lemmings executable
-
 class MainAnims( mrc.Block ):
     anim_walker_r =         AnimField( 0x0000, 16, 10, 2, 8 )
     anim_bounder_r =        AnimField( 0x0140, 16, 10, 2, 1 )
@@ -401,46 +489,24 @@ class MainMasks( mrc.Block ):
     number_1 =              AnimField( 0x0174, 8, 8, 1, 1 )
     number_0 =              AnimField( 0x017c, 8, 8, 1, 1 )
 
+
 class MainHUDGraphicsHP( mrc.Block ):
     pass
+
 
 class MainMenuGraphics( mrc.Block ):
     pass
 
+
 class MainMenuAnims( mrc.Block ):
     pass
+
 
 class MainSection5( mrc.Block ):
     pass
 
+
 class MainHUDGraphics( mrc.Block ):
-    pass
-
-
-
-
-class GroundDAT( mrc.Block ):
-    _block_size =   1056
-
-    interactive_info        = mrc.BlockList( InteractiveInfo, 0x0000, count=16, fill=b'\x00' )
-    terrain_info            = mrc.BlockList( TerrainInfo, 0x01c0, count=64, fill=b'\x00' )
-
-    palette_ega_custom      = mrc.BlockList( ibm_pc.EGAColour, 0x03c0, count=8 )
-    palette_ega_standard    = mrc.BlockList( ibm_pc.EGAColour, 0x03c8, count=8 )
-    palette_ega_preview     = mrc.BlockList( ibm_pc.EGAColour, 0x03d0, count=8 )
-    palette_vga_custom      = mrc.BlockList( ibm_pc.VGAColour, 0x03d8, count=8 )
-    palette_vga_standard    = mrc.BlockList( ibm_pc.VGAColour, 0x03f0, count=8 )
-    palette_vga_preview     = mrc.BlockList( ibm_pc.VGAColour, 0x0408, count=8 )
-
-    @property
-    def palette( self ):
-        if not hasattr( self, '_palette' ):
-            self._palette = [img.Transparent()] + self.palette_vga_standard[1:] + self.palette_vga_custom
-        return self._palette
-
-
-class LevelDAT( mrc.Block ):
-    levels  = mrc.BlockStream( Level, 0x0000, transform=DATCompressor() );
     pass
 
 
@@ -453,17 +519,31 @@ class MainDAT( mrc.Block ):
     #main_section_5 = mrc.BlockField( MainSection5, transform=DATCompressor() )
     #main_hud_graphics = mrc.BlockField( MainHUDGraphics, transform=DATCompressor() )
 
+    
+##########
+# vgaspecX.dat parser
+# source: http://www.camanis.net/lemmings/files/docs/lemmings_vgaspecx_dat_file_format.txt
+##########
 
-class VgagrDAT( mrc.Block ):
-    # store = mrc.Store( 0x0000 )
+class Special( mrc.Block ):
+    palette_vga =           mrc.BlockList( ibm_pc.VGAColour, 0x0000, count=8 )
+    palette_ega =           mrc.BlockList( ibm_pc.EGAColour, 0x0018, count=8 )
+    palette_ega_preview  =  mrc.BlockList( ibm_pc.EGAColour, 0x0020, count=8 )
 
-    pass
+    image_data           =  mrc.Bytes( 0x0028, transform=SpecialCompressor() )
+
+    def __init__( self, *args, **kwargs ):
+        mrc.Block.__init__( self, *args, **kwargs )
+        self.image = img.IndexedImage( self, width=960, height=160, source=mrc.Ref( 'image_data' ) )
 
 
 class VgaspecDAT( mrc.Block ):
     special = mrc.BlockField( Special, 0x0000, transform=DATCompressor() )
 
 
+##########
+# file loader
+##########
     
 class Loader( mrc.Loader ):
     LEMMINGS_FILE_CLASS_MAP = {
@@ -500,6 +580,11 @@ class Loader( mrc.Loader ):
             if key[0] == 'VGASPEC':
                 # for special stages, hook up image field to show the VGA palette by default
                 obj.special.image._palette = obj.special.palette_vga
+            elif key[0] == 'GROUND':
+                if ('VGAGR', key[1]) in file_map:
+                    obj._vgagr = file_map[('VGAGR', key[1])]
+                else:
+                   print( 'Missing VGAGR{}.DAT, graphics not avaiable in GROUND{}O.DAT' )
 
         # TODO: wire up inter-file class relations here
         return

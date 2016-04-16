@@ -11,7 +11,7 @@ class LZSSCompressor( mrc.Transform ):
     F = 18
     THRESHOLD = 2
     
-    def import_data( self, buffer ):
+    def import_data( self, buffer, parent=None ):
         r = self.N - self.F
         flags = 0
         text_buf = bytearray( b' '*(self.N+self.F-1) );

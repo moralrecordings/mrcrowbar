@@ -58,7 +58,7 @@ class VDPColour( img.Colour ):
 # source: http://www.emulatronia.com/doctec/consolas/megadrive/genesis_rom.txt
 
 class SuperMagicDriveInterleave( mrc.Transform ):
-    def import_data( self, buffer ):
+    def import_data( self, buffer, parent=None ):
         
         def deinterleave_block( block ):
             output = bytearray( len( block ) )

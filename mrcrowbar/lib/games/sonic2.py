@@ -20,7 +20,7 @@ class EnigmaCompressor( mrc.Transform ):
         assert type( starting_tile ) == md.VDPBlockMapping8
         self.starting_tile = starting_tile
 
-    def import_data( self, buffer ):
+    def import_data( self, buffer, parent=None ):
         assert type( buffer ) == bytes
         inline_copy_bits = buffer[0]
 
@@ -74,7 +74,7 @@ class EnigmaCompressor( mrc.Transform ):
 # source: http://segaretro.org/Nemesis_compression
 
 class NemesisCompressor( mrc.Transform ):
-    def import_data( self, buffer ):
+    def import_data( self, buffer, parent=None ):
         assert type( buffer ) == bytes
         pattern_count = mrc.UInt16_BE( 0x0000 ).get_from_buffer( buffer )
         xor_mode = (pattern_count & 0x8000) != 0

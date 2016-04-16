@@ -13,6 +13,12 @@ class Field( object ):
         self._position_hint = next( _next_position_hint )
         self.default = default
 
+    def __repr__( self ):
+        return '<{}: {}>'.format( self.__class__.__name__, str( self ) )
+
+    def __str__( self ):
+        return hex( id( self ) )
+
     def get_from_buffer( self, buffer, parent=None ):
         return None
 
@@ -30,6 +36,12 @@ class Ref( object ):
     def __init__( self, path, allow_write=False ):
         self.path = path.split( '.' )
         self.allow_write = allow_write 
+
+    def __repr__( self ):
+        return '<{}: {}>'.format( self.__class__.__name__, str( self ) )
+
+    def __str__( self ):
+        return '.'.join( self.path )
 
     def get( self, instance ):
         target = instance
@@ -79,18 +91,20 @@ class BlockStream( Field ):
         result = []
         while pointer < len( buffer ):
             if self.transform:
-                data = self.transform.import_data( buffer[pointer:] )
-                block = self.block_klass( data['payload'], **self.block_kwargs )
-                block._parent = parent
+                data = self.transform.import_data( buffer[pointer:], parent=parent )
+                block = self.block_klass( raw_buffer=data['payload'], parent=parent, **self.block_kwargs )
                 result.append( block )
                 pointer += data['end_offset']
             else:
-                block = self.block_klass( buffer[pointer:], **self.block_kwargs )
+                block = self.block_klass( raw_buffer=buffer[pointer:], parent=parent, **self.block_kwargs )
                 assert block.size() > 0
-                block._parent = parent
                 result.append( block )
                 pointer += block.size()
         return result
+
+    def update_buffer_with_value( self, value, buffer, parent=None ):
+        # TODO: implement
+        pass
 
 
 class BlockList( Field ):
@@ -119,8 +133,7 @@ class BlockList( Field ):
                 # run the stop check (if exists): if it returns true, we've hit the end of the stream
                 if self.stop_check and (self.stop_check( buffer, offset+i*stride )):
                     break
-                block = self.block_klass( sub_buffer )
-                block._parent = parent
+                block = self.block_klass( raw_buffer=sub_buffer, parent=parent, **self.block_kwargs )
                 result.append( block )
                     
         return result
@@ -175,11 +188,10 @@ class BlockField( Field ):
 
         result = None
         if self.transform:
-            result = self.block_klass( self.transform.import_data( buffer[offset:] )['payload'], **self.block_kwargs )
+            result = self.block_klass( raw_buffer=self.transform.import_data( buffer[offset:], parent=parent )['payload'], parent=parent, **self.block_kwargs )
         else:
-            result = self.block_klass( buffer[offset:], **self.block_kwargs )
+            result = self.block_klass( raw_buffer=buffer[offset:], parent=parent, **self.block_kwargs )
 
-        result._parent = parent
         return result
         #return (self.fill*int( 1+self.block_klass._block_size/len(self.fill) ))[:self.block_klass._block_size]
 
@@ -188,7 +200,7 @@ class BlockField( Field ):
         offset = property_get( self.offset, parent )
 
         if self.transform:
-            block_data = self.transform.export_data( value.export_data() )
+            block_data = self.transform.export_data( value.export_data(), parent=parent )
         else:
             block_data = value.export_data()
         if len( buffer ) < offset+len( block_data ):
@@ -223,7 +235,7 @@ class Bytes( Field ):
             data = buffer[offset:offset+length]
 
         if self.transform:
-            data = self.transform.import_data( data )['payload']
+            data = self.transform.import_data( data, parent=parent )['payload']
     
         return data
 
@@ -234,7 +246,7 @@ class Bytes( Field ):
         
         data = value
         if self.transform:
-            data = self.transform.export_data( data )
+            data = self.transform.export_data( data, parent=parent )
 
         if len( buffer ) < offset+len( data ):
             buffer.extend( b'\x00'*(offset+len( data )-len( buffer )) )    

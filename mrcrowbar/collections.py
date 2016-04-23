@@ -1,7 +1,4 @@
 from copy import deepcopy
-from six.moves import zip
-from six import iteritems
-from six import PY3
 
 _missing = object()
 
@@ -141,9 +138,7 @@ class OrderedDict(dict):
         sources = []
         if len(args) == 1:
             if isinstance(args[0], dict):
-                sources.append(iteritems(args[0]))
-            # if hasattr(args[0], 'iteritems'):
-            #     sources.append(args[0].iteritems())
+                sources.append(iter(args[0].items()))
             else:
                 sources.append(iter(args[0]))
         elif args:

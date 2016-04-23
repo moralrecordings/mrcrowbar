@@ -271,7 +271,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'MrCrowbar', 'Mr. Crowbar - Documentation',
-     author, 'MrCrowbar', 'Untold reverse engineering fun for ages 26-28',
+     author, 'MrCrowbar', 'Untold reverse engineering fun for ages 26-29',
      'Miscellaneous'),
 ]
 

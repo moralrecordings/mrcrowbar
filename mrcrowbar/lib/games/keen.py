@@ -147,9 +147,12 @@ class LevelTile( mrc.Block ):
 
 
 class Loader( mrc.Loader ):
+    SEP = mrc.Loader.SEP
+
     KEEN_FILE_CLASS_MAP = {
-        '/FINALE.CK[1-3]$': Preview,
-        '/PREVIEW[2-3].CK1': Preview
+        SEP+'(EGAHEAD).CK[1-3]$': EGAHead,
+        SEP+'(FINALE).CK[1-3]$': Preview,
+        SEP+'(PREVIEW)([2-3]).CK1': Preview
     }
 
     def __init__( self ):

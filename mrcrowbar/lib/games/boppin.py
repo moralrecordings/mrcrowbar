@@ -7,7 +7,7 @@ from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
 from mrcrowbar.lib.compressors import lzss
-from mrcrowbar.utils import BitReader
+from mrcrowbar import utils
 
 
 class Lookup( mrc.Block ):
@@ -25,8 +25,8 @@ def resource_stop_check( buffer, offset ):
     if (offset >= len( buffer )-8):
         return True
 
-    block_offset = mrc.UInt32_LE( 0x00 ).get_from_buffer( buffer[offset-8:] )
-    block_size = mrc.UInt32_LE( 0x04 ).get_from_buffer( buffer[offset-8:] )
+    block_offset = utils.from_uint32_le( buffer[offset-8:] )
+    block_size = utils.from_uint32_le( buffer[offset-4:] )
 
     # ignore filler entries
     if (block_offset == 0xffffffff) and (block_size == 0):
@@ -45,13 +45,13 @@ class BoppinCompressor( mrc.Transform ):
     
     def import_data( self, buffer, parent=None ):
         lc = lzss.LZSSCompressor()
-        size_comp = mrc.UInt32_LE( 0x00 ).get_from_buffer( buffer )
+        size_comp = utils.from_uint32_le( buffer )
 
         if size_comp != len( buffer ):
             print( 'File not compressed!' )
             return buffer
         
-        size_raw = mrc.UInt32_LE( 0x04 ).get_from_buffer( buffer )
+        size_raw = utils.from_uint32_le( buffer[4:] )
         result = lc.import_data( buffer[8:] )
         if len( result ) != size_raw:
             print( 'Was expecting a decompressed size of {}, got {}!'.format( size_raw, len( result ) ) )

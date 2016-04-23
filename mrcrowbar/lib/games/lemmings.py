@@ -151,7 +151,7 @@ class SpecialCompressor( mrc.Transform ):
 # this palette is actually stored in the first half of each GroundDat palette block,
 # but it's handy to have a static copy for e.g. checking out the MainAnims block
 LEMMINGS_VGA_DEFAULT_PALETTE = (
-    ibm_pc.VGAColour( b'\x00\x00\x00' ),
+    img.Transparent(),
     ibm_pc.VGAColour( b'\x10\x10\x38' ),
     ibm_pc.VGAColour( b'\x00\x2c\x00' ),
     ibm_pc.VGAColour( b'\x3c\x34\x34' ),
@@ -305,6 +305,12 @@ class Level( mrc.Block ):
     steel_areas =       mrc.BlockList( SteelArea, 0x0760, count=32, fill=b'\x00' )
     name =              mrc.Bytes( 0x07e0, 32, default=b'                                ' )
 
+    def __str__( self ):
+        name = self.name.strip()
+        if name:
+            return name.decode( 'utf8' )
+        return super( Level, self ).__str__()
+
     @property
     def camera_x( self ):
         return self.camera_x_raw - (self.camera_x_raw % 8)
@@ -313,20 +319,46 @@ class Level( mrc.Block ):
 class LevelDAT( mrc.Block ):
     levels  = mrc.BlockStream( Level, 0x0000, transform=DATCompressor() );
 
+##########
+# oddtable.dat parser
+##########
+
+class OddRecord( mrc.Block ):
+    _block_size = 56
+
+    release_rate =      mrc.UInt16_BE( 0x0000, range=range( 0, 251 ) )
+    num_released =      mrc.UInt16_BE( 0x0002, range=range( 0, 115 ) )
+    num_to_save =       mrc.UInt16_BE( 0x0004, range=range( 0, 115 ) )
+    time_limit_mins =   mrc.UInt16_BE( 0x0006, range=range( 0, 256 ) )
+    num_climbers =      mrc.UInt16_BE( 0x0008, range=range( 0, 251 ) )
+    num_floaters =      mrc.UInt16_BE( 0x000a, range=range( 0, 251 ) )
+    num_bombers =       mrc.UInt16_BE( 0x000c, range=range( 0, 251 ) )
+    num_blockers =      mrc.UInt16_BE( 0x000e, range=range( 0, 251 ) )
+    num_builders =      mrc.UInt16_BE( 0x0010, range=range( 0, 251 ) )
+    num_bashers =       mrc.UInt16_BE( 0x0012, range=range( 0, 251 ) )
+    num_miners =        mrc.UInt16_BE( 0x0014, range=range( 0, 251 ) )
+    num_diggers =       mrc.UInt16_BE( 0x0016, range=range( 0, 251 ) )
+
+    name =              mrc.Bytes( 0x0018, 32, default=b'                                ' )
+
+    def __str__( self ):
+        name = self.name.strip()
+        if name:
+            return name.decode( 'utf8' )
+        return super( OddRecord, self ).__str__()
+
+
+class OddtableDAT( mrc.Block ):
+    _block_size = 4480
+    
+    records =           mrc.BlockList( OddRecord, 0x0000, count=80 )
+
 
 ##########
 # groundXo.dat and vgagrX.dat parser
 # source: http://www.camanis.net/lemmings/files/docs/lemmings_vgagrx_dat_groundxo_dat_file_format.txt
 # extra special thanks: ccexplore
 ##########
-
-class VgagrImage( mrc.Block ):
-    image_data =        mrc.Bytes( 0x0000, transform=img.Planarizer( mrc.Ref( '_parent.width' ), mrc.Ref( '_parent.height' ), 4 ) )
-
-    def __init__( self, *args, **kwargs ):
-        mrc.Block.__init__( self, *args, **kwargs )
-        self.image = img.IndexedImage( self, width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), source=mrc.Ref( 'image_data' ), palette=mrc.Ref( '_parent._parent.palette' )  )
-
 
 class InteractiveInfo( mrc.Block ):
     _block_size =       28
@@ -372,6 +404,14 @@ class InteractiveInfo( mrc.Block ):
         return self.trigger_height_raw * 4
 
 
+class TerrainImage( mrc.Block ):
+    image_data =        mrc.Bytes( 0x0000, transform=img.Planarizer( mrc.Ref( '_parent.width' ), mrc.Ref( '_parent.height' ), 4 ) )
+
+    def __init__( self, *args, **kwargs ):
+        mrc.Block.__init__( self, *args, **kwargs )
+        self.image = img.IndexedImage( self, width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), source=mrc.Ref( 'image_data' ), palette=mrc.Ref( '_parent._parent.palette' )  )
+
+
 class TerrainInfo( mrc.Block ):
     _block_size =       8
 
@@ -381,7 +421,7 @@ class TerrainInfo( mrc.Block ):
     mask_rel_offset =   mrc.UInt16_LE( 0x0004 )
     unknown_1 =         mrc.UInt16_LE( 0x0006 )
 
-    vgagr =             mrc.StoreRef( mrc.Ref( '_parent._vgagr.store' ), mrc.Ref( 'base_offset' ), mrc.Ref( 'size' ), VgagrImage )
+    vgagr =             mrc.StoreRef( TerrainImage, mrc.Ref( '_parent._vgagr.store' ), mrc.Ref( 'base_offset' ), mrc.Ref( 'size' ) )
 
     @property
     def size( self ):
@@ -546,19 +586,21 @@ class VgaspecDAT( mrc.Block ):
 ##########
     
 class Loader( mrc.Loader ):
+    SEP = mrc.Loader.SEP
+
     LEMMINGS_FILE_CLASS_MAP = {
-        '/(ADLIB).DAT$': None,
-        '/(CGAGR)(\d).DAT$': None,
-        '/(CGAMAIN).DAT$': None,
-        '/(CGASPEC)(\d).DAT$': None,
-        '/(GROUND)(\d)O.DAT$': GroundDAT,
-        '/(LEVEL)00(\d).DAT$': LevelDAT,
-        '/(MAIN).DAT$': MainDAT,
-        '/(ODDTABLE).DAT$': None,
-        '/(RUSSELL).DAT$': None,
-        '/(TGAMAIN).DAT$': None,
-        '/(VGAGR)(\d).DAT$': VgagrDAT,
-        '/(VGASPEC)(\d).DAT$': VgaspecDAT,
+        SEP+'(ADLIB).DAT$': None,
+        SEP+'(CGAGR)(\d).DAT$': None,
+        SEP+'(CGAMAIN).DAT$': None,
+        SEP+'(CGASPEC)(\d).DAT$': None,
+        SEP+'(GROUND)(\d)O.DAT$': GroundDAT,
+        SEP+'(LEVEL)00(\d).DAT$': LevelDAT,
+        SEP+'(MAIN).DAT$': MainDAT,
+        SEP+'(ODDTABLE).DAT$': OddtableDAT,
+        SEP+'(RUSSELL).DAT$': None,
+        SEP+'(TGAMAIN).DAT$': None,
+        SEP+'(VGAGR)(\d).DAT$': VgagrDAT,
+        SEP+'(VGASPEC)(\d).DAT$': VgaspecDAT,
     }
 
     def __init__( self ):

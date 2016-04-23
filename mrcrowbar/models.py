@@ -286,11 +286,11 @@ class Store( View ):
 
 
 class StoreRef( Ref ):
-    def __init__( self, store, offset, size, block_klass, block_kwargs=None ):
+    def __init__( self, block_klass, store, offset, size, block_kwargs=None ):
+        self.block_klass = block_klass
         self.store = store
         self.offset = offset
         self.size = size
-        self.block_klass = block_klass
         self.block_kwargs = block_kwargs
    
     def __str__( self ):
@@ -306,6 +306,8 @@ class StoreRef( Ref ):
     
     
 class Loader( object ):
+    SEP = re.escape( os.path.sep )
+
     def __init__( self, file_class_map, case_sensitive=False ):
         self.file_class_map = file_class_map
         self.re_flags = re.IGNORECASE if not case_sensitive else 0

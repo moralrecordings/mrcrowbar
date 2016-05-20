@@ -54,10 +54,20 @@ class RGBColour( Colour ):
 
 
 class Image( mrc.View ):
-    def __init__( self, parent, width, height ):
+    def __init__( self, parent, source, width, height, frame_count=1 ):
         super( Image, self ).__init__( parent )
+        self._source = source
         self._width = width
         self._height = height
+        self._frame_count = frame_count
+    
+    @property
+    def source( self ):
+        return mrc.property_get( self._source, self._parent )
+
+    @source.setter
+    def source( self, value ):
+        return mrc.property_set( self._source, self._parent, value )
  
     @property
     def width( self ):
@@ -75,20 +85,19 @@ class Image( mrc.View ):
     def height( self, value ):
         return mrc.property_set( self._height, self._parent, value )
 
+    @property
+    def frame_count( self ):
+        return mrc.property_get( self._frame_count, self._parent )
+
+    @frame_count.setter
+    def frame_count( self, value ):
+        return mrc.property_set( self._frame_count, self._parent, value )
+
 
 class IndexedImage( Image ):
-    def __init__( self, parent, width, height, source, palette=None ):
-        super( IndexedImage, self ).__init__( parent, width, height )
-        self._source = source
+    def __init__( self, parent, source, width, height, frame_count=1, palette=None ):
+        super( IndexedImage, self ).__init__( parent, source, width, height, frame_count )
         self._palette = palette if (palette is not None) else []
-
-    @property
-    def source( self ):
-        return mrc.property_get( self._source, self._parent )
-
-    @source.setter
-    def source( self, value ):
-        return mrc.property_set( self._source, self._parent, value )
 
     @property
     def palette( self ):
@@ -104,9 +113,10 @@ class IndexedImage( Image ):
         im.putpalette( itertools.chain( *((c.r_8, c.g_8, c.b_8) for c in self.palette) ) )
         return im
 
-    def ansi_format( self, x_start=0, y_start=0, width=None, height=None ):
+    def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0 ):
         assert x_start in range( 0, self.width )
         assert y_start in range( 0, self.height )
+        assert frame in range( 0, self.frame_count )
         if not width:
             width = self.width-x_start
         if not height:
@@ -114,8 +124,11 @@ class IndexedImage( Image ):
         result = []
         for y in range( 0, height, 2 ):
             for x in range( 0, width ):
-                p1 = self.palette[self.source[self.width*(y_start+y) + (x_start+x)]]
-                p2 = self.palette[self.source[self.width*(y_start+y+1) + (x_start+x)]] if (self.width*(y_start+y+1) + (x_start+x)) < len( self.source ) else Transparent()
+                stride = width*height
+                i1 = self.width*(y_start+y) + (x_start+x)
+                i2 = self.width*(y_start+y+1) + (x_start+x)
+                p1 = self.palette[self.source[stride*frame+i1]]
+                p2 = self.palette[self.source[stride*frame+i2]] if (i2) < (self.width*self.height) else Transparent()
                 if p1.a_8 == 0 and p2.a_8 == 0:
                     result.append( u'\x1b[0m ' )
                 elif p1 == p2:
@@ -205,10 +218,7 @@ class Planarizer( mrc.Transform ):
         self.plane_padding = plane_padding
         self.frame_offset = frame_offset
         self.frame_count = frame_count
-        if (not isinstance( frame_stride, mrc.Ref ) ) and frame_count >= 2 and frame_stride is None:
-            self.frame_stride = self.bpp*((self.width*self.height//8)+self.plane_padding)
-        else:
-            self.frame_stride = frame_stride if frame_stride is not None else 0
+        self.frame_stride = frame_stride
 
 
     def import_data( self, buffer: bytes, parent=None ):
@@ -222,12 +232,16 @@ class Planarizer( mrc.Transform ):
         frame_offset = mrc.property_get( self.frame_offset, parent )
         frame_count = mrc.property_get( self.frame_count, parent )
         frame_stride = mrc.property_get( self.frame_stride, parent )
+        if frame_count >= 2 and frame_stride is None:
+            frame_stride = bpp*((width*height//8)+plane_padding)
+        else:
+            frame_stride = frame_stride if frame_stride is not None else 0
         assert (width*height) % 8 == 0
         assert (bpp >= 0) and (bpp <= 8)
-        if frame_count == 1:
-            assert len( buffer ) >= frame_offset + math.ceil( (bpp*width*height)/8 )
-        else:
-            assert len( buffer ) >= frame_offset + frame_count*frame_stride
+        assert (frame_count >= 1)
+        # because frame_stride can potentially read past the buffer, only worry about measuring
+        # the last n-1 strides + one frame
+        assert len( buffer ) >= frame_offset + (frame_count-1)*frame_stride + math.ceil( (bpp*width*height)/8 ) 
 
 
         # our output is going to be "chunky"; each byte is a pixel (8-bit or 256 colour mode)
@@ -294,6 +308,10 @@ class Planarizer( mrc.Transform ):
         frame_offset = mrc.property_get( self.frame_offset, parent )
         frame_count = mrc.property_get( self.frame_count, parent )
         frame_stride = mrc.property_get( self.frame_stride, parent )
+        if frame_count >= 2 and frame_stride is None:
+            frame_stride = bpp*((width*height//8)+plane_padding)
+        else:
+            frame_stride = frame_stride if frame_stride is not None else 0
         assert (width*height) % 8 == 0
         assert (bpp >= 0) and (bpp <= 8)
         if frame_count == 1:

@@ -15,14 +15,16 @@ from mrcrowbar import utils
 # extra special thanks: ccexplore, Mindless
 
 class DATCompressor( mrc.Transform ):
+
+    @staticmethod
+    def _xor_checksum( data ):
+        lrc = 0
+        for b in data:
+            lrc ^= b
+        return lrc
+
     def import_data( self, buffer, parent=None ):
         assert type( buffer ) == bytes
-
-        def xor_checksum( data ):
-            lrc = 0
-            for b in data:
-                lrc ^= b
-            return lrc
 
         def copy_prev_data( blocklen, offset_size, state ):
             offset = state['bs'].get_bits( offset_size )
@@ -43,8 +45,8 @@ class DATCompressor( mrc.Transform ):
         
         bit_count = utils.from_uint8( buffer[pointer:] )
         checksum = utils.from_uint8( buffer[pointer+1:] )
-        decompressed_size = utils.from_uint16_be( buffer[pointer+4:] )
-        compressed_size = utils.from_uint16_be( buffer[pointer+8:] )
+        decompressed_size = utils.from_uint32_be( buffer[pointer+2:] )
+        compressed_size = utils.from_uint32_be( buffer[pointer+6:] )
         
         #print( '----   HEADER   ----' )
         #print( 'bit_count = {}'.format( bit_count ) )
@@ -59,9 +61,9 @@ class DATCompressor( mrc.Transform ):
         compressed_size -= 10
         
         compressed_data = buffer[pointer:pointer+compressed_size]
-        #print( 'computed checksum = {}'.format( xor_checksum( compressed_data ) ) )
-        if checksum != xor_checksum( compressed_data ):
-            print( 'Warning: checksum doesn\'t match header' )
+        #print( 'computed checksum = {}'.format( _xor_checksum( compressed_data ) ) )
+        if checksum != self._xor_checksum( compressed_data ):
+            print( 'Warning: checksum doesn\'t match header' )  
         
         pointer += compressed_size
         total_num_bytes -= compressed_size
@@ -104,6 +106,127 @@ class DATCompressor( mrc.Transform ):
         }
 
         return result
+
+
+    def export_data( self, buffer, parent=None ):
+        assert type( buffer ) == bytes
+
+        def write_bits( value, length ):
+            bs.put_bits( value, length )
+
+        def encode_raw_data( length ):
+            assert length <= 255+9
+
+            if length > 8:
+                write_bits( length-9, 8 )
+                write_bits( 0x7, 3 )
+            elif length > 0:
+                write_bits( length-1, 3 )
+                write_bits( 0x0, 2 )
+
+        def find_reference():
+            max_length = (1 << 8) + 1
+            max_offset = (1 << 12) + 1
+
+            length = 4  # throw away short references
+            offset = 0 
+            short_offset = [0, 0, 0]
+            
+            for i in range( pointer+1, pointer+max_offset ):
+                temp_len = 0
+                while (temp_len < max_length) and (i+temp_len < decompressed_size):
+                    # record short references
+                    if (temp_len >= 2) and (temp_len <= 4):
+                        if short_offset[temp_len-2] == 0:
+                            short_offset[temp_len-2] = i-pointer
+
+                    if buffer[pointer+temp_len] != buffer[i+temp_len]:
+                        break
+                    temp_len += 1
+                
+                if temp_len == max_length:
+                    temp_len -= 1
+
+                # largest reference so far? use it 
+                if temp_len > length:
+                    length = temp_len
+                    offset = i-pointer
+
+            assert length < max_length
+            assert offset < max_offset
+    
+            # no long references? try short
+            if (offset == 0):
+                for i in (2, 1, 0):
+                    max_short_offset = (1 << (i+8))+1
+                    if (short_offset[i] > 0) and (short_offset[i] < max_short_offset):
+                        length = i+2
+                        offset = short_offset[i]
+                        break
+
+            return length, offset
+
+
+        output = bytearray( 6 )
+        
+        decompressed_size = len( buffer )
+
+        bs = utils.BitWriter( bytes_reverse=True )
+
+        import pdb
+        pdb.set_trace()
+        pointer = 0
+        raw = 0
+        while pointer < decompressed_size:
+            length, ref = find_reference()
+            if ref > 0:
+                if raw > 0:
+                    encode_raw_data( raw )
+                    raw = 0
+                if length > 4:
+                    write_bits( ref-1, 12 )
+                    write_bits( length-1, 8 )
+                    write_bits( 0x6, 3 )
+                elif length == 4:
+                    write_bits( ref-1, 10 )
+                    write_bits( 0x5, 3 )
+                elif length == 3:
+                    write_bits( ref-1, 9 )
+                    write_bits( 0x4, 3 )
+                elif length == 2:
+                    write_bits( ref-1, 8 )
+                    write_bits( 0x1, 2 )
+
+                pointer += length
+            else:
+                write_bits( buffer[pointer], 8 )
+
+                raw += 1
+                if raw == 264:
+                    encode_raw_data( raw )
+                    raw = 0
+
+                pointer += 1
+
+        encode_raw_data( raw )
+
+    
+        compressed_data = bs.get_buffer()
+        compressed_size = len( compressed_data ) + 10
+        checksum = self._xor_checksum( compressed_data )
+
+        output[0:1] = utils.to_uint8( bs.bits_remaining )
+        output[1:2] = utils.to_uint8( checksum )
+        output[2:6] = utils.to_uint32_be( decompressed_size )
+        output[6:10] = utils.to_uint32_be( compressed_size )
+        output.extend( compressed_data )
+
+        result = {
+            'payload': bytes( output )
+        }
+
+        return result
+            
 
 
 class SpecialCompressor( mrc.Transform ):

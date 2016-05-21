@@ -317,7 +317,7 @@ class Level( mrc.Block ):
 
 
 class LevelDAT( mrc.Block ):
-    levels  = mrc.BlockStream( Level, 0x0000, transform=DATCompressor() );
+    levels  = mrc.BlockStream( Level, 0x0000, transform=DATCompressor() )
 
 ##########
 # oddtable.dat parser
@@ -360,6 +360,15 @@ class OddtableDAT( mrc.Block ):
 # extra special thanks: ccexplore
 ##########
 
+class InteractiveImage( mrc.Block ):
+    image_data  =       mrc.Bytes( 0x0000, transform=img.Planarizer( width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), bpp=4, frame_count=mrc.Ref( '_parent.end_frame' ), frame_stride=mrc.Ref( '_parent.frame_data_size' ) ) )
+    mask_data   =       mrc.Bytes( mrc.Ref( '_parent.mask_rel_offset' ), transform=img.Planarizer( width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), bpp=1, frame_count=mrc.Ref( '_parent.end_frame' ), frame_stride=mrc.Ref( '_parent.frame_data_size' ) ) )
+
+    def __init__( self, *args, **kwargs ):
+        mrc.Block.__init__( self, *args, **kwargs )
+        self.image = img.IndexedImage( self, width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), source=mrc.Ref( 'image_data' ), frame_count=mrc.Ref( '_parent.end_frame' ), palette=mrc.Ref( '_parent._parent.palette' ) )
+        self.mask = img.IndexedImage( self, width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), source=mrc.Ref( 'mask_data' ), frame_count=mrc.Ref( '_parent.end_frame' ), palette=mrc.Ref( '_parent._parent.palette' ) )
+
 class InteractiveInfo( mrc.Block ):
     _block_size =       28
 
@@ -386,7 +395,17 @@ class InteractiveInfo( mrc.Block ):
     unknown_3 =         mrc.UInt16_LE( 0x0019 )
 
     sound_id =          mrc.UInt8( 0x001b )
-    
+   
+    vgagr =             mrc.StoreRef( InteractiveImage, mrc.Ref( '_parent._vgagr.interact_store.store' ), mrc.Ref( 'base_offset' ), mrc.Ref( 'size' ) )
+
+    @property
+    def size( self ):
+        return self.frame_data_size*self.end_frame
+
+    @property
+    def plane_padding( self ):
+        return self.width*self.height//8
+
     @property
     def trigger_x( self ):
         return self.trigger_x_raw * 4
@@ -405,11 +424,13 @@ class InteractiveInfo( mrc.Block ):
 
 
 class TerrainImage( mrc.Block ):
-    image_data =        mrc.Bytes( 0x0000, transform=img.Planarizer( mrc.Ref( '_parent.width' ), mrc.Ref( '_parent.height' ), 4 ) )
+    image_data =        mrc.Bytes( 0x0000, transform=img.Planarizer( width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), bpp=4 ) )
+    mask_data =         mrc.Bytes( mrc.Ref( '_parent.mask_offset' ), transform=img.Planarizer( width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), bpp=1 ) )
 
     def __init__( self, *args, **kwargs ):
         mrc.Block.__init__( self, *args, **kwargs )
-        self.image = img.IndexedImage( self, width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), source=mrc.Ref( 'image_data' ), palette=mrc.Ref( '_parent._parent.palette' )  )
+        self.image = img.IndexedImage( self, width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), source=mrc.Ref( 'image_data' ), palette=mrc.Ref( '_parent._parent.palette' ) )
+        self.mask = img.IndexedImage( self, width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), source=mrc.Ref( 'mask_data' ), palette=mrc.Ref( '_parent._parent.palette' ) )
 
 
 class TerrainInfo( mrc.Block ):
@@ -421,15 +442,24 @@ class TerrainInfo( mrc.Block ):
     mask_rel_offset =   mrc.UInt16_LE( 0x0004 )
     unknown_1 =         mrc.UInt16_LE( 0x0006 )
 
-    vgagr =             mrc.StoreRef( TerrainImage, mrc.Ref( '_parent._vgagr.store' ), mrc.Ref( 'base_offset' ), mrc.Ref( 'size' ) )
+    vgagr =             mrc.StoreRef( TerrainImage, mrc.Ref( '_parent._vgagr.terrain_store.store' ), mrc.Ref( 'base_offset' ), mrc.Ref( 'size' ) )
 
     @property
     def size( self ):
-        return self.width*self.height//2
+        return self.width*self.height*5//8
+
+    @property
+    def mask_offset( self ):
+        return self.mask_rel_offset-self.base_offset
+        #return self.width*self.height*4//8
+
+    @property
+    def mask_stride( self ):
+        return self.width*self.height*4//8
 
     @property
     def mask_size( self ):
-        return self.width*self.height//16
+        return self.width*self.height//8
 
 
 class GroundDAT( mrc.Block ):
@@ -453,12 +483,24 @@ class GroundDAT( mrc.Block ):
         return self._palette
 
 
-class VgagrDAT( mrc.Block ):
-    data = mrc.Bytes( 0x0000, transform=DATCompressor() )
-    
+class VgagrStore( mrc.Block ):
+    data = mrc.Bytes( 0x0000 )
+
     def __init__( self, *args, **kwargs ):
         mrc.Block.__init__( self, *args, **kwargs )
         self.store = mrc.Store( self, mrc.Ref( 'data' ) )
+
+
+class VgagrDAT( mrc.Block ):
+    stores = mrc.BlockStream( VgagrStore, 0x0000, transform=DATCompressor() )
+
+    @property
+    def terrain_store( self ):
+        return self.stores[0]
+
+    @property
+    def interact_store( self ):
+        return self.stores[1]
 
 
 ##########

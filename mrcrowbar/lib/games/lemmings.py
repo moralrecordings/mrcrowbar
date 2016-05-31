@@ -94,7 +94,6 @@ class DATCompressor( mrc.Transform ):
                     dump_data( bs.get_bits( 3 )+1, state )
                 elif test==1:
                     copy_prev_data( 2, 8, state )
-            
             if not (state['dptr'] > 0): 
                 break
         
@@ -165,16 +164,11 @@ class DATCompressor( mrc.Transform ):
                         break
 
             return length, offset
-
-
-        output = bytearray( 6 )
         
         decompressed_size = len( buffer )
 
-        bs = utils.BitWriter( bytes_reverse=True )
+        bs = utils.BitWriter( bits_reverse=True )
 
-        import pdb
-        pdb.set_trace()
         pointer = 0
         raw = 0
         while pointer < decompressed_size:
@@ -215,7 +209,8 @@ class DATCompressor( mrc.Transform ):
         compressed_size = len( compressed_data ) + 10
         checksum = self._xor_checksum( compressed_data )
 
-        output[0:1] = utils.to_uint8( bs.bits_remaining )
+        output = bytearray( 6 )
+        output[0:1] = utils.to_uint8( 8-bs.bits_remaining )
         output[1:2] = utils.to_uint8( checksum )
         output[2:6] = utils.to_uint32_be( decompressed_size )
         output[6:10] = utils.to_uint32_be( compressed_size )

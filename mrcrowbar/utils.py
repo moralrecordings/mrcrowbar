@@ -103,10 +103,11 @@ class BitReader( object ):
 
 
 class BitWriter( object ):
-    def __init__( self, bytes_reverse=False, bits_reverse=False ):
+    def __init__( self, bytes_reverse=False, bits_reverse=False, insert_at_msb=False ):
         self.output = bytearray()
         self.bits_reverse = bits_reverse
         self.bytes_reverse = bytes_reverse
+        self.insert_at_msb = insert_at_msb
         self.bits_remaining = 8
         self.current_bits = 0
 
@@ -120,9 +121,17 @@ class BitWriter( object ):
 
             # however, bits are put into the result based on the rule
             if self.bits_reverse:
-                self.current_bits |= (bit << (self.bits_remaining-1))
+                if self.insert_at_msb:
+                    self.current_bits |= (bit << (self.bits_remaining-1))
+                else:
+                    self.current_bits <<= 1
+                    self.current_bits |= bit
             else:
-                self.current_bits |= (bit << (8-self.bits_remaining))        
+                if self.insert_at_msb:
+                    self.current_bits >>= 1
+                    self.current_bits |= (bit << 7)
+                else:
+                    self.current_bits |= (bit << (8-self.bits_remaining))
 
             self.bits_remaining -= 1
             if self.bits_remaining <= 0:
@@ -133,7 +142,14 @@ class BitWriter( object ):
 
 
     def get_buffer( self ):
+        last_byte = self.current_bits if (self.bits_remaining < 8) else None
+            
+        result = self.output
+        if last_byte:
+            result = bytearray( result )
+            result.append( last_byte )
+
         if self.bytes_reverse:
-            return bytes( reversed( self.output ) )
+            return bytes( reversed( result ) )
         else:
-            return bytes( self.output )
+            return bytes( result )

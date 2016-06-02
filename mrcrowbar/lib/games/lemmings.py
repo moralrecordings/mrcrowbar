@@ -235,10 +235,12 @@ class SpecialCompressor( mrc.Transform ):
         buf_out = []
         i = 0
         while i < len( buffer ):
+            # 0x00 <= n < 0x80: copy next n+1 bytes to output stream
             if buffer[i] in range( 0x00, 0x80 ):
                 count = buffer[i]+1
                 buf_out.append( buffer[i+1:i+1+count] )
                 i += count+1
+            # n == 0x80: end of segment
             elif buffer[i] == 0x80:
                 product = b''.join( buf_out )
                 if len( product ) != self.DECOMPRESSED_SIZE:
@@ -246,6 +248,7 @@ class SpecialCompressor( mrc.Transform ):
                 result.append( product )
                 buf_out = []
                 i += 1
+            # 0x81 <= n < 0xff: repeat next byte (257-n) times
             else:
                 count = 257-buffer[i]
                 buf_out.append( buffer[i+1:i+2]*count )
@@ -264,6 +267,47 @@ class SpecialCompressor( mrc.Transform ):
         }
 
         return result
+
+    def export_data( self, buffer, parent=None ):
+        assert type( buffer ) == bytes
+        assert len( buffer ) == 960*160
+        
+        segments = (buffer[960*40*i:960*40*(i+1)] for i in range(4))
+        segments = (self.plan.export_data( x )['payload'] for x in segments)
+        
+        result = bytearray()
+
+        for segment in segments:
+            pointer = 0
+            while pointer < len( segment ):
+                start = pointer
+                end = pointer+1
+                if end >= len( segment ):
+                    result.append( 0x00 )
+                    result.append( segment[start] )
+                    pointer += 1
+                elif segment[end] == segment[start]:
+                    # either end of segment or 128 same characters
+                    while ((end+1) < len( segment )) and (segment[end+1] == segment[end]) and (end+1-start <= 128):
+                        end += 1
+                    result.append( 257-(end+1-start) )
+                    result.append( segment[start] )
+                    pointer = end+1
+                else:
+                    while ((end+1) < len( segment )) and (segment[end+1] != segment[end]) and (end+1-start <= 128):
+                        end += 1
+                    result.append( end-start )
+                    result.extend( segment[start:end+1] )
+                    pointer = end+1
+
+            result.append( 0x80 )
+        
+        result = {
+            'payload': bytes( result )
+        }
+        return result
+                    
+
 
 
 # this palette is actually stored in the first half of each GroundDat palette block,
@@ -626,15 +670,19 @@ class VgagrDAT( mrc.Block ):
 # source: http://www.camanis.net/lemmings/files/docs/lemmings_main_dat_file_format.txt
 ##########
 
-AnimField = lambda offset, width, height, bpp, frame_count: mrc.BlockField( img.RawIndexedImage, offset, block_kwargs={ 'width': width, 'height': height*frame_count, 'palette': LEMMINGS_VGA_DEFAULT_PALETTE }, transform=img.Planarizer( width, height, bpp, frame_count=frame_count ) )
-
-
 class Anim( mrc.Block ):
-    image_data           =  mrc.Bytes( 0x0000 )
+    image_data           =  mrc.Bytes( 0x0000, transform=img.Planarizer( width=mrc.Ref( 'width' ), height=mrc.Ref( 'height' ), bpp=mrc.Ref( 'bpp' ), frame_count=mrc.Ref( 'frame_count' ) ) )
 
     def __init__( self, width, height, bpp, frame_count, *args, **kwargs ):
+        self.width = width
+        self.height = height
+        self.bpp = bpp
+        self.frame_count = frame_count
+        self.image = img.IndexedImage( self, width=width, height=height, source=mrc.Ref( 'image_data' ), frame_count=frame_count, palette=LEMMINGS_VGA_DEFAULT_PALETTE )
         mrc.Block.__init__( self, *args, **kwargs )
-        self.image = img.IndexedImage( self, width=width, height=height, source=mrc.Ref( 'image_data' ) )
+
+
+AnimField = lambda offset, width, height, bpp, frame_count: mrc.BlockField( Anim, offset, block_kwargs={ 'width': width, 'height': height, 'bpp': bpp, 'frame_count': frame_count } )
 
 
 # the following animation/sprite lookup tables are embedded in the Lemmings executable

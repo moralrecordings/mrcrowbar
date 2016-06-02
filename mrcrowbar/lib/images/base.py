@@ -3,7 +3,7 @@
 from mrcrowbar import models as mrc
 from mrcrowbar import utils
 
-import PIL
+from PIL import Image as PILImage
 
 from array import array
 import itertools
@@ -108,10 +108,17 @@ class IndexedImage( Image ):
         return mrc.property_set( self._palette, self._parent, value )
 
     def get_image( self ):
-        im = PIL.Image.new( 'P', (self.width, self.height) )
-        im.putdata( self.source[:self.width, self.height] )
+        im = PILImage.new( 'P', (self.width, self.height) )
+        im.putdata( self.source[:self.width*self.height] )
         im.putpalette( itertools.chain( *((c.r_8, c.g_8, c.b_8) for c in self.palette) ) )
         return im
+
+    def set_image( self, image ):
+        assert type( image ) == PILImage
+        if self.width != image.width:
+            self.width = image.width
+        if self.height != image.height:
+            self.height = image.height
 
     def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0 ):
         assert x_start in range( 0, self.width )
@@ -152,63 +159,6 @@ class IndexedImage( Image ):
     def __repr__( self ):
         return '<{}: {} bytes, {}x{}>'.format( self.__class__.__name__, self.width*self.height, self.width, self.height )
 
-
-class RawIndexedImage( mrc.Block ):
-    _width =            0
-    _height =           0
-    _palette =          []
-
-    data = mrc.Bytes( 0x0000 )
-
-    def __init__( self, raw_buffer, parent=None, width=0, height=0, palette=None, **kwargs ):
-        self._width = width
-        self._height = height
-        if palette is not None:
-            self._palette = palette
-        #assert len( buffer ) == width*height
-        super( RawIndexedImage, self ).__init__( raw_buffer, parent, **kwargs )
-
-    def get_image( self ):
-        im = PIL.Image.new( 'P', (self._width, self._height) )
-        im.putdata( self.data[:self._width*self._height] )
-        im.putpalette( itertools.chain( *((c.r_8, c.g_8, c.b_8) for c in self._palette) ) )
-        return im
-
-    def ansi_format( self, x_start=0, y_start=0, width=None, height=None ):
-        assert x_start in range( 0, self._width )
-        assert y_start in range( 0, self._height )
-        if not width:
-            width = self._width-x_start
-        if not height:
-            height = self._height-y_start
-        result = []
-        for y in range( 0, height, 2 ):
-            for x in range( 0, width ):
-                p1 = self._palette[self.data[self._width*(y_start+y) + (x_start+x)]]
-                p2 = self._palette[self.data[self._width*(y_start+y+1) + (x_start+x)]] if (self._width*(y_start+y+1) + (x_start+x)) < len( self.data ) else Transparent()
-                if p1.a_8 == 0 and p2.a_8 == 0:
-                    result.append( u'\x1b[0m ' )
-                elif p1 == p2:
-                    result.append( u'\x1b[38;2;{};{};{}m█'.format( p1.r_8, p1.g_8, p1.b_8 ) )
-                elif p1.a_8 == 0 and p2.a_8 != 0:
-                    result.append( u'\x1b[38;2;{};{};{}m▄'.format( p2.r_8, p2.g_8, p2.b_8 ) )
-                elif p1.a_8 != 0 and p2.a_8 == 0:
-                    result.append( u'\x1b[38;2;{};{};{}m▀'.format( p1.r_8, p1.g_8, p1.b_8 ) )
-                else:
-                    result.append( u'\x1b[38;2;{};{};{};48;2;{};{};{}m▀\x1b[0m'.format( p1.r_8, p1.g_8, p1.b_8, p2.r_8, p2.g_8, p2.b_8 ) )
-
-            result.append( u'\x1b[0m\n' )
-        return u''.join( result )
-    
-    def print( self, *args, **kwargs ):
-        print( self.ansi_format( *args, **kwargs ) )
-
-    def __str__( self ):
-        return self.ansi_format()
-
-    def __repr__( self ):
-        return '<{}: {} bytes, {}x{}>'.format( self.__class__.__name__, len( self.data ), self._width, self._height )
-    
 
 class Planarizer( mrc.Transform ):
     def __init__( self, width: int, height: int, bpp: int, plane_padding: int=0, frame_offset: int=0, frame_stride: int=None, frame_count: int=1 ):

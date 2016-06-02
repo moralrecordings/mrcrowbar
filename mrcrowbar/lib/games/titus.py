@@ -13,12 +13,20 @@ from mrcrowbar.utils import BitReader
 
 
 class SplashEGA( mrc.Block ):
-    image =     mrc.BlockField( img.RawIndexedImage, 0x0000, block_kwargs={ 'width': 320, 'height': 200, 'palette': ibm_pc.EGA_DEFAULT_PALETTE }, transform=img.Planarizer( 320, 200, 4 ) )
-    
+    image_data =    mrc.Bytes( 0x0000, transform=img.Planarizer( 320, 200, 4 ) )
+
+    def __init__( self, *args, **kwargs ):
+        mrc.Block.__init__( self, *args, **kwargs )
+        self.image = img.IndexedImage( self, width=320, height=200, palette=ibm_pc.EGA_DEFAULT_PALETTE, source=mrc.Ref( 'image_data' ) )
+
 
 class SplashVGA( mrc.Block ):
-    palette =   mrc.BlockStream( ibm_pc.VGAColour, 0x0000, stride=0x03, count=256 )
-    image =     mrc.BlockField( img.RawIndexedImage, 0x0300, block_kwargs={ 'width': 320, 'height': 200 } )
+    palette =       mrc.BlockStream( ibm_pc.VGAColour, 0x0000, stride=0x03, count=256 )
+    image_data =    mrc.Bytes( 0x0300 )
+
+    def __init__( self, *args, **kwargs ):
+        mrc.Block.__init__( self, *args, **kwargs )
+        self.image = img.IndexedImage( self, width=320, height=200, palette=mrc.Ref( 'palette' ), source=mrc.Ref( 'image_data' ) )
 
 
 # TODO: add method to scrape this table from the EXE file
@@ -80,8 +88,8 @@ class ZIVCompressor( mrc.Transform ):
 
 class Loader( mrc.Loader ):
     TITUS_FILE_CLASS_MAP = {
-        '/TITRE.SQZ$': SplashVGA,
-        '/TITREEGA.SQZ$': SplashEGA,
+        #'/TITRE.SQZ$': SplashVGA,
+        #'/TITREEGA.SQZ$': SplashEGA,
     }
 
     def __init__( self ):

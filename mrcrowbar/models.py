@@ -179,21 +179,30 @@ class Block( object ):
     _block_size = 0
     _parent = None
 
-    def __init__( self, raw_buffer=None, parent=None ):
+    def __init__( self, source_data=None, parent=None ):
         self._field_data = {}
         self._ref_cache = {}
         self._parent = parent
         
         # start the initial load of data
-        self.import_data( raw_buffer )
+        if isinstance( source_data, Block ):
+            self.clone_data( source_data )
+        else:
+            self.import_data( source_data )
         
-
     def __repr__( self ):
         return '<{}: {}>'.format( self.__class__.__name__, str( self ) )
 
     def __str__( self ):
         return hex( id( self ) )
 
+    def clone_data( self, source, **kw ):
+        klass = self.__class__
+        assert isinstance( source, klass )
+
+        for name in klass._fields:
+            self._field_data[name] = getattr( source, name )
+        
     def import_data( self, raw_buffer, **kw ):
         klass = self.__class__
         if raw_buffer:

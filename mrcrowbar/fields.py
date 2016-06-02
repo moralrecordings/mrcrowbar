@@ -92,11 +92,11 @@ class BlockStream( Field ):
         while pointer < len( buffer ):
             if self.transform:
                 data = self.transform.import_data( buffer[pointer:], parent=parent )
-                block = self.block_klass( raw_buffer=data['payload'], parent=parent, **self.block_kwargs )
+                block = self.block_klass( source_data=data['payload'], parent=parent, **self.block_kwargs )
                 result.append( block )
                 pointer += data['end_offset']
             else:
-                block = self.block_klass( raw_buffer=buffer[pointer:], parent=parent, **self.block_kwargs )
+                block = self.block_klass( source_data=buffer[pointer:], parent=parent, **self.block_kwargs )
                 assert block.size() > 0
                 result.append( block )
                 pointer += block.size()
@@ -133,7 +133,7 @@ class BlockList( Field ):
                 # run the stop check (if exists): if it returns true, we've hit the end of the stream
                 if self.stop_check and (self.stop_check( buffer, offset+i*stride )):
                     break
-                block = self.block_klass( raw_buffer=sub_buffer, parent=parent, **self.block_kwargs )
+                block = self.block_klass( source_data=sub_buffer, parent=parent, **self.block_kwargs )
                 result.append( block )
                     
         return result
@@ -188,9 +188,9 @@ class BlockField( Field ):
 
         result = None
         if self.transform:
-            result = self.block_klass( raw_buffer=self.transform.import_data( buffer[offset:], parent=parent )['payload'], parent=parent, **self.block_kwargs )
+            result = self.block_klass( source_data=self.transform.import_data( buffer[offset:], parent=parent )['payload'], parent=parent, **self.block_kwargs )
         else:
-            result = self.block_klass( raw_buffer=buffer[offset:], parent=parent, **self.block_kwargs )
+            result = self.block_klass( source_data=buffer[offset:], parent=parent, **self.block_kwargs )
 
         return result
         #return (self.fill*int( 1+self.block_klass._block_size/len(self.fill) ))[:self.block_klass._block_size]

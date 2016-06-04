@@ -523,13 +523,44 @@ class OddtableDAT( mrc.Block ):
 ##########
 
 class InteractiveImage( mrc.Block ):
-    image_data  =       mrc.Bytes( 0x0000, transform=img.Planarizer( width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), bpp=4, frame_count=mrc.Ref( '_parent.end_frame' ), frame_stride=mrc.Ref( '_parent.frame_data_size' ) ) )
-    mask_data   =       mrc.Bytes( mrc.Ref( '_parent.mask_rel_offset' ), transform=img.Planarizer( width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), bpp=1, frame_count=mrc.Ref( '_parent.end_frame' ), frame_stride=mrc.Ref( '_parent.frame_data_size' ) ) )
+    image_data  =       mrc.Bytes( 
+                            0x0000, transform=img.Planarizer( 
+                                width=mrc.Ref( '_parent.width' ), 
+                                height=mrc.Ref( '_parent.height' ), 
+                                bpp=4, 
+                                frame_count=mrc.Ref( '_parent.end_frame' ), 
+                                frame_stride=mrc.Ref( '_parent.frame_data_size' ) 
+                            ) 
+                        )
+    mask_data   =       mrc.Bytes( 
+                            mrc.Ref( '_parent.mask_rel_offset' ), 
+                            transform=img.Planarizer( 
+                                width=mrc.Ref( '_parent.width' ), 
+                                height=mrc.Ref( '_parent.height' ), 
+                                bpp=1, 
+                                frame_count=mrc.Ref( '_parent.end_frame' ), 
+                                frame_stride=mrc.Ref( '_parent.frame_data_size' ) 
+                            ) 
+                        )
 
     def __init__( self, *args, **kwargs ):
         mrc.Block.__init__( self, *args, **kwargs )
-        self.image = img.IndexedImage( self, width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), source=mrc.Ref( 'image_data' ), frame_count=mrc.Ref( '_parent.end_frame' ), palette=mrc.Ref( '_parent._parent.palette' ) )
-        self.mask = img.IndexedImage( self, width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), source=mrc.Ref( 'mask_data' ), frame_count=mrc.Ref( '_parent.end_frame' ), palette=mrc.Ref( '_parent._parent.palette' ) )
+        self.image = img.IndexedImage( 
+                        self, 
+                        width=mrc.Ref( '_parent.width' ), 
+                        height=mrc.Ref( '_parent.height' ), 
+                        source=mrc.Ref( 'image_data' ), 
+                        frame_count=mrc.Ref( '_parent.end_frame' ), 
+                        palette=mrc.Ref( '_parent._parent.palette' ) 
+                    )
+        self.mask = img.IndexedImage( 
+                        self, 
+                        width=mrc.Ref( '_parent.width' ), 
+                        height=mrc.Ref( '_parent.height' ), 
+                        source=mrc.Ref( 'mask_data' ), 
+                        frame_count=mrc.Ref( '_parent.end_frame' ), 
+                        palette=mrc.Ref( '_parent._parent.palette' ) 
+                    )
 
 class InteractiveInfo( mrc.Block ):
     _block_size =       28
@@ -586,13 +617,38 @@ class InteractiveInfo( mrc.Block ):
 
 
 class TerrainImage( mrc.Block ):
-    image_data =        mrc.Bytes( 0x0000, transform=img.Planarizer( width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), bpp=4 ) )
-    mask_data =         mrc.Bytes( mrc.Ref( '_parent.mask_offset' ), transform=img.Planarizer( width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), bpp=1 ) )
+    image_data =        mrc.Bytes( 
+                            0x0000, transform=img.Planarizer( 
+                                width=mrc.Ref( '_parent.width' ), 
+                                height=mrc.Ref( '_parent.height' ), 
+                                bpp=4 
+                            ) 
+                        )
+    mask_data =         mrc.Bytes( 
+                            mrc.Ref( '_parent.mask_offset' ), 
+                            transform=img.Planarizer( 
+                                width=mrc.Ref( '_parent.width' ), 
+                                height=mrc.Ref( '_parent.height' ), 
+                                bpp=1 
+                            ) 
+                        )
 
     def __init__( self, *args, **kwargs ):
         mrc.Block.__init__( self, *args, **kwargs )
-        self.image = img.IndexedImage( self, width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), source=mrc.Ref( 'image_data' ), palette=mrc.Ref( '_parent._parent.palette' ) )
-        self.mask = img.IndexedImage( self, width=mrc.Ref( '_parent.width' ), height=mrc.Ref( '_parent.height' ), source=mrc.Ref( 'mask_data' ), palette=mrc.Ref( '_parent._parent.palette' ) )
+        self.image = img.IndexedImage( 
+                        self, 
+                        width=mrc.Ref( '_parent.width' ), 
+                        height=mrc.Ref( '_parent.height' ), 
+                        source=mrc.Ref( 'image_data' ), 
+                        palette=mrc.Ref( '_parent._parent.palette' ) 
+                    )
+        self.mask = img.IndexedImage( 
+                        self, 
+                        width=mrc.Ref( '_parent.width' ), 
+                        height=mrc.Ref( '_parent.height' ), 
+                        source=mrc.Ref( 'mask_data' ), 
+                        palette=mrc.Ref( '_parent._parent.palette' ) 
+                    )
 
 
 class TerrainInfo( mrc.Block ):

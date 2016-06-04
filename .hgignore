@@ -4,3 +4,4 @@ syntax: glob
 dist
 *.egg-info
 venv
+doc/build

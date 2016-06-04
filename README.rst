@@ -1,7 +1,7 @@
 Mr. Crowbar
 ###########
 
-.. image:: doc/source/_static/mrcrowbar.svg
+.. image:: doc/source/_static/mrcrowbar.png
 
 Wait, what?!
 ============

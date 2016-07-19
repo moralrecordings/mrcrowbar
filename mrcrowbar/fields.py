@@ -55,9 +55,9 @@ class BlockStream( Field ):
                 pointer += data['end_offset']
             else:
                 block = self.block_klass( source_data=buffer[pointer:], parent=parent, **self.block_kwargs )
-                assert block.size() > 0
+                assert block._block_size > 0
                 result.append( block )
-                pointer += block.size()
+                pointer += block._block_size
         return result
 
     def update_buffer_with_value( self, value, buffer, parent=None ):

@@ -208,9 +208,6 @@ class Block( object, metaclass=ModelMeta ):
             klass._fields[name].update_buffer_with_value( self._field_data[name], output, parent=self )
         return output
 
-    def size( self ):
-        return self._block_size
-
     def validate( self, **kw ):
         klass = self.__class__
         for name in klass._fields:

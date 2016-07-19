@@ -9,6 +9,115 @@ from mrcrowbar.lib.images import base as img
 from mrcrowbar.lib.compressors import lzss
 from mrcrowbar import utils
 
+# source: http://www.shikadi.net/moddingwiki/RES_Format_%28Boppin%29
+
+BOPPIN_RES_FILENAMES = [
+    'BOPPIN.CFG',
+    'CANDY.IMG',
+    'CANDY.TXB',
+    'BOPPIN.SND',
+    'BOPPIN.MUS',
+    'SCORE.CFG',
+    'WALLS.RES',
+    'FLOORS.RES',
+    'ELEVATOR.TIL',
+    'SOURCE.TIL',
+    'BOPPING.TIL',
+    'BCKGND.TIL',
+    'PRIZE.TIL',
+    'MONSTER.TIL',
+    'MISC.TIL',
+    'CHAR.TIL',
+    'UNKNOWN1',
+    'UNKNOWN2',
+    'UNKNOWN3',
+    'BOPPIN.LVL',
+    'UNKNOWN4',
+    'UNKNOWN5',
+    'UNKNOWN6',
+    'UNKNOWN7',
+    'ENDSCRN.BIN',
+    'UNKNOWN8',
+    'UNKNOWN9'
+]
+
+BOPPIN_MUS_FILENAMES = [
+    'BOPBOP2.MID', 
+    'MAGNETIC.MID', 
+    'FRUSTRAT.MID', 
+    'SAPPHIRE.MID', 
+    'OPUS43.MID', 
+    'FOUNDAT.MID', 
+    'FELTIBUN.MID', 
+    'STUMBUM.MID', 
+    'STARBOP.MID', 
+    'BUMBLE.MID', 
+    'SKEPTICA.MID', 
+    'STABHAPP.MID', 
+    'STREETS.MID', 
+    'DIXIE.MID', 
+    'LOBERO.MID', 
+    'APOGEE.MID'
+]
+
+BOPPIN_SND_FILENAMES = [
+    'ADDCRED.VOC', 
+    'ADDLIFE.VOC', 
+    'BLKBNC1.VOC', 
+    'BLKBNC2.VOC', 
+    'BLKDRP.VOC', 
+    'BLOCKPSH.VOC', 
+    'BLOCKREZ.VOC', 
+    'BODYTHUD.VOC', 
+    'BOIKREZ1.VOC', 
+    'BOIKREZ2.VOC', 
+    'BOIKREZ3.VOC', 
+    'BOIKSUI1.VOC', 
+    'BOIKSUI2.VOC', 
+    'YEETREZ1.VOC', 
+    'YEETREZ3.VOC', 
+    'YEETSUI1.VOC', 
+    'YEETSU1A.VOC', 
+    'YEETSUI2.VOC', 
+    'BONUSTIM.VOC', 
+    'BONUSTLY.VOC', 
+    'BOPHIT.VOC', 
+    'CRYING.VOC', 
+    'DUCKING.VOC', 
+    'ELEVATOR.VOC', 
+    'EXPLOSN.VOC', 
+    'FOOTTAP.VOC', 
+    'JUMPJOY.VOC', 
+    'LOGO.VOC', 
+    'LOGO2.VOC', 
+    'LOGO3.VOC', 
+    'PING.VOC', 
+    'PRIZDROP.VOC', 
+    'PRIZE.VOC', 
+    'PRIZELOS.VOC', 
+    'PTRNFLSH.VOC', 
+    'PTRNHIT.VOC', 
+    'REFRACTR.VOC', 
+    'WALKING.VOC', 
+    'NOTEMAN.VOC', 
+    'ECHOTINK.VOC', 
+    'BEEFBRAS.VOC', 
+    'CLEANBAS.VOC', 
+    'DEEPBASS.VOC', 
+    'FLICKBAS.VOC', 
+    'JAHRMARK.VOC', 
+    'LICKS.VOC', 
+    'MARIMBA.VOC', 
+    'NIGHTMAR.VOC', 
+    'PIANO.VOC', 
+    'SHAKER.VOC', 
+    'SOFTTP12.VOC', 
+    'STRINGS1.VOC', 
+    'SYNBUZ.VOC', 
+    'UNKNOWN.VOC', 
+    'UNKNOWN2.VOC'
+]
+
 
 class Lookup( mrc.Block ):
     _block_size =   8
@@ -38,7 +147,7 @@ def resource_stop_check( buffer, offset ):
 
 
 class Resource( mrc.Block ):
-    lookup_table =  mrc.BlockStream( Lookup, 0x00, stride=0x08, count=64, stop_check=resource_stop_check, fill=b'\xff\xff\xff\xff\x00\x00\x00\x00' )
+    lookup_table =  mrc.BlockList( Lookup, 0x00, stride=0x08, count=64, stop_check=resource_stop_check, fill=b'\xff\xff\xff\xff\x00\x00\x00\x00' )
 
 
 class BoppinCompressor( mrc.Transform ):
@@ -58,3 +167,13 @@ class BoppinCompressor( mrc.Transform ):
         return result
 
 
+class Loader( mrc.Loader ):
+    SEP = mrc.Loader.SEP
+
+    BOPPIN_FILE_CLASS_MAP = {
+        SEP+'(BOPPIN)(\d).LVL$': None,
+        SEP+'(BOPPIN).RES$': Resource,
+    }
+
+    def __init__( self ):
+        super( Loader, self ).__init__( self.BOPPIN_FILE_CLASS_MAP )

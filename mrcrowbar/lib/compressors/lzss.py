@@ -18,31 +18,27 @@ class LZSSCompressor( mrc.Transform ):
         result = bytearray()
         index = 0
 
-        try:
-            while True:
-                flags >>= 1
-                if (flags & 0x100) == 0:
-                    flags = buffer[index] | 0xff00;
-                    index += 1
-                if (flags & 1):
-                    c = buffer[index]
-                    index += 1
+        while index < len( buffer ):
+            flags >>= 1
+            if (flags & 0x100) == 0:
+                flags = buffer[index] | 0xff00;
+                index += 1
+            if (flags & 1):
+                c = buffer[index]
+                index += 1
+                result.append( c )
+                text_buf[r] = c
+                r = (r+1) & (self.N-1)
+            else:
+                i = buffer[index]
+                j = buffer[index+1]
+                index += 2
+                i |= (j & 0xf0) << 4
+                j = (j & 0x0f) + self.THRESHOLD
+                for k in range( j+1 ):
+                    c = text_buf[(i+k) & (self.N-1)]
                     result.append( c )
                     text_buf[r] = c
                     r = (r+1) & (self.N-1)
-                else:
-                    i = buffer[index]
-                    j = buffer[index+1]
-                    index += 2
-                    i |= (j & 0xf0) << 4
-                    j = (j & 0x0f) + self.THRESHOLD
-                    for k in range( j+1 ):
-                        c = text_buf[(i+k) & (self.N-1)]
-                        result.append( c )
-                        text_buf[r] = c
-                        r = (r+1) & (self.N-1)
                     
-        except IndexError:
-            print( 'Hit EOF, stopping!' )
-
         return bytes( result )

@@ -1,3 +1,5 @@
+import array
+import math
 import struct
 
 def _from_byte_type( code, size ):
@@ -33,6 +35,52 @@ def _load_byte_types():
         globals()['to_{}'.format(byte_type)] = _to_byte_type( type_code )
 
 _load_byte_types()
+
+
+class Stats( object ):
+    FRACTION = u' ▁▂▃▄▅▆▇█'
+
+    def __init__( self, buffer ):
+        assert isinstance( buffer, bytes )
+        self.histo = array.array( 'I', [0]*256 )
+        # do histogram expensively for now, to avoid pulling in e.g numpy
+        for byte in buffer:
+            self.histo[byte] += 1
+            
+        self.entropy = 0.0
+        for count in self.histo:
+            if count != 0:
+                cover = count/len( buffer )
+                self.entropy += -cover * math.log2( cover )
+
+
+    def ansi_format( self, width=64, height=12 ):
+        bucket = 256//width
+        buckets = [sum( self.histo[i:i+bucket] ) for i in range( 0, 256, bucket )]
+        scale = height*8.0/max( buckets )
+        buckets_norm = [b*scale for b in buckets]
+        result = []
+        for y in range( height, 0, -1 ):
+            result.append( ' ' )
+            for x in range( len( buckets_norm ) ):
+                if (buckets_norm[x] // 8) >= y:
+                    result.append( self.FRACTION[8] )
+                elif (buckets_norm[x] // 8) == y-1:
+                    result.append( self.FRACTION[round( buckets_norm[x] % 8 )] )
+                else:
+                    result.append( self.FRACTION[0] )
+            result.append( '\n' )
+
+        result.append( '╘'+('═'*width)+'╛\n' )
+        result.append( 'entropy: {}'.format( self.entropy ) )
+        return ''.join(result)
+                
+    def print( self, *args, **kwargs ):
+        print( self.ansi_format( *args, **kwargs ) )            
+
+    def __str__( self ):
+        return self.ansi_format()
+
 
 
 def unpack_bits(byte):

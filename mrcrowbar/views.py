@@ -29,7 +29,7 @@ class Store( View ):
         block_kwargs = block_kwargs if block_kwargs else {}
 
         if key not in self.refs:
-            self.refs[key] = block_klass( raw_buffer=self.source[offset:offset+size], parent=instance, **block_kwargs )
+            self.refs[key] = block_klass( source_data=self.source[offset:offset+size], parent=instance, **block_kwargs )
         return self.refs[key]
 
 

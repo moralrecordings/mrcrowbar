@@ -1,3 +1,5 @@
+"""General utility functions useful for reverse engineering."""
+
 import array
 import math
 import struct
@@ -38,35 +40,44 @@ _load_byte_types()
 
 
 class Stats( object ):
+    """Helper class for performing some basic statistical analysis on binary data."""
     FRACTION = u' ▁▂▃▄▅▆▇█'
 
     def __init__( self, buffer ):
+        """Generate a Stats instance for a block of bytes."""
         assert isinstance( buffer, bytes )
         self.histo = array.array( 'I', [0]*256 )
         # do histogram expensively for now, to avoid pulling in e.g numpy
         for byte in buffer:
             self.histo[byte] += 1
-            
+
         self.entropy = 0.0
         for count in self.histo:
             if count != 0:
                 cover = count/len( buffer )
                 self.entropy += -cover * math.log2( cover )
 
-
     def ansi_format( self, width=64, height=12 ):
+        """Return a human readable ANSI-terminal printout of the stats.
+
+        width
+            Custom width for the graph (in characters)
+
+        height
+            Custom height for the graph (in characters)
+        """
         bucket = 256//width
         buckets = [sum( self.histo[i:i+bucket] ) for i in range( 0, 256, bucket )]
         scale = height*8.0/max( buckets )
         buckets_norm = [b*scale for b in buckets]
         result = []
-        for y in range( height, 0, -1 ):
+        for y_pos in range( height, 0, -1 ):
             result.append( ' ' )
-            for x in range( len( buckets_norm ) ):
-                if (buckets_norm[x] // 8) >= y:
+            for _, x_value in enumerate( buckets_norm ):
+                if (x_value // 8) >= y_pos:
                     result.append( self.FRACTION[8] )
-                elif (buckets_norm[x] // 8) == y-1:
-                    result.append( self.FRACTION[round( buckets_norm[x] % 8 )] )
+                elif (x_value // 8) == y_pos-1:
+                    result.append( self.FRACTION[round( x_value % 8 )] )
                 else:
                     result.append( self.FRACTION[0] )
             result.append( '\n' )
@@ -74,17 +85,17 @@ class Stats( object ):
         result.append( '╘'+('═'*width)+'╛\n' )
         result.append( 'entropy: {}'.format( self.entropy ) )
         return ''.join(result)
-                
+
     def print( self, *args, **kwargs ):
-        print( self.ansi_format( *args, **kwargs ) )            
+        """Print the graphical version of the results produced by ansi_format()."""
+        print( self.ansi_format( *args, **kwargs ) )
 
     def __str__( self ):
         return self.ansi_format()
 
 
-
 def unpack_bits(byte):
-    """Expand a bitfield into a 64-bit int (8 bool bytes)"""
+    """Expand a bitfield into a 64-bit int (8 bool bytes)."""
     longbits = byte & (0x00000000000000ff)
     longbits = (longbits | (longbits<<28)) & (0x0000000f0000000f)
     longbits = (longbits | (longbits<<14)) & (0x0003000300030003)
@@ -93,7 +104,7 @@ def unpack_bits(byte):
 
 
 def pack_bits(longbits):
-    """Crunch a 64-bit int (8 bool bytes) into a bitfield"""
+    """Crunch a 64-bit int (8 bool bytes) into a bitfield."""
     byte = longbits & (0x0101010101010101)
     byte = (byte | (byte>>7)) & (0x0003000300030003)
     byte = (byte | (byte>>14)) & (0x0000000f0000000f)
@@ -102,7 +113,24 @@ def pack_bits(longbits):
 
 
 class BitReader( object ):
+    """Class for reading data as a stream of bits."""
+
     def __init__( self, buffer, start_offset, bytes_reverse=False, bits_reverse=False ):
+        """Create a BitReader instance.
+
+        buffer
+            Source block of bytes to read from.
+
+        start_offset
+            Position in the block to start reading from.
+
+        bytes_reverse
+            If enabled, fetch successive bytes from the source in reverse order.
+
+        bits_reverse
+            If enabled, fetch bits starting from the most-significant bit (i.e. 0x80)
+            through least-significant bit (0x01).
+        """
         assert isinstance( buffer, bytes )
         assert start_offset in range( len( buffer ) )
         self.buffer = buffer
@@ -114,6 +142,7 @@ class BitReader( object ):
 
 
     def set_offset( self, offset ):
+        """Set the current read offset (in bytes) for the instance."""
         assert offset in range( len( self.buffer ) )
         self.pos = offset
         self.bits_remaining = 8
@@ -121,6 +150,9 @@ class BitReader( object ):
 
 
     def get_bits( self, count ):
+        """Get an integer containing the next [count] bits from the source.
+
+        The result is always stored from least-significant bit to most-significant bit."""
         result = 0
         for _ in range( count ):
             if self.bits_remaining <= 0:
@@ -147,7 +179,21 @@ class BitReader( object ):
 
 
 class BitWriter( object ):
+    """Class for writing data as a stream of bits."""
+
     def __init__( self, bytes_reverse=False, bits_reverse=False, insert_at_msb=False ):
+        """Create a BitWriter instance.
+
+        bytes_reverse
+            If enabled, write bytes to the target in reverse order.
+
+        bits_reverse
+            If enabled, make the insert order for bits from most-significant to
+            least-significant.
+
+        insert_at_msb
+            If enabled, start filling each byte from the most-significant bit end (0x80).
+        """
         self.output = bytearray()
         self.bits_reverse = bits_reverse
         self.bytes_reverse = bytes_reverse
@@ -155,8 +201,16 @@ class BitWriter( object ):
         self.bits_remaining = 8
         self.current_bits = 0
 
-
     def put_bits( self, value, count ):
+        """Push bits into the target.
+
+        value
+            Integer containing bits to push, ordered from least-significant bit to
+            most-significant bit.
+
+        count
+            Number of bits to push to the target.
+        """
         for _ in range( count ):
 
             # bits are retrieved from the source LSB first
@@ -184,8 +238,8 @@ class BitWriter( object ):
                 self.current_bits = 0
                 self.bits_remaining = 8
 
-
     def get_buffer( self ):
+        """Return a bytes object containing the target as currently written."""
         last_byte = self.current_bits if (self.bits_remaining < 8) else None
 
         result = self.output

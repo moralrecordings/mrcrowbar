@@ -1,23 +1,44 @@
+"""Definition classes for cross-references."""
 
 class Ref( object ):
-    # very simple path syntax for now: walk down the chain of properties
+    """Base class for defining cross-references."""
+
     def __init__( self, path, allow_write=False ):
+        """Create a new Ref instance.
+
+        path
+            The path to traverse from the context object to reach the target.
+            Child lookups should be in property dot syntax (e.g. obj1.obj2.target).
+            For Blocks that are constructed by other Blocks, you can use the _parent property
+            to traverse up the stack.
+
+        allow_write
+            Allow modification of the target with the set() method.
+        """
+        # very simple path syntax for now: walk down the chain of properties
         self.path = path.split( '.' )
-        self.allow_write = allow_write 
-
-    def __repr__( self ):
-        return '<{}: {}>'.format( self.__class__.__name__, str( self ) )
-
-    def __str__( self ):
-        return '.'.join( self.path )
+        self.allow_write = allow_write
 
     def get( self, instance ):
+        """Return an attribute from an object using the Ref path.
+
+        instance
+            The object instance to traverse.
+        """
         target = instance
         for attr in self.path:
             target = getattr( target, attr )
         return target
 
     def set( self, instance, value ):
+        """Set an attribute on an object using the Ref path.
+
+        instance
+            The object instance to traverse.
+
+        value
+            The value to set.
+        """
         if not self.allow_write:
             raise AttributeError( "can't set Ref directly" )
         target = instance
@@ -26,15 +47,40 @@ class Ref( object ):
         setattr( target, self.path[-1], value )
         return
 
+    def __repr__( self, *args, **kwargs ):
+        details = kwargs.get( 'details', '.'.join( self.path ) )
+        return '<{}: {}>'.format( self.__class__.__name__, details )
 
-def property_get( prop, parent ):
-    if type( prop ) == Ref:
-        return prop.get( parent )
+
+def property_get( prop, instance ):
+    """Wrapper for property reads which auto-dereferences Refs if required.
+
+    prop
+        A Ref (which gets dereferenced and returned) or any other value (which gets returned).
+
+    instance
+        The context object used to dereference the Ref.
+    """
+    if isinstance( prop, Ref ):
+        return prop.get( instance )
     return prop
 
 
-def property_set( prop, parent, value ):
-    if type( prop ) == Ref:
-        return prop.set( parent, value )
-    raise AttributeError( "property was declared as a constant" )
+def property_set( prop, instance, value ):
+    """Wrapper for property writes which auto-deferences Refs.
 
+    prop
+        A Ref (which gets dereferenced and the target value set).
+
+    instance
+        The context object used to dereference the Ref.
+
+    value
+        The value to set the property to.
+
+    Throws AttributeError if prop is not a Ref.
+    """
+
+    if isinstance( prop, Ref ):
+        return prop.set( instance, value )
+    raise AttributeError( "property was declared as a constant" )

@@ -168,12 +168,12 @@ class BoppinCompressor( mrc.Transform ):
 
 
 class Loader( mrc.Loader ):
-    SEP = mrc.Loader.SEP
+    _SEP = mrc.Loader._SEP
 
-    BOPPIN_FILE_CLASS_MAP = {
-        SEP+'(BOPPIN)(\d).LVL$': None,
-        SEP+'(BOPPIN).RES$': Resource,
+    _BOPPIN_FILE_CLASS_MAP = {
+        _SEP+'(BOPPIN)(\d).LVL$': None,
+        _SEP+'(BOPPIN).RES$': Resource,
     }
 
     def __init__( self ):
-        super( Loader, self ).__init__( self.BOPPIN_FILE_CLASS_MAP )
+        super( Loader, self ).__init__( self._BOPPIN_FILE_CLASS_MAP )

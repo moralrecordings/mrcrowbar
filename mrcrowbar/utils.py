@@ -5,10 +5,25 @@ import math
 import struct
 
 def _from_byte_type( code, size ):
-    return lambda buffer: struct.unpack( code, buffer[:size] )[0]
+    result = lambda buffer: struct.unpack( code, buffer[:size] )[0]
+    result.__doc__ = "Convert a {0} byte string to a Python {1}.".format( *_byte_type_to_text( code, size ) )
+    return result
 
-def _to_byte_type( code ):
-    return lambda value: struct.pack( code, value )
+def _to_byte_type( code, size ):
+    result = lambda value: struct.pack( code, value )
+    result.__doc__ = "Convert a Python {1} to a {0} byte string.".format( *_byte_type_to_text( code, size ) )
+    return result
+
+def _byte_type_to_text( code, size ):
+    raw_type = 'float' if code[1] in 'fd' else 'integer'
+    is_signed = code[1].islower()
+    endianness = 'big' if code[0] == '>' else 'little'
+    return ('{}{}-bit {}{}'.format(
+        ('signed ' if is_signed else 'unsigned ') if raw_type == 'integer' else '',
+        size*8,
+        raw_type,
+        ' ({}-endian)'.format(endianness) if size>1 else ''
+    ), raw_type)
 
 BYTE_TYPES = {
     'int8':         ('<b', 1),
@@ -34,23 +49,25 @@ BYTE_TYPES = {
 def _load_byte_types():
     for byte_type, (type_code, type_size) in BYTE_TYPES.items():
         globals()['from_{}'.format(byte_type)] = _from_byte_type( type_code, type_size )
-        globals()['to_{}'.format(byte_type)] = _to_byte_type( type_code )
+        globals()['to_{}'.format(byte_type)] = _to_byte_type( type_code, type_size )
 
 _load_byte_types()
 
 
 class Stats( object ):
     """Helper class for performing some basic statistical analysis on binary data."""
-    FRACTION = u' ▁▂▃▄▅▆▇█'
 
     def __init__( self, buffer ):
-        """Generate a Stats instance for a block of bytes."""
+        """Generate a Stats instance for a byte string and analyse the data."""
         assert isinstance( buffer, bytes )
+
+        #: Byte histogram for the source data.
         self.histo = array.array( 'I', [0]*256 )
         # do histogram expensively for now, to avoid pulling in e.g numpy
         for byte in buffer:
             self.histo[byte] += 1
 
+        #: Shanning entropy calculated for the source data.
         self.entropy = 0.0
         for count in self.histo:
             if count != 0:
@@ -66,6 +83,7 @@ class Stats( object ):
         height
             Custom height for the graph (in characters)
         """
+        FRACTION = u' ▁▂▃▄▅▆▇█'
         bucket = 256//width
         buckets = [sum( self.histo[i:i+bucket] ) for i in range( 0, 256, bucket )]
         scale = height*8.0/max( buckets )
@@ -75,11 +93,11 @@ class Stats( object ):
             result.append( ' ' )
             for _, x_value in enumerate( buckets_norm ):
                 if (x_value // 8) >= y_pos:
-                    result.append( self.FRACTION[8] )
+                    result.append( FRACTION[8] )
                 elif (x_value // 8) == y_pos-1:
-                    result.append( self.FRACTION[round( x_value % 8 )] )
+                    result.append( FRACTION[round( x_value % 8 )] )
                 else:
-                    result.append( self.FRACTION[0] )
+                    result.append( FRACTION[0] )
             result.append( '\n' )
 
         result.append( '╘'+('═'*width)+'╛\n' )
@@ -94,7 +112,7 @@ class Stats( object ):
         return self.ansi_format()
 
 
-def unpack_bits(byte):
+def unpack_bits( byte ):
     """Expand a bitfield into a 64-bit int (8 bool bytes)."""
     longbits = byte & (0x00000000000000ff)
     longbits = (longbits | (longbits<<28)) & (0x0000000f0000000f)
@@ -103,7 +121,7 @@ def unpack_bits(byte):
     return longbits
 
 
-def pack_bits(longbits):
+def pack_bits( longbits ):
     """Crunch a 64-bit int (8 bool bytes) into a bitfield."""
     byte = longbits & (0x0101010101010101)
     byte = (byte | (byte>>7)) & (0x0003000300030003)
@@ -119,7 +137,7 @@ class BitReader( object ):
         """Create a BitReader instance.
 
         buffer
-            Source block of bytes to read from.
+            Source byte string to read from.
 
         start_offset
             Position in the block to start reading from.
@@ -152,7 +170,8 @@ class BitReader( object ):
     def get_bits( self, count ):
         """Get an integer containing the next [count] bits from the source.
 
-        The result is always stored from least-significant bit to most-significant bit."""
+        The result is always stored from least-significant bit to most-significant bit.
+        """
         result = 0
         for _ in range( count ):
             if self.bits_remaining <= 0:
@@ -239,7 +258,7 @@ class BitWriter( object ):
                 self.bits_remaining = 8
 
     def get_buffer( self ):
-        """Return a bytes object containing the target as currently written."""
+        """Return a byte string containing the target as currently written."""
         last_byte = self.current_bits if (self.bits_remaining < 8) else None
 
         result = self.output

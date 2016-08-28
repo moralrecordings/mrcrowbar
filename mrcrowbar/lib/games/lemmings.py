@@ -1,6 +1,4 @@
-#!/usr/bin/python3
-
-"""File format classes for the game Lemmings (DOS, 1991)"""
+"""File format classes for the game Lemmings (DOS, 1991)."""
 
 import itertools
 
@@ -350,132 +348,158 @@ LEMMINGS_VGA_MENU_PALETTE = (
 ##########
 
 class Interactive( mrc.Block ):
+    """Represents a single interactive piece placed in a level."""
     _block_size =       8
     
+    #: Raw value for the x position of the left edge.
     x_raw =             mrc.Int16_BE( 0x00, range=range( -8, 1593 ) )
+    #: The y position of the top edge.
     y =                 mrc.Int16_BE( 0x02, range=range( -41, 201 ) )
+    #: Index of the InteractiveInfo block in the accompanying GroundDAT.
     obj_id =            mrc.UInt16_BE( 0x04, range=range( 0, 16 ) )
+    # If 1, blit image behind background.
     draw_back =         mrc.Bits( 0x06, 0b10000000 )
+    # If 1, draw piece flipped vertically.
     draw_masked =       mrc.Bits( 0x06, 0b01000000 )
+    # If 1, draw piece as a hole.
     draw_upsidedown =   mrc.Bits( 0x07, 0b10000000 )
 
+    # Check to ensure the last chunk of the block is empty.
     mod_check =         mrc.Check( mrc.UInt16_BE( 0x06, bitmask=b'\x3f\x7f' ), 0x000f )
 
     @property
     def x( self ):
+        """The x position of the left edge."""
         return (self.x_raw-16) - ((self.x_raw-16) % 8)
 
 
 class Terrain( mrc.Block ):
+    """Represents a single terrain piece placed in a level."""
     _block_size =       4
 
+    #: Raw value for the x position of the left edge.
     x_raw =             mrc.UInt16_BE( 0x00, bitmask=b'\x0f\xff' )
+    #: If 1, blit image behind background.
     draw_back =         mrc.Bits( 0x00, 0b10000000 )
+    #: If 1, draw piece flipped vertically.
     draw_upsidedown =   mrc.Bits( 0x00, 0b01000000 )
+    #: If 1, draw piece as a hole.
     draw_erase =        mrc.Bits( 0x00, 0b00100000 )
+    #: Raw value (coarse component) for the y position of the top edge.
     y_raw_coarse =      mrc.Int8( 0x02 )
+    #: Raw value (fine component) for the y position of the top edge.
     y_raw_fine =        mrc.Bits( 0x03, 0b10000000 )
+    #: Index of the TerrainInfo block in the accompanying GroundDAT.
     obj_id =            mrc.UInt8( 0x03, bitmask=b'\x3f', range=range( 0, 64 ) )
 
+    #: Check to ensure the last chunk of the block is empty.
     mod_check =         mrc.Check( mrc.UInt8( 0x03, bitmask=b'\x40' ), 0x00 )
 
     @property
     def x( self ):
+        """The x position of the left edge."""
         return (self.x_raw-16)
 
     @property
     def y( self ):
+        """The y position of the top edge."""
         return (self.y_raw_coarse*2 + self.y_raw_fine)-4
     
 
 class SteelArea( mrc.Block ):
+    """Represents an indestructable rectangular area in a level."""
     _block_size =       4
-
+    
+    #: Raw value (coarse component) for the x position of the left edge.
     x_raw_coarse =      mrc.UInt8( 0x00, range=range( 0, 200 ) )
+    #: Raw value (fine component) for the x position of the left edge.
     x_raw_fine =        mrc.Bits( 0x01, 0b10000000 )
+    #: Raw value for the y position of the area's top edge.
     y_raw =             mrc.UInt8( 0x01, bitmask=b'\x2f', range=range( 0, 157 ) )
+    #: Raw value for the width.
     width_raw =         mrc.Bits( 0x02, 0b11110000 )
+    #: Raw value for the height.
     height_raw =        mrc.Bits( 0x02, 0b00001111 )
 
+    #: Check to ensure the last byte of the block is empty.
     mod_check =         mrc.Check( mrc.UInt8( 0x03 ), 0x00 )
     
     @property
     def x( self ):
+        """The x position of the left edge."""
         return (self.x_raw_coarse*2 + self.x_raw_fine)*4-16
 
     @property
     def y( self ):
+        """The y position of the top edge."""
         return (self.y_raw*4)
 
     @property
     def width( self ):
+        """Width of the steel area."""
         return (self.width_raw+1)*4
 
     @property
     def height( self ):
+        """Height of the steel area."""
         return (self.height_raw+1)*4
 
 
 class Level( mrc.Block ):
-    """
-    Represents a single level.
-
-    Fields:
-    release_rate -- Minimum Lemming release-rate 
-    num_released -- Number of Lemmings released
-    num_to_save -- Number of Lemmings required to save
-    time_limit_mins -- Time limit for the level (in minutes)
-    num_climbers -- Number of Climbers
-    num_floaters -- Number of Floaters
-    num_bombers -- Number of Bombers
-    num_blockers -- Number of Blockers
-    num_builders -- Number of Builders
-    num_bashers -- Number of Bashers
-    num_miners -- Number of Miners
-    num_diggers -- Number of Diggers
-    camera_x_raw -- Starting x position of the camera
-
-    style_index -- Index denoting which graphical Style to use
-    custom_index -- Index denoting which Special graphic to use (optional)
-
-    interactives -- List of Interactive object references (32 slots)
-    terrains -- List of Terrain object references (400 slots)
-    steel_areas -- List of SteelArea object references (32 slots)
-    name -- Name of the level (ASCII string)
-    """
+    """Represents a single Lemmings level."""
     _block_size =       2048
 
+    #: Minimum Lemming release-rate.
     release_rate =      mrc.UInt16_BE( 0x0000, range=range( 0, 251 ) )
+    #: Number of Lemmings released.
     num_released =      mrc.UInt16_BE( 0x0002, range=range( 0, 115 ) )
+    #: Number of Lemmings required to be saved.
     num_to_save =       mrc.UInt16_BE( 0x0004, range=range( 0, 115 ) )
+    #: Time limit for the level (minutes).
     time_limit_mins =   mrc.UInt16_BE( 0x0006, range=range( 0, 256 ) )
+    #: Number of Climber skills.
     num_climbers =      mrc.UInt16_BE( 0x0008, range=range( 0, 251 ) )
+    #: Number of Floater skills.
     num_floaters =      mrc.UInt16_BE( 0x000a, range=range( 0, 251 ) )
+    #: Number of Bomber skills.
     num_bombers =       mrc.UInt16_BE( 0x000c, range=range( 0, 251 ) )
+    #: Number of Blocker skills.
     num_blockers =      mrc.UInt16_BE( 0x000e, range=range( 0, 251 ) )
+    #: Number of Builder skills.
     num_builders =      mrc.UInt16_BE( 0x0010, range=range( 0, 251 ) )
+    #: Number of Basher skills.
     num_bashers =       mrc.UInt16_BE( 0x0012, range=range( 0, 251 ) )
+    #: Number of Miner skills.
     num_miners =        mrc.UInt16_BE( 0x0014, range=range( 0, 251 ) )
+    #: Number of Digger skills.
     num_diggers =       mrc.UInt16_BE( 0x0016, range=range( 0, 251 ) )
+    #: Raw value for the start x position of the camera.
     camera_x_raw =      mrc.UInt16_BE( 0x0018, range=range( 0, 1265 ) )
     
+    #: Index denoting which graphical Style to use.
     style_index =       mrc.UInt16_BE( 0x001a )
+    #: Index denoting which Special graphic to use (optional).
     custom_index =      mrc.UInt16_BE( 0x001c )
 
+    #: List of Interactive object references (32 slots).
     interactives =      mrc.BlockList( Interactive, 0x0020, count=32, fill=b'\x00' )
+    #: List of Terrain object references (400 slots).
     terrains =          mrc.BlockList( Terrain, 0x0120, count=400, fill=b'\xff' )
+    #: List of SteelArea object references (32 slots).
     steel_areas =       mrc.BlockList( SteelArea, 0x0760, count=32, fill=b'\x00' )
+    #: Name of the level (ASCII string).
     name =              mrc.Bytes( 0x07e0, 32, default=b'                                ' )
-
-    def __str__( self ):
-        name = self.name.strip()
-        if name:
-            return name.decode( 'utf8' )
-        return super( Level, self ).__str__()
 
     @property
     def camera_x( self ):
+        """Start x position of the camera."""
         return self.camera_x_raw - (self.camera_x_raw % 8)
+
+    def __repr__( self ):
+        name = self.name.strip()
+        if name:
+            return super( Level, self ).__repr__( details=name.decode( 'utf8' ) )
+        return super( Level, self ).__repr__()
 
 
 class LevelDAT( mrc.Block ):
@@ -486,33 +510,52 @@ class LevelDAT( mrc.Block ):
 ##########
 
 class OddRecord( mrc.Block ):
+    """Represents an alternative set of conditions for a level.
+    
+    Used in Lemmings to repeat the same level with a different difficulty.
+    """
     _block_size = 56
 
+    #: Minimum Lemming release-rate.
     release_rate =      mrc.UInt16_BE( 0x0000, range=range( 0, 251 ) )
+    #: Number of Lemmings released.
     num_released =      mrc.UInt16_BE( 0x0002, range=range( 0, 115 ) )
+    #: Number of Lemmings required to be saved.
     num_to_save =       mrc.UInt16_BE( 0x0004, range=range( 0, 115 ) )
+    #: Time limit for the level (minutes).
     time_limit_mins =   mrc.UInt16_BE( 0x0006, range=range( 0, 256 ) )
+    #: Number of Climber skills.
     num_climbers =      mrc.UInt16_BE( 0x0008, range=range( 0, 251 ) )
+    #: Number of Floater skills.
     num_floaters =      mrc.UInt16_BE( 0x000a, range=range( 0, 251 ) )
+    #: Number of Bomber skills.
     num_bombers =       mrc.UInt16_BE( 0x000c, range=range( 0, 251 ) )
+    #: Number of Blocker skills.
     num_blockers =      mrc.UInt16_BE( 0x000e, range=range( 0, 251 ) )
+    #: Number of Builder skills.
     num_builders =      mrc.UInt16_BE( 0x0010, range=range( 0, 251 ) )
+    #: Number of Basher skills.
     num_bashers =       mrc.UInt16_BE( 0x0012, range=range( 0, 251 ) )
+    #: Number of Miner skills.
     num_miners =        mrc.UInt16_BE( 0x0014, range=range( 0, 251 ) )
+    #: Number of Digger skills.
     num_diggers =       mrc.UInt16_BE( 0x0016, range=range( 0, 251 ) )
 
+    #: Name of the level (ASCII string).
     name =              mrc.Bytes( 0x0018, 32, default=b'                                ' )
 
-    def __str__( self ):
+    def __repr__( self ):
         name = self.name.strip()
         if name:
-            return name.decode( 'utf8' )
-        return super( OddRecord, self ).__str__()
+            return super( OddRecord, self ).__repr__( details=name.decode( 'utf8' ) )
+        return super( OddRecord, self ).__repr__()
 
 
 class OddtableDAT( mrc.Block ):
+    """Represents a collection of OddRecord objects."""
     _block_size = 4480
     
+    #: List of OddRecord objects (80 slots).
     records =           mrc.BlockList( OddRecord, 0x0000, count=80 )
 
 
@@ -523,6 +566,8 @@ class OddtableDAT( mrc.Block ):
 ##########
 
 class InteractiveImage( mrc.Block ):
+    """Represents a """
+
     image_data  =       mrc.Bytes( 
                             0x0000, transform=img.Planarizer( 
                                 width=mrc.Ref( '_parent.width' ), 
@@ -563,6 +608,7 @@ class InteractiveImage( mrc.Block ):
                     )
 
 class InteractiveInfo( mrc.Block ):
+    """Contains a Ground style definition for an interactive object."""
     _block_size =       28
 
     anim_flags =        mrc.UInt16_LE( 0x0000 )
@@ -850,25 +896,25 @@ class VgaspecDAT( mrc.Block ):
 ##########
     
 class Loader( mrc.Loader ):
-    SEP = mrc.Loader.SEP
+    _SEP = mrc.Loader._SEP
 
-    LEMMINGS_FILE_CLASS_MAP = {
-        SEP+'(ADLIB).DAT$': None,
-        SEP+'(CGAGR)(\d).DAT$': None,
-        SEP+'(CGAMAIN).DAT$': None,
-        SEP+'(CGASPEC)(\d).DAT$': None,
-        SEP+'(GROUND)(\d)O.DAT$': GroundDAT,
-        SEP+'(LEVEL)00(\d).DAT$': LevelDAT,
-        SEP+'(MAIN).DAT$': MainDAT,
-        SEP+'(ODDTABLE).DAT$': OddtableDAT,
-        SEP+'(RUSSELL).DAT$': None,
-        SEP+'(TGAMAIN).DAT$': None,
-        SEP+'(VGAGR)(\d).DAT$': VgagrDAT,
-        SEP+'(VGASPEC)(\d).DAT$': VgaspecDAT,
+    _LEMMINGS_FILE_CLASS_MAP = {
+        _SEP+'(ADLIB).DAT$': None,
+        _SEP+'(CGAGR)(\d).DAT$': None,
+        _SEP+'(CGAMAIN).DAT$': None,
+        _SEP+'(CGASPEC)(\d).DAT$': None,
+        _SEP+'(GROUND)(\d)O.DAT$': GroundDAT,
+        _SEP+'(LEVEL)00(\d).DAT$': LevelDAT,
+        _SEP+'(MAIN).DAT$': MainDAT,
+        _SEP+'(ODDTABLE).DAT$': OddtableDAT,
+        _SEP+'(RUSSELL).DAT$': None,
+        _SEP+'(TGAMAIN).DAT$': None,
+        _SEP+'(VGAGR)(\d).DAT$': VgagrDAT,
+        _SEP+'(VGASPEC)(\d).DAT$': VgaspecDAT,
     }
 
     def __init__( self ):
-        super( Loader, self ).__init__( self.LEMMINGS_FILE_CLASS_MAP )
+        super( Loader, self ).__init__( self._LEMMINGS_FILE_CLASS_MAP )
 
     def post_load( self, verbose=False ):
         unique_check = set([''.join(x['match']).upper() for x in self._files.values()])

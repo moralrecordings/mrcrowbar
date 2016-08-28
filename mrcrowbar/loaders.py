@@ -2,7 +2,7 @@ import os, re
 from collections import OrderedDict
 
 class Loader( object ):
-    SEP = re.escape( os.path.sep )
+    _SEP = re.escape( os.path.sep )
 
     def __init__( self, file_class_map, case_sensitive=False ):
         self.file_class_map = file_class_map

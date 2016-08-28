@@ -38,6 +38,8 @@ class Ref( object ):
 
         value
             The value to set.
+
+        Throws AttributeError if allow_write is False.
         """
         if not self.allow_write:
             raise AttributeError( "can't set Ref directly" )

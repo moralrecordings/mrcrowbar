@@ -1,3 +1,4 @@
+"""Shortcut module to import all of the Mr. Crowbar primitives."""
 
 from mrcrowbar.refs import *
 from mrcrowbar.fields import *

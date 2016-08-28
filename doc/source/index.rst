@@ -21,14 +21,20 @@ But why?!?
 
 What is the best way to engage people with computer science?
 
-Lots of people are trying their best to answer this question. Hell, with CS one of the few bright points left in an otherwise bleak economic picture for kids entering the workforce, politicians with zero qualification are tripping over themselves to endorse learn-to-code initiatives. 
+Lots of people are trying their best to answer this question. Hell, with CS one of the few bright points left in an otherwise bleak economic picture for kids entering the workforce, politicians with no experience are tripping over themselves to endorse learn-to-code initiatives without questioning their efficacy. 
 
 You don't need me to tell you this, but rote learning isn't the same as engaging!
 
 Let's focus on the example of modding games. Modding games is great hacking experience; whether it's making custom levels, swapping out character sprites for something new, or even translating all of the text and artwork into a new language. You get the advantage of building upon a solid foundation of assets and code, with a pre-existing audience of fans. Most importantly, you will gain knowledge of how things are done in the real world and why; an education you can't get from following examples or reading StackOverflow.
 
 
-The era of game modding predates the recent mainstreaming of open source. Visit gbatemp.net or romhacking.net and you'll find hundreds of hand-rolled tools from years past.
+The era of DIY game modding predates the recent mainstreaming of open source. Visit gbatemp.net or romhacking.net and you'll find hundreds of hand-rolled tools from years past; none of them actively maintained, nearly all of them without source code.
+
+
+What's with the name?
+---------------------
+
+I have no reason for the name, other than "crowbar" was taken, and other honourifics might suggest the involvement of a small relatively-unknown software startup based in Redmond. Despite the honourific the titular prybar with the googly eyes is, like countless corporate mascots before it, a magical pan-sexual non-threatening spokesthing.
 
 
 Blocks and Fields
@@ -40,7 +46,7 @@ We define the layout of the bytes using a class called a Block. A Block is a uni
 
 Similar to how Django does its models, the structure of a Block is defined in the class definition using Fields. Thanks to some metaclass nightmare fuel, when the Block is instantiated all of the Fields are replaced with editable properties.
 
-Now, a tricky thing to keep in mind is that Field objects are immutable; that is, no matter how many Block objects you make, there's only ever the one copy of the Field object which gets shared amongst all of them, and so you can't store anything specific to one Block inside the Field object. On 
+Now, a tricky thing to keep in mind is that Field objects are immutable and bound to the class definition; that is, no matter how many Block objects you make, there's only ever the one copy of the Field object which gets shared amongst all of them, and so you can't store anything specific to one Block inside the Field object. 
 
 
 Refs

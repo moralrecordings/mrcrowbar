@@ -1,3 +1,5 @@
+"""Definition classes for data blocks."""
+
 from collections import OrderedDict
 
 from mrcrowbar.fields import *
@@ -50,12 +52,12 @@ class FieldDescriptor( object ):
         Checks the field name against a model and deletes the field.
         """
         if self.name not in instance._fields:
-            raise AttributeError( "{} has no attribute {}".format( 
-                                    type( instance ).__name__, self.name ) )
+            raise AttributeError( "{} has no attribute {}".format(
+                type( instance ).__name__, self.name ) )
         del instance._fields[self.name]
 
 
-class RefDescriptor( object ):    
+class RefDescriptor( object ):
     def __init__( self, name ):
         self.name = name
 
@@ -69,7 +71,7 @@ class RefDescriptor( object ):
             return instance._ref_cache[self.name]
         except KeyError:
             raise AttributeError( self.name )
-    
+
     def __set__( self, instance, value ):
         if instance is None:
             return
@@ -164,13 +166,13 @@ class Block( object, metaclass=ModelMeta ):
         self._field_data = {}
         self._ref_cache = {}
         self._parent = parent
-        
+
         # start the initial load of data
         if isinstance( source_data, Block ):
             self.clone_data( source_data )
         else:
             self.import_data( source_data )
-        
+
     def __repr__( self ):
         return '<{}: {}>'.format( self.__class__.__name__, str( self ) )
 
@@ -183,18 +185,20 @@ class Block( object, metaclass=ModelMeta ):
 
         for name in klass._fields:
             self._field_data[name] = getattr( source, name )
-        
+
     def import_data( self, raw_buffer, **kw ):
         klass = self.__class__
         if raw_buffer:
             assert type( raw_buffer ) == bytes
             assert len( raw_buffer ) >= klass._block_size
-        
+
         self._field_data = {}
 
         for name in klass._fields:
             if raw_buffer:
-                self._field_data[name] = klass._fields[name].get_from_buffer( raw_buffer, parent=self )
+                self._field_data[name] = klass._fields[name].get_from_buffer(
+                    raw_buffer, parent=self
+                )
             else:
                 self._field_data[name] = klass._fields[name].default
         return
@@ -205,7 +209,9 @@ class Block( object, metaclass=ModelMeta ):
         output = bytearray( b'\x00'*klass._block_size )
 
         for name in klass._fields:
-            klass._fields[name].update_buffer_with_value( self._field_data[name], output, parent=self )
+            klass._fields[name].update_buffer_with_value(
+                self._field_data[name], output, parent=self
+            )
         return output
 
     def validate( self, **kw ):

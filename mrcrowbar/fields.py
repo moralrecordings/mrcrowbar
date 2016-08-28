@@ -1,3 +1,5 @@
+"""Definition classes for common fields in binary formats."""
+
 import struct
 import itertools 
 
@@ -12,24 +14,32 @@ class FieldValidationError( Exception ):
 
 class Field( object ):
     def __init__( self, default=None, **kwargs ):
+        """Base class for Fields.
+
+        default
+            Default value to emit in the case of creating an empty file.
+        """
         self._position_hint = next( _next_position_hint )
         self.default = default
 
-    def __repr__( self ):
-        return '<{}: {}>'.format( self.__class__.__name__, str( self ) )
-
-    def __str__( self ):
-        return hex( id( self ) )
+    def __repr__( self, *args, **kwargs ):
+        details = kwargs.get( 'details', hex( id( self ) ) )
+        return '<{}: {}>'.format( self.__class__.__name__, details )
 
     def get_from_buffer( self, buffer, parent=None ):
+        """Create a Python object from a byte string, using the field definition."""
         return None
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        assert type( buffer ) == bytearray
+        """Write a Python object into a byte array, using the field definition."""
+        assert isinstance( buffer, bytearray )
         self.validate( value )
         return
 
     def validate( self, value, parent=None ):
+        """Validate that a Python object meets the constraints for the field.
+        
+        Throws FieldValidationError if a constraint fails."""
         pass 
 
 
@@ -42,7 +52,7 @@ class BlockStream( Field ):
         self.transform = transform
 
     def get_from_buffer( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert isinstance( buffer, bytes )
         offset = property_get( self.offset, parent )
 
         pointer = offset
@@ -76,7 +86,7 @@ class BlockList( Field ):
         self.fill = fill
 
     def get_from_buffer( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert isinstance( buffer, bytes )
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
 
@@ -221,6 +231,16 @@ class Bytes( Field ):
             raise FieldValidationError( 'Expecting length of {}, not {}'.format( length, len( value ) ) )
         return
 
+    def __repr__( self ):
+        details = 'offset={}'.format( hex( self.offset ) )
+        if self.length:
+            details += ', length={}'.format( self.length )
+        if self.default:
+            details += ', default={}'.format( self.default )
+        if self.transform:
+            details += ', transform={}'.format( self.transform )
+        return Field.__repr__( self, details=details )
+
 
 class CString( Field ):
     def __init__( self, offset, default=b'', **kwargs ):
@@ -348,6 +368,16 @@ class ValueField( Field ):
             raise FieldValidationError( 'Value {} not in range ({})'.format( value, self.range ) )
         return
 
+    def __repr__( self ):
+        details = 'offset={}'.format( hex( self.offset ) )
+        if self.default:
+            details += ', default={}'.format( self.default )
+        if self.range:
+            details += ', range={}'.format( self.range )
+        if self.bitmask:
+            details += ', bitmask={}'.format( bin( self.bitmask ) )
+        return Field.__repr__( self, details=details )
+
 
 class Int8( ValueField ):
     def __init__( self, *args, **kwargs ):
@@ -363,8 +393,8 @@ class Bits( UInt8 ):
     def __init__( self, offset, bits, default=0, *args, **kwargs ):
         super( Bits, self ).__init__( offset, default=default, *args, **kwargs )
         assert type( bits ) == int
-        mask_bits = bin( bits ).split( 'b', 1 )[1]
-        self.bits = [(1<<i) for i, x in enumerate( reversed( mask_bits ) ) if x == '1']
+        self.mask_bits = bin( bits ).split( 'b', 1 )[1]
+        self.bits = [(1<<i) for i, x in enumerate( reversed( self.mask_bits ) ) if x == '1']
         self.format_range = range( 0, 1<<len( self.bits ) )
 
     def get_from_buffer( self, buffer, parent=None ):
@@ -383,6 +413,12 @@ class Bits( UInt8 ):
             if (value & (1 << i)):
                 buffer[offset] |= x
         return
+    
+    def __repr__( self ):
+        details = 'offset={}, bits=0b{}'.format( hex( self.offset ), self.mask_bits )
+        if self.default:
+            details += ', default={}'.format( self.default )
+        return Field.__repr__( self, details=details )
 
 
 class UInt16_LE( ValueField ):

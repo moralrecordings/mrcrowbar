@@ -6,12 +6,16 @@ import struct
 
 def _from_byte_type( code, size ):
     result = lambda buffer: struct.unpack( code, buffer[:size] )[0]
-    result.__doc__ = "Convert a {0} byte string to a Python {1}.".format( *_byte_type_to_text( code, size ) )
+    result.__doc__ = "Convert a {0} byte string to a Python {1}.".format(
+        *_byte_type_to_text( code, size )
+    )
     return result
 
 def _to_byte_type( code, size ):
     result = lambda value: struct.pack( code, value )
-    result.__doc__ = "Convert a Python {1} to a {0} byte string.".format( *_byte_type_to_text( code, size ) )
+    result.__doc__ = "Convert a Python {1} to a {0} byte string.".format(
+        *_byte_type_to_text( code, size )
+    )
     return result
 
 def _byte_type_to_text( code, size ):
@@ -54,6 +58,9 @@ def _load_byte_types():
 _load_byte_types()
 
 
+#: Unicode representation of a bar graph.
+UNICODE_BAR_GRAPH = u' ▁▂▃▄▅▆▇█'
+
 class Stats( object ):
     """Helper class for performing some basic statistical analysis on binary data."""
 
@@ -83,7 +90,6 @@ class Stats( object ):
         height
             Custom height for the graph (in characters)
         """
-        FRACTION = u' ▁▂▃▄▅▆▇█'
         bucket = 256//width
         buckets = [sum( self.histo[i:i+bucket] ) for i in range( 0, 256, bucket )]
         scale = height*8.0/max( buckets )
@@ -93,11 +99,11 @@ class Stats( object ):
             result.append( ' ' )
             for _, x_value in enumerate( buckets_norm ):
                 if (x_value // 8) >= y_pos:
-                    result.append( FRACTION[8] )
+                    result.append( UNICODE_BAR_GRAPH[8] )
                 elif (x_value // 8) == y_pos-1:
-                    result.append( FRACTION[round( x_value % 8 )] )
+                    result.append( UNICODE_BAR_GRAPH[round( x_value % 8 )] )
                 else:
-                    result.append( FRACTION[0] )
+                    result.append( UNICODE_BAR_GRAPH[0] )
             result.append( '\n' )
 
         result.append( '╘'+('═'*width)+'╛\n' )
@@ -128,6 +134,57 @@ def pack_bits( longbits ):
     byte = (byte | (byte>>14)) & (0x0000000f0000000f)
     byte = (byte | (byte>>28)) & (0x00000000000000ff)
     return byte
+
+
+#: ANSI escape sequence for resetting the colour settings to the default.
+ANSI_FORMAT_RESET = '\x1b[0m'
+#: ANSI escape sequence for setting the foreground colour (24-bit).
+ANSI_FORMAT_FOREGROUND = '\x1b[38;2;{};{};{}m'
+#: ANSI escape sequence for setting the background colour (24-bit).
+ANSI_FORMAT_BACKGROUND = '\x1b[48;2;{};{};{}m'
+#: ANSI escape sequence for setting the foreground and background colours (24-bit).
+ANSI_FORMAT_COLOURS = '\x1b[38;2;{};{};{};48;2;{};{};{}m'
+
+def ansi_format_pixels( top, bottom ):
+    """Return the ANSI escape sequence to render two vertically-stacked Colours as a
+    single monospace character."""
+    if top.a_8 == 0 and bottom.a_8 == 0:
+        return ' '
+    elif top == bottom:
+        return '{}█{}'.format(
+            ANSI_FORMAT_FOREGROUND.format(
+                top.r_8, top.g_8, top.b_8
+            ), ANSI_FORMAT_RESET
+        )
+    elif top.a_8 == 0 and bottom.a_8 != 0:
+        return '{}▄{}'.format(
+            ANSI_FORMAT_FOREGROUND.format(
+                bottom.r_8, bottom.g_8, bottom.b_8
+            ), ANSI_FORMAT_RESET
+        )
+    elif top.a_8 != 0 and bottom.a_8 == 0:
+        return '{}▀{}'.format(
+            ANSI_FORMAT_FOREGROUND.format(
+                top.r_8, top.g_8, top.b_8
+            ), ANSI_FORMAT_RESET
+        )
+    return '{}▀{}'.format(
+        ANSI_FORMAT_COLOURS.format(
+            top.r_8, top.g_8, top.b_8,
+            bottom.r_8, bottom.g_8, bottom.b_8,
+        ), ANSI_FORMAT_RESET
+    )
+
+
+def ansi_format_string( string, foreground, background ):
+    """Return the ANSI escape sequence to render a Unicode string with a
+    foreground and a background Colour."""
+    # FIXME: add better support for transparency
+    fmt = ANSI_FORMAT_COLOURS.format(
+        foreground.r_8, foreground.g_8, foreground.b_8,
+        background.r_8, background.g_8, background.b_8
+    )
+    return '{}{}{}'.format( fmt, string, ANSI_FORMAT_RESET )
 
 
 class BitReader( object ):

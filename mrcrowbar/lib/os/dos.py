@@ -1,13 +1,17 @@
 #!/usr/bin/python3
 
-from mrcrowbar import models as mrc
+from mrcrowbar import models as mrc, utils
 from mrcrowbar.lib.hardware import ibm_pc
 
 # map of DOS code page 437 to Unicode
-CP437 = u"""\x00☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼ !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xa0"""
+CP437 = """\x00☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼ !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xa0"""
 
-# example one-liner to read .NFO files
-decode_nfo = lambda buffer: u'\n'.join( [u''.join( [CP437[y] for y in x] ) for x in buffer.split( b'\r\n' )] )
+
+def decode_nfo( buffer ):
+    """Decodes a byte string in NFO format (beloved by PC scener groups) from DOS Code Page 437 
+    to Unicode."""
+    assert isinstance( buffer, bytes )
+    return '\n'.join( [''.join( [CP437[y] for y in x] ) for x in buffer.split( b'\r\n' )] )
 
 
 class B800Char( mrc.Block ):
@@ -23,16 +27,12 @@ class B800Char( mrc.Block ):
         return CP437[self.code_point]
 
     def ansi_format( self ):
-        fg = '{};{};{}'.format( self._palette[self.fg_colour].r_8, 
-                                self._palette[self.fg_colour].g_8, 
-                                self._palette[self.fg_colour].b_8 )
-        bg = '{};{};{}'.format( self._palette[self.bg_colour].r_8, 
-                                self._palette[self.bg_colour].g_8, 
-                                self._palette[self.bg_colour].b_8 )
-        return u'\x1b[38;2;{};48;2;{}m{}'.format( fg, bg, self.char )
+        return utils.ansi_format_string( 
+            self.char, self._palette[self.fg_colour], self._palette[self.bg_colour] 
+        )
 
     def __str__( self ):
-        return u'{}\x1b[0m'.format( self.ansi_format() )
+        return self.ansi_format()
 
     def __repr__( self ):
         return '<{}: char {}, bg {}, fg {}>'.format( self.__class__.__name__, self.char, self.bg_colour, self.fg_colour )
@@ -45,15 +45,19 @@ class B800Screen( mrc.Block ):
 
     @property
     def text( self ):
-        return u'\n'.join( [u''.join( [c.char for c in self.chars[i*self.B800_SCREEN_WIDTH:][:self.B800_SCREEN_WIDTH]] ) for i in range( (len( self.chars )+1)//self.B800_SCREEN_WIDTH )] )
+        return '\n'.join( 
+            [''.join( 
+                [c.char for c in self.chars[i*self.B800_SCREEN_WIDTH:][:self.B800_SCREEN_WIDTH]] 
+            ) for i in range( (len( self.chars )+1)//self.B800_SCREEN_WIDTH )] 
+        )
 
     def ansi_format( self ):
         result = []
         for i in range( (len( self.chars )+1)//self.B800_SCREEN_WIDTH ):
             for c in self.chars[i*self.B800_SCREEN_WIDTH:][:self.B800_SCREEN_WIDTH]:
                 result.append( c.ansi_format() )
-            result.append( u'\x1b[0m\n' )
-        return u''.join( result )
+            result.append( '\n' )
+        return ''.join( result )
 
     def print( self ):
         print( self.ansi_format() )

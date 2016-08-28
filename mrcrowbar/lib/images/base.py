@@ -136,18 +136,8 @@ class IndexedImage( Image ):
                 i2 = self.width*(y_start+y+1) + (x_start+x)
                 p1 = self.palette[self.source[stride*frame+i1]]
                 p2 = self.palette[self.source[stride*frame+i2]] if (i2) < (self.width*self.height) else Transparent()
-                if p1.a_8 == 0 and p2.a_8 == 0:
-                    result.append( u'\x1b[0m ' )
-                elif p1 == p2:
-                    result.append( u'\x1b[38;2;{};{};{}m█'.format( p1.r_8, p1.g_8, p1.b_8 ) )
-                elif p1.a_8 == 0 and p2.a_8 != 0:
-                    result.append( u'\x1b[38;2;{};{};{}m▄'.format( p2.r_8, p2.g_8, p2.b_8 ) )
-                elif p1.a_8 != 0 and p2.a_8 == 0:
-                    result.append( u'\x1b[38;2;{};{};{}m▀'.format( p1.r_8, p1.g_8, p1.b_8 ) )
-                else:
-                    result.append( u'\x1b[38;2;{};{};{};48;2;{};{};{}m▀\x1b[0m'.format( p1.r_8, p1.g_8, p1.b_8, p2.r_8, p2.g_8, p2.b_8 ) )
-
-            result.append( u'\x1b[0m\n' )
+                result.append( utils.ansi_format_pixels( p1, p2 ) )
+            result.append( '\n' )
         return u''.join( result )
     
     def print( self, *args, **kwargs ):

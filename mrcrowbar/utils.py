@@ -58,6 +58,60 @@ def _load_byte_types():
 _load_byte_types()
 
 
+def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4 ):
+    """Print the contents of a byte string in tabular hexadecimal/ASCII format.
+    
+    source
+        The byte string to print.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    major_len
+        Number of hexadecimal groups per line
+
+    minor_len
+        Number of bytes per hexadecimal group
+
+    Raises ValueError if both end and length are defined.
+    """
+    assert isinstance( source, bytes )
+    from mrcrowbar.lib.os.dos import CP437
+    to_string = lambda b: ''.join( map( lambda x: CP437[x], b ) )
+
+    start = 0 if (start is None) else start
+    if (end is not None) and (length is not None):
+        raise ValueError( 'Can\'t define both an end and a length!' )
+    elif (length is not None):
+        end = start+length
+    elif (end is not None):
+        pass
+    else:
+        end = len( source ) 
+
+    if len( source ) == 0 or (start == end == 0):
+        return
+
+    for offset in range( start, end, minor_len*major_len ):
+        line = ['{:08x} │  '.format( offset )]
+        for major in range( major_len ):
+            for minor in range( minor_len ):
+                suboffset = offset+major*minor_len+minor
+                if suboffset >= end:
+                    line.append( '   ' )
+                    continue
+                line.append( '{:02x} '.format( source[suboffset] ) )
+            line.append( ' ' )
+        line.append( '│ {}'.format( to_string( source[offset:offset+major_len*minor_len] ) ) )
+        print( ''.join( line ) )
+
+
 #: Unicode representation of a bar graph.
 UNICODE_BAR_GRAPH = u' ▁▂▃▄▅▆▇█'
 
@@ -85,10 +139,10 @@ class Stats( object ):
         """Return a human readable ANSI-terminal printout of the stats.
 
         width
-            Custom width for the graph (in characters)
+            Custom width for the graph (in characters).
 
         height
-            Custom height for the graph (in characters)
+            Custom height for the graph (in characters).
         """
         bucket = 256//width
         buckets = [sum( self.histo[i:i+bucket] ) for i in range( 0, 256, bucket )]

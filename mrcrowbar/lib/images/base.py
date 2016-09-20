@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 from mrcrowbar import models as mrc
 from mrcrowbar import utils
 

@@ -10,6 +10,7 @@ SAMPLE_WIDTH_INT8 = (pyaudio.paInt8, b'\x00')
 SAMPLE_WIDTH_INT16_LE = (pyaudio.paInt16, b'\x00\x00')
 #SAMPLE_WIDTH_INT24_LE = (pyaudio.paInt24, b'\x00\x00\x00')
 SAMPLE_WIDTH_INT32_LE = (pyaudio.paInt32, b'\x00\x00\x00\x00')
+SAMPLE_WIDTH_FLOAT_LE = (pyaudio.paFloat32, b'\x00\x00\x00\x00')
 
 #: Perform no audio interpolation and let PortAudio sort it out. 
 #: (Sounds like AUDIO_INTERPOLATION_CUBIC)
@@ -30,7 +31,7 @@ AUDIO_INTERPOLATION_CUBIC = 3
 
 PLAYBACK_BUFFER = 4096
 RESAMPLE_RATE = 44100
-RESAMPLE_WIDTH = SAMPLE_WIDTH_INT16_LE
+RESAMPLE_WIDTH = SAMPLE_WIDTH_FLOAT_LE
 
 
 def normalize_audio( source, sample_width ):
@@ -50,8 +51,8 @@ def resample_audio( norm_source, sample_rate, interpolation ):
     new_len = RESAMPLE_RATE*samp_len//sample_rate
 
     if interpolation == AUDIO_INTERPOLATION_LINEAR:
-        return array( 'h', (int( 
-            32768*(norm_source[sample_rate*i//RESAMPLE_RATE] + (
+        return array( 'f', (( 
+            (norm_source[sample_rate*i//RESAMPLE_RATE] + (
                 (sample_rate*i % RESAMPLE_RATE)/RESAMPLE_RATE
             )*(
                 norm_source[(sample_rate*i//RESAMPLE_RATE)+1]-
@@ -59,9 +60,9 @@ def resample_audio( norm_source, sample_rate, interpolation ):
             )) 
         ) for i in range( new_len )) ).tobytes()
     elif interpolation == AUDIO_INTERPOLATION_STEP:
-        return array( 'h', (int(
-            32768*norm_source[sample_rate*i//RESAMPLE_RATE]
-        ) for i in range( new_len )) ).tobytes()
+        return array( 'f', (
+            norm_source[sample_rate*i//RESAMPLE_RATE]
+            for i in range( new_len )) ).tobytes()
     return data
 
 

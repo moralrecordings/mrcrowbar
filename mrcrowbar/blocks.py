@@ -174,10 +174,11 @@ class Block( object, metaclass=ModelMeta ):
             self.import_data( source_data )
 
     def __repr__( self ):
-        return '<{}: {}>'.format( self.__class__.__name__, str( self ) )
+        return '<{}: {}>'.format( self.__class__.__name__, self.repr )
 
-    def __str__( self ):
-        return hex( id( self ) )
+    @property
+    def repr( self ):
+        return '0x{:016x}'.format( id( self ) )
 
     def clone_data( self, source, **kw ):
         klass = self.__class__

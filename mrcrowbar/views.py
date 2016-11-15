@@ -42,7 +42,7 @@ class StoreRef( Ref ):
         self.block_kwargs = block_kwargs
    
     def __str__( self ):
-        return hex( id( self ) )
+        return '0x{:016x}'.format( id( self ) )
 
     def get( self, instance ):
         store = property_get( self.store, instance )

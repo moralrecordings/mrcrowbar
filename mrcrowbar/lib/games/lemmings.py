@@ -372,6 +372,10 @@ class Interactive( mrc.Block ):
         """The x position of the left edge."""
         return (self.x_raw-16) - ((self.x_raw-16) % 8)
 
+    @property
+    def repr( self ):
+        return "obj_id={}, x={}, y={}".format( self.obj_id, self.x, self.y )
+
 
 class Terrain( mrc.Block ):
     """Represents a single terrain piece placed in a level."""
@@ -404,7 +408,11 @@ class Terrain( mrc.Block ):
     def y( self ):
         """The y position of the top edge."""
         return (self.y_raw_coarse*2 + self.y_raw_fine)-4
-    
+   
+    @property
+    def repr( self ):
+        return "obj_id={}, x={}, y={}".format( self.obj_id, self.x, self.y )
+
 
 class SteelArea( mrc.Block ):
     """Represents an indestructable rectangular area in a level."""
@@ -443,6 +451,10 @@ class SteelArea( mrc.Block ):
     def height( self ):
         """Height of the steel area."""
         return (self.height_raw+1)*4
+
+    @property
+    def repr( self ):
+        return "x={}, y={}, width={}, height={}".format( self.x, self.y, self.width, self.height )
 
 
 class Level( mrc.Block ):
@@ -495,11 +507,9 @@ class Level( mrc.Block ):
         """Start x position of the camera."""
         return self.camera_x_raw - (self.camera_x_raw % 8)
 
-    def __repr__( self ):
-        name = self.name.strip()
-        if name:
-            return super( Level, self ).__repr__( details=name.decode( 'utf8' ) )
-        return super( Level, self ).__repr__()
+    @property
+    def repr( self ):
+        return self.name.strip().decode( 'utf8' )
 
 
 class LevelDAT( mrc.Block ):
@@ -544,11 +554,9 @@ class OddRecord( mrc.Block ):
     #: Name of the level (ASCII string).
     name =              mrc.Bytes( 0x0018, 32, default=b'                                ' )
 
-    def __repr__( self ):
-        name = self.name.strip()
-        if name:
-            return super( OddRecord, self ).__repr__( details=name.decode( 'utf8' ) )
-        return super( OddRecord, self ).__repr__()
+    @property
+    def repr( self ):
+        return self.name.strip().decode( 'utf8' )
 
 
 class OddtableDAT( mrc.Block ):
@@ -566,7 +574,7 @@ class OddtableDAT( mrc.Block ):
 ##########
 
 class InteractiveImage( mrc.Block ):
-    """Represents a """
+    """Represents the sprite data for an interactive object."""
 
     image_data  =       mrc.Bytes( 
                             0x0000, transform=img.Planarizer( 

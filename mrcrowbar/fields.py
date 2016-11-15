@@ -22,9 +22,12 @@ class Field( object ):
         self._position_hint = next( _next_position_hint )
         self.default = default
 
-    def __repr__( self, *args, **kwargs ):
-        details = kwargs.get( 'details', hex( id( self ) ) )
-        return '<{}: {}>'.format( self.__class__.__name__, details )
+    def __repr__( self ):
+        return '<{}: {}>'.format( self.__class__.__name__, self.repr )
+
+    @property
+    def repr( self ):
+        return '0x{:016x}'.format( id( self ) )
 
     def get_from_buffer( self, buffer, parent=None ):
         """Create a Python object from a byte string, using the field definition."""
@@ -231,7 +234,8 @@ class Bytes( Field ):
             raise FieldValidationError( 'Expecting length of {}, not {}'.format( length, len( value ) ) )
         return
 
-    def __repr__( self ):
+    @property
+    def repr( self ):
         details = 'offset={}'.format( hex( self.offset ) )
         if self.length:
             details += ', length={}'.format( self.length )
@@ -239,7 +243,7 @@ class Bytes( Field ):
             details += ', default={}'.format( self.default )
         if self.transform:
             details += ', transform={}'.format( self.transform )
-        return Field.__repr__( self, details=details )
+        return details
 
 
 class CString( Field ):
@@ -368,7 +372,8 @@ class ValueField( Field ):
             raise FieldValidationError( 'Value {} not in range ({})'.format( value, self.range ) )
         return
 
-    def __repr__( self ):
+    @property
+    def repr( self ):
         details = 'offset={}'.format( hex( self.offset ) )
         if self.default:
             details += ', default={}'.format( self.default )
@@ -376,7 +381,7 @@ class ValueField( Field ):
             details += ', range={}'.format( self.range )
         if self.bitmask:
             details += ', bitmask={}'.format( bin( self.bitmask ) )
-        return Field.__repr__( self, details=details )
+        return details
 
 
 class Int8( ValueField ):
@@ -414,11 +419,12 @@ class Bits( UInt8 ):
                 buffer[offset] |= x
         return
     
-    def __repr__( self ):
+    @property
+    def repr( self ):
         details = 'offset={}, bits=0b{}'.format( hex( self.offset ), self.mask_bits )
         if self.default:
             details += ', default={}'.format( self.default )
-        return Field.__repr__( self, details=details )
+        details
 
 
 class UInt16_LE( ValueField ):

@@ -7,5 +7,5 @@ setup(name='mrcrowbar',
       url='https://bitbucket.org/moralrecordings/mrcrowbar',
       license='BSD',
       author='Scott Percival',
-      author_email='moralrecordings@gmail.com',
+      author_email='code@moral.net.au',
       packages=['mrcrowbar'])

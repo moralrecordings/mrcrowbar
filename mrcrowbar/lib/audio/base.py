@@ -35,7 +35,9 @@ RESAMPLE_WIDTH = SAMPLE_WIDTH_FLOAT_LE
 
 
 def normalize_audio( source, sample_width ):
-    if sample_width == SAMPLE_WIDTH_UINT8:
+    if sample_width == SAMPLE_WIDTH_FLOAT_LE:
+        return [x for x in array( 'f', source )]
+    elif sample_width == SAMPLE_WIDTH_UINT8:
         return [float( x-128 )/128 for x in array( 'B', source )]
     elif sample_width == SAMPLE_WIDTH_INT8:
         return [float( x )/128 for x in array( 'b', source )]

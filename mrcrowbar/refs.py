@@ -49,9 +49,13 @@ class Ref( object ):
         setattr( target, self.path[-1], value )
         return
 
-    def __repr__( self, *args, **kwargs ):
-        details = kwargs.get( 'details', '.'.join( self.path ) )
-        return '<{}: {}>'.format( self.__class__.__name__, details )
+    def __repr__( self ):
+        desc = '0x{:016x}'.format( id( self ) )
+        if hasattr( self, 'repr' ) and isinstance( self.repr, str ):
+            desc = self.repr
+        return '<{}: {}>'.format( self.__class__.__name__, desc )
+
+    repr = None
 
 
 def property_get( prop, instance ):

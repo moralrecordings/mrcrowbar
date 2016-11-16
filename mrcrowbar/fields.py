@@ -356,12 +356,12 @@ class ValueField( Field ):
         
             for i in range( self.field_size ):
                 # set bitmasked areas of target to 0
-                array[i+offset] &= (~ self.bitmask[i])
+                buffer[i+offset] &= (self.bitmask[i] ^ 0xff)
                 # OR target with replacement bitmasked portion
-                array[i+offset] |= (data[i] & self.bitmask[i])
+                buffer[i+offset] |= (data[i] & self.bitmask[i])
         else:
             for i in range( self.field_size ):
-                array[i+offset] = data[i]
+                buffer[i+offset] = data[i]
         return
 
     def validate( self, value, parent=None ):
@@ -415,7 +415,7 @@ class Bits( UInt8 ):
         offset = property_get( self.offset, parent )
 
         for i, x in enumerate( self.bits ):
-            buffer[offset] &= 0xff - x
+            buffer[offset] &= 0xff ^ x
             if (value & (1 << i)):
                 buffer[offset] |= x
         return

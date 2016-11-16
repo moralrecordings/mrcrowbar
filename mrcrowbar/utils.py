@@ -3,6 +3,7 @@
 import array
 import math
 import struct
+import difflib
 
 def _from_byte_type( code, size ):
     result = lambda buffer: struct.unpack( code, buffer[:size] )[0]
@@ -58,8 +59,8 @@ def _load_byte_types():
 _load_byte_types()
 
 
-def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4 ):
-    """Print the contents of a byte string in tabular hexadecimal/ASCII format.
+def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_len=4 ):
+    """Return the contents of a byte string in tabular hexadecimal/ASCII format.
     
     source
         The byte string to print.
@@ -98,6 +99,7 @@ def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4
     if len( source ) == 0 or (start == end == 0):
         return
 
+    lines = []
     for offset in range( start, end, minor_len*major_len ):
         line = ['{:08x} │  '.format( offset )]
         for major in range( major_len ):
@@ -109,7 +111,67 @@ def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4
                 line.append( '{:02x} '.format( source[suboffset] ) )
             line.append( ' ' )
         line.append( '│ {}'.format( to_string( source[offset:offset+major_len*minor_len] ) ) )
-        print( ''.join( line ) )
+        lines.append( ''.join( line ) )
+    return '\n'.join(lines)
+
+
+def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4 ):
+    """Print the contents of a byte string in tabular hexadecimal/ASCII format.
+    
+    source
+        The byte string to print.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    major_len
+        Number of hexadecimal groups per line
+
+    minor_len
+        Number of bytes per hexadecimal group
+
+    Raises ValueError if both end and length are defined.
+    """
+    print( hexdump_str( source, start, end, length, major_len, minor_len ) )
+
+
+def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4 ):
+    """Print the differences between two byte strings in tabular hexadecimal/ASCII format.
+    
+    source1
+        The first byte string source.
+        
+    source2
+        The second byte string source.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    major_len
+        Number of hexadecimal groups per line
+
+    minor_len
+        Number of bytes per hexadecimal group
+
+    Raises ValueError if both end and length are defined.
+    """
+    hex1 = hexdump_str( source1, start, end, length, major_len, minor_len ).splitlines( 1 )
+    hex2 = hexdump_str( source2, start, end, length, major_len, minor_len ).splitlines( 1 )
+    diff = difflib.Differ()
+    print( ''.join( diff.compare( hex1, hex2 ) ) )
+
 
 
 #: Unicode representation of a bar graph.

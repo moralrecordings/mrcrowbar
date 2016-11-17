@@ -40,6 +40,13 @@ class VCL( mrc.Block ):
     pass
 
 
+class SHAFile( mrc.Block ):
+    tileset_offsets = mrc.UInt32_LE( 0x0000, count=128 )
+    tileset_sizes   = mrc.UInt16_LE( 0x0200, count=128 )
+
+
+
+
 class JillLoader( mrc.Loader ):
     """Loader for the game Jill of the Jungle (DOS, 1992)."""
     _SEP = mrc.Loader._SEP
@@ -47,6 +54,7 @@ class JillLoader( mrc.Loader ):
     _JILL_FILE_CLASS_MAP = {
         _SEP+'JN[1-3]SAVE\.[0-9]$': None,
         _SEP+'JILL[1-3]\.VCL$': None,
+        _SEP+'JILL[1-3]\.SHA$': SHAFile,
         _SEP+'JILL.DMA$': None,
         _SEP+'.*\.DDT$': None,
         _SEP+'.*\.JN[1-3]$': None

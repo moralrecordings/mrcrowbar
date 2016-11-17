@@ -312,7 +312,7 @@ class CStringN( Field ):
     
 
 class ValueField( Field ):
-    def __init__( self, format, field_size, format_type, format_range, offset, default=0, bitmask=None, range=None, **kwargs ):
+    def __init__( self, format, field_size, format_type, format_range, offset, default=0, bitmask=None, range=None, count=None, **kwargs ):
         super( ValueField, self ).__init__( default=default, **kwargs )
         self.offset = offset
         self.format = format
@@ -321,6 +321,7 @@ class ValueField( Field ):
         if bitmask:
             assert utils.is_bytes( bitmask )
             assert len( bitmask ) == field_size
+        self.count = count
         self.field_size = field_size
         self.bitmask = bitmask
         self.range = range
@@ -328,41 +329,62 @@ class ValueField( Field ):
     def get_from_buffer( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
         offset = property_get( self.offset, parent )
+        count = property_get( self.count, parent )
+        is_array = count is not None
+        count = count if is_array else 1
+        assert count >= 0
 
-        data = buffer[offset:offset+self.field_size]
-        assert len( data ) == self.field_size
-        if self.bitmask:
-            data = (int.from_bytes( data, byteorder='big' ) & 
-                    int.from_bytes( self.bitmask, byteorder='big' )
-                    ).to_bytes( self.field_size, byteorder='big' )
+        result = []
+        for i in range( count ):
+            start = offset+self.field_size*i
+            data = buffer[start:start+self.field_size]
+            assert len( data ) == self.field_size
+            if self.bitmask:
+                data = (int.from_bytes( data, byteorder='big' ) & 
+                        int.from_bytes( self.bitmask, byteorder='big' )
+                        ).to_bytes( self.field_size, byteorder='big' )
 
-        value = struct.unpack( self.format, data )[0]
-        if self.range and (value not in self.range):
-            print( 'WARNING: value {} outside of range {}'.format( value, self.range ) )
-        return value
+            value = struct.unpack( self.format, data )[0]
+            if self.range and (value not in self.range):
+                print( 'Warning: value {} outside of range {}'.format( value, self.range ) )
+            result.append( value )
+
+        if not is_array:
+            return result[0]
+        return result
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
         super( ValueField, self ).update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
+        count = property_get( self.count, parent )
+        is_array = count is not None
+        count = count if is_array else 1
+        assert count >= 0
 
-        if (len( buffer ) < offset+self.field_size):
-            buffer.extend( b'\x00'*(offset+self.field_size-len( buffer )) )
-        data = struct.pack( self.format, value ) 
-        
-        # force check for no data loss in the value from bitmask
-        if self.bitmask:
-            assert (int.from_bytes( data, byteorder='big' ) & 
-                    int.from_bytes( self.bitmask, byteorder='big' ) ==
-                    int.from_bytes( data, byteorder='big' ))
-        
-            for i in range( self.field_size ):
-                # set bitmasked areas of target to 0
-                buffer[i+offset] &= (self.bitmask[i] ^ 0xff)
-                # OR target with replacement bitmasked portion
-                buffer[i+offset] |= (data[i] & self.bitmask[i])
-        else:
-            for i in range( self.field_size ):
-                buffer[i+offset] = data[i]
+        if not is_array:
+            value = [value]
+        assert count == len( value )
+
+        if (len( buffer ) < offset+self.field_size*count):
+            buffer.extend( b'\x00'*(offset+self.field_size*count-len( buffer )) )
+        for j in range( count ):
+            start = offset+self.field_size*j
+            data = struct.pack( self.format, value[j] ) 
+            
+            # force check for no data loss in the value from bitmask
+            if self.bitmask:
+                assert (int.from_bytes( data, byteorder='big' ) & 
+                        int.from_bytes( self.bitmask, byteorder='big' ) ==
+                        int.from_bytes( data, byteorder='big' ))
+            
+                for i in range( self.field_size ):
+                    # set bitmasked areas of target to 0
+                    buffer[start+i] &= (self.bitmask[i] ^ 0xff)
+                    # OR target with replacement bitmasked portion
+                    buffer[start+i] |= (data[i] & self.bitmask[i])
+            else:
+                for i in range( self.field_size ):
+                    buffer[start+i] = data[i]
         return
 
     def validate( self, value, parent=None ):

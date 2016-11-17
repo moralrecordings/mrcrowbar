@@ -57,6 +57,14 @@ Sometimes in your Blocks, you will need to cross-reference other parts of the sa
 Like Fields, Refs are immutable and can't hold state. Any Refs you specify in the Block class definition as e.g. arguments to Fields are created only once, and are evaluated at runtime. 
 
 
+Checks
+------
+
+It would be nice to imagine that our Blocks contain only bespoke data, but that would be a lie. For instance, there's sometimes hints in the file structure so the program can ensure it is reading the right thing. This might be a "magic number" indicating the type of data, a special filler pattern for marking unused bytes, or perhaps a fancy checksum for protecting the data from those damn hacker kids you hear about on the news! 
+
+A Check object adds a check rule to your Block with a couple of hooks; data that you import will be verified to follow the Check, and data exported will be modified to comply with the Check.
+
+
 Transforms
 ----------
 

@@ -4,7 +4,7 @@ from collections import OrderedDict
 
 from mrcrowbar.fields import *
 from mrcrowbar.refs import *
-from mrcrowbar.validate import *
+from mrcrowbar.checks import *
 from mrcrowbar import utils
 
 class FieldDescriptor( object ):
@@ -214,8 +214,8 @@ class Block( object, metaclass=ModelMeta ):
             else:
                 self._field_data[name] = klass._fields[name].default
 
-        for name in klass._checks:
-            pass
+        for name, check in klass._checks.items():
+            check.check_buffer( raw_buffer, parent=self )
         return
 
     def export_data( self, **kw ):
@@ -227,6 +227,9 @@ class Block( object, metaclass=ModelMeta ):
             klass._fields[name].update_buffer_with_value(
                 self._field_data[name], output, parent=self
             )
+
+        for name, check in klass._checks.items():
+            check.update_buffer( output, parent=self )
         return output
 
     def validate( self, **kw ):

@@ -365,7 +365,7 @@ class Interactive( mrc.Block ):
     draw_upsidedown =   mrc.Bits( 0x07, 0b10000000 )
 
     # Check to ensure the last chunk of the block is empty.
-    mod_check =         mrc.Check( mrc.UInt16_BE( 0x06, bitmask=b'\x3f\x7f' ), 0x000f )
+    mod_check =         mrc.Const( mrc.UInt16_BE( 0x06, bitmask=b'\x3f\x7f' ), 0x000f )
 
     @property
     def x( self ):
@@ -393,11 +393,12 @@ class Terrain( mrc.Block ):
     y_raw_coarse =      mrc.Int8( 0x02 )
     #: Raw value (fine component) for the y position of the top edge.
     y_raw_fine =        mrc.Bits( 0x03, 0b10000000 )
+
+    unknown_1 =         mrc.Bits( 0x03, 0b01000000 )
+
     #: Index of the TerrainInfo block in the accompanying GroundDAT.
     obj_id =            mrc.UInt8( 0x03, bitmask=b'\x3f', range=range( 0, 64 ) )
 
-    #: Check to ensure the last chunk of the block is empty.
-    mod_check =         mrc.Check( mrc.UInt8( 0x03, bitmask=b'\x40' ), 0x00 )
 
     @property
     def x( self ):
@@ -430,7 +431,7 @@ class SteelArea( mrc.Block ):
     height_raw =        mrc.Bits( 0x02, 0b00001111 )
 
     #: Check to ensure the last byte of the block is empty.
-    mod_check =         mrc.Check( mrc.UInt8( 0x03 ), 0x00 )
+    mod_check =         mrc.Const( mrc.UInt8( 0x03 ), 0x00 )
     
     @property
     def x( self ):
@@ -933,7 +934,8 @@ class Loader( mrc.Loader ):
 
         file_map = {}
         for x in self._files.values():
-            print( x )
+            if verbose:
+                print( x )
             file_map[(x['match'][0].upper(), int( x['match'][1] ) if len( x['match'] )>1 else None )] = x['obj']
         
         for key, obj in file_map.items():

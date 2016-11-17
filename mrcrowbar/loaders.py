@@ -1,5 +1,6 @@
 import os, re
 from collections import OrderedDict
+from mmap import mmap
 
 class Loader( object ):
     _SEP = re.escape( os.path.sep )
@@ -19,14 +20,16 @@ class Loader( object ):
                 for key, regex in self.file_re_map.items():
                     match = regex.search( full_path )
                     if match:
-                        data = open( full_path, 'rb' ).read()
-                        if verbose:
-                            print( '{} => {}'.format( full_path, self.file_class_map[key] ) )
-                        self._files[full_path] = {
-                            'klass': self.file_class_map[key],
-                            'match': match.groups(),
-                            'obj': self.file_class_map[key]( data )
-                        }
+                        with open( full_path, 'r+b' ) as f:
+                            data = mmap( f.fileno(), 0 )
+                            if verbose:
+                                print( '{} => {}'.format( full_path, self.file_class_map[key] ) )
+                            self._files[full_path] = {
+                                'klass': self.file_class_map[key],
+                                'match': match.groups(),
+                                'obj': self.file_class_map[key]( data )
+                            }
+                            data.close()
 
         self.post_load( verbose )
         return

@@ -2,7 +2,7 @@
 
 import itertools
 
-from mrcrowbar import models as mrc
+from mrcrowbar import models as mrc, utils
 from mrcrowbar.lib.hardware import megadrive as md
 from mrcrowbar.lib.images import base as img
 from mrcrowbar.utils import BitReader
@@ -21,7 +21,7 @@ class EnigmaCompressor( mrc.Transform ):
         self.starting_tile = starting_tile
 
     def import_data( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
         inline_copy_bits = buffer[0]
 
         high_priority_flag = mrc.Bits( 0x01, 0b00010000 ).get_from_buffer( buffer )
@@ -75,7 +75,7 @@ class EnigmaCompressor( mrc.Transform ):
 
 class NemesisCompressor( mrc.Transform ):
     def import_data( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
         pattern_count = mrc.UInt16_BE( 0x0000 ).get_from_buffer( buffer )
         xor_mode = (pattern_count & 0x8000) != 0
         pattern_count &= 0x7fff

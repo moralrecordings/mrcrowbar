@@ -4,6 +4,7 @@ import struct
 import itertools 
 
 from mrcrowbar.refs import *
+from mrcrowbar import utils
 
 _next_position_hint = itertools.count()
 
@@ -36,7 +37,7 @@ class Field( object ):
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
         """Write a Python object into a byte array, using the field definition."""
-        assert isinstance( buffer, bytearray )
+        assert utils.is_bytes( buffer )
         self.validate( value )
         return
 
@@ -56,7 +57,7 @@ class BlockStream( Field ):
         self.transform = transform
 
     def get_from_buffer( self, buffer, parent=None ):
-        assert isinstance( buffer, bytes )
+        assert utils.is_bytes( buffer )
         offset = property_get( self.offset, parent )
 
         pointer = offset
@@ -90,7 +91,7 @@ class BlockList( Field ):
         self.fill = fill
 
     def get_from_buffer( self, buffer, parent=None ):
-        assert isinstance( buffer, bytes )
+        assert utils.is_bytes( buffer )
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
 
@@ -155,7 +156,7 @@ class BlockField( Field ):
         self.transform = transform
 
     def get_from_buffer( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
         offset = property_get( self.offset, parent )
 
         result = None
@@ -189,7 +190,7 @@ class BlockField( Field ):
 class Bytes( Field ):
     def __init__( self, offset, length=None, default=None, transform=None, **kwargs ):
         if default is not None:
-            assert type( default ) == bytes
+            assert utils.is_bytes( default )
         else:
             default = b''
         super( Bytes, self ).__init__( default=default, **kwargs )
@@ -198,7 +199,7 @@ class Bytes( Field ):
         self.transform = transform
 
     def get_from_buffer( self, buffer, parent=None, **kwargs ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
         offset = property_get( self.offset, parent )
         length = property_get( self.length, parent )
 
@@ -249,12 +250,12 @@ class Bytes( Field ):
 
 class CString( Field ):
     def __init__( self, offset, default=b'', **kwargs ):
-        assert type( default ) == bytes
+        assert utils.is_bytes( default )
         super( CString, self ).__init__( default=default, **kwargs )
         self.offset = offset
 
     def get_from_buffer( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
         offset = property_get( self.offset, parent )
 
         return buffer[offset:].split( b'\x00', 1 )[0]
@@ -277,13 +278,13 @@ class CString( Field ):
 
 class CStringN( Field ):
     def __init__( self, offset, length, default=b'', **kwargs ):
-        assert type( default ) == bytes
+        assert utils.is_bytes( default )
         super( CStringN, self ).__init__( default=default, **kwargs )
         self.offset = offset
         self.length = length
 
     def get_from_buffer( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
         offset = property_get( self.offset, parent )
         length = property_get( self.length, parent )
 
@@ -318,14 +319,14 @@ class ValueField( Field ):
         self.format_type = format_type
         self.format_range = format_range
         if bitmask:
-            assert type( bitmask ) == bytes
+            assert utils.is_bytes( bitmask )
             assert len( bitmask ) == field_size
         self.field_size = field_size
         self.bitmask = bitmask
         self.range = range
 
     def get_from_buffer( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
         offset = property_get( self.offset, parent )
 
         data = buffer[offset:offset+self.field_size]

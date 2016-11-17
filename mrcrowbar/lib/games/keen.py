@@ -111,7 +111,7 @@ class PreviewCompressor( mrc.Transform ):
     plan = img.Planarizer( 320, 200, 4, plane_padding=192 ) 
     
     def import_data( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
         stage_1 = self.rle.import_data( buffer )
         stage_2 = self.plan.import_data( stage_1['payload'] )
         result = {

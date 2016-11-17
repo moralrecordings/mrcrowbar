@@ -22,7 +22,7 @@ class DATCompressor( mrc.Transform ):
         return lrc
 
     def import_data( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
 
         def copy_prev_data( blocklen, offset_size, state ):
             offset = state['bs'].get_bits( offset_size )
@@ -106,7 +106,7 @@ class DATCompressor( mrc.Transform ):
 
 
     def export_data( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
 
         def write_bits( value, length ):
             bs.put_bits( value, length )
@@ -228,7 +228,7 @@ class SpecialCompressor( mrc.Transform ):
     plan = img.Planarizer( 960, 40, 3 )
 
     def import_data( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
         result = []
         buf_out = []
         i = 0
@@ -267,7 +267,7 @@ class SpecialCompressor( mrc.Transform ):
         return result
 
     def export_data( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
         assert len( buffer ) == 960*160
         
         segments = (buffer[960*40*i:960*40*(i+1)] for i in range(4))

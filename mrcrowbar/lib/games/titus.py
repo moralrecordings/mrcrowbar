@@ -7,7 +7,7 @@ import itertools
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
-from mrcrowbar.utils import BitReader
+from mrcrowbar import utils
 
 # source: http://ttf.mine.nu/techdocs.htm
 
@@ -81,7 +81,7 @@ SPREXP_SQZ_SIZE_TABLE = (
 
 class ZIVCompressor( mrc.Transform ):
     def import_data( self, buffer, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
         
         decompressed_size = ((buffer[0] & 0x0f) << 16) + (buffer[2] << 8) + buffer[3]
 

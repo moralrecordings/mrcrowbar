@@ -4,6 +4,12 @@ import array
 import math
 import struct
 import difflib
+import mmap
+
+def is_bytes( obj ):
+    """Returns whether obj is an acceptable Python byte string."""
+    return isinstance( obj, (bytes, bytearray, mmap.mmap) )
+
 
 def _from_byte_type( code, size ):
     result = lambda buffer: struct.unpack( code, buffer[:size] )[0]
@@ -82,7 +88,7 @@ def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_l
 
     Raises ValueError if both end and length are defined.
     """
-    assert isinstance( source, bytes )
+    assert is_bytes( source )
     from mrcrowbar.lib.os.dos import CP437
     to_string = lambda b: ''.join( map( lambda x: CP437[x], b ) )
 
@@ -182,7 +188,7 @@ class Stats( object ):
 
     def __init__( self, buffer ):
         """Generate a Stats instance for a byte string and analyse the data."""
-        assert isinstance( buffer, bytes )
+        assert is_bytes( buffer )
 
         #: Byte histogram for the source data.
         self.histo = array.array( 'I', [0]*256 )
@@ -322,7 +328,7 @@ class BitReader( object ):
             If enabled, fetch bits starting from the most-significant bit (i.e. 0x80)
             through least-significant bit (0x01).
         """
-        assert isinstance( buffer, bytes )
+        assert is_bytes( buffer )
         assert start_offset in range( len( buffer ) )
         self.buffer = buffer
         self.bits_reverse = bits_reverse

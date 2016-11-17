@@ -4,6 +4,8 @@ from collections import OrderedDict
 
 from mrcrowbar.fields import *
 from mrcrowbar.refs import *
+from mrcrowbar.validate import *
+from mrcrowbar import utils
 
 class FieldDescriptor( object ):
 
@@ -105,6 +107,7 @@ class ModelMeta( type ):
         # Structures used to accumulate meta info
         fields = OrderedDict()
         refs = OrderedDict()
+        checks = OrderedDict()
 
         serializables = {}
         #validator_functions = {}  # Model level
@@ -115,6 +118,8 @@ class ModelMeta( type ):
                 fields[key] = value
             elif isinstance( value, Ref ):
                 refs[key] = value
+            elif isinstance( value, Check ):
+                checks[key] = value
         #    elif isinstance( value, View ):
         #        views[key] = value
 
@@ -128,6 +133,7 @@ class ModelMeta( type ):
         # Ready meta data to be klass attributes
         attrs['_fields'] = fields
         attrs['_refs'] = refs
+        attrs['_checks'] = checks
 
         klass = type.__new__( mcs, name, bases, attrs )
 
@@ -156,6 +162,10 @@ class ModelMeta( type ):
     @property
     def refs( cls ):
         return cls._refs
+    
+    @property
+    def checks( cls ):
+        return cls._checks
 
 
 class Block( object, metaclass=ModelMeta ):
@@ -191,7 +201,7 @@ class Block( object, metaclass=ModelMeta ):
     def import_data( self, raw_buffer, **kw ):
         klass = self.__class__
         if raw_buffer:
-            assert type( raw_buffer ) == bytes
+            assert utils.is_bytes( raw_buffer )
             assert len( raw_buffer ) >= klass._block_size
 
         self._field_data = {}
@@ -203,6 +213,9 @@ class Block( object, metaclass=ModelMeta ):
                 )
             else:
                 self._field_data[name] = klass._fields[name].default
+
+        for name in klass._checks:
+            pass
         return
 
     def export_data( self, **kw ):

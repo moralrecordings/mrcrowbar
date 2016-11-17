@@ -160,7 +160,7 @@ class Planarizer( mrc.Transform ):
 
 
     def import_data( self, buffer: bytes, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
 
         # load in constructor properties
         width = mrc.property_get( self.width, parent )
@@ -236,7 +236,7 @@ class Planarizer( mrc.Transform ):
 
 
     def export_data( self, buffer: bytes, parent=None ):
-        assert type( buffer ) == bytes
+        assert utils.is_bytes( buffer )
 
         # load in constructor properties
         width = mrc.property_get( self.width, parent )

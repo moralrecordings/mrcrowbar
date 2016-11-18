@@ -40,11 +40,21 @@ class VCL( mrc.Block ):
     pass
 
 
+# source: http://www.shikadi.net/moddingwiki/SHA_Format
+
 class SHAFile( mrc.Block ):
     tileset_offsets = mrc.UInt32_LE( 0x0000, count=128 )
     tileset_sizes   = mrc.UInt16_LE( 0x0200, count=128 )
 
 
+class Tileset( mrc.Block ):
+    num_shapes      = mrc.UInt8( 0x00 )
+    num_rots        = mrc.UInt16_LE( 0x01 )
+    len_cga         = mrc.UInt16_LE( 0x03 )
+    len_ega         = mrc.UInt16_LE( 0x05 )
+    len_vga         = mrc.UInt16_LE( 0x07 )
+    depth           = mrc.UInt8( 0x09 )
+    flags           = mrc.UInt16_LE( 0x0a )
 
 
 class JillLoader( mrc.Loader ):

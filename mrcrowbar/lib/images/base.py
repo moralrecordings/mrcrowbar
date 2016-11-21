@@ -10,7 +10,6 @@ import sys
 
 
 class Colour( mrc.Block ):
-    _block_size = 0
     r_8 = 0
     g_8 = 0
     b_8 = 0
@@ -44,8 +43,6 @@ class Transparent( Colour ):
 
 
 class RGBColour( Colour ):
-    _block_size = 3
-
     r_8 = mrc.UInt8( 0x00 )
     g_8 = mrc.UInt8( 0x01 )
     b_8 = mrc.UInt8( 0x02 )

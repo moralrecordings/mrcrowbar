@@ -349,7 +349,6 @@ LEMMINGS_VGA_MENU_PALETTE = (
 
 class Interactive( mrc.Block ):
     """Represents a single interactive piece placed in a level."""
-    _block_size =       8
     
     #: Raw value for the x position of the left edge.
     x_raw =             mrc.Int16_BE( 0x00, range=range( -8, 1593 ) )
@@ -379,7 +378,6 @@ class Interactive( mrc.Block ):
 
 class Terrain( mrc.Block ):
     """Represents a single terrain piece placed in a level."""
-    _block_size =       4
 
     #: Raw value for the x position of the left edge.
     x_raw =             mrc.UInt16_BE( 0x00, bitmask=b'\x0f\xff' )
@@ -417,7 +415,6 @@ class Terrain( mrc.Block ):
 
 class SteelArea( mrc.Block ):
     """Represents an indestructable rectangular area in a level."""
-    _block_size =       4
     
     #: Raw value (coarse component) for the x position of the left edge.
     x_raw_coarse =      mrc.UInt8( 0x00, range=range( 0, 200 ) )
@@ -460,7 +457,6 @@ class SteelArea( mrc.Block ):
 
 class Level( mrc.Block ):
     """Represents a single Lemmings level."""
-    _block_size =       2048
 
     #: Minimum Lemming release-rate.
     release_rate =      mrc.UInt16_BE( 0x0000, range=range( 0, 251 ) )
@@ -495,11 +491,11 @@ class Level( mrc.Block ):
     custom_index =      mrc.UInt16_BE( 0x001c )
 
     #: List of Interactive object references (32 slots).
-    interactives =      mrc.BlockList( Interactive, 0x0020, count=32, fill=b'\x00' )
+    interactives =      mrc.BlockField( Interactive, 0x0020, count=32, fill=b'\x00' )
     #: List of Terrain object references (400 slots).
-    terrains =          mrc.BlockList( Terrain, 0x0120, count=400, fill=b'\xff' )
+    terrains =          mrc.BlockField( Terrain, 0x0120, count=400, fill=b'\xff' )
     #: List of SteelArea object references (32 slots).
-    steel_areas =       mrc.BlockList( SteelArea, 0x0760, count=32, fill=b'\x00' )
+    steel_areas =       mrc.BlockField( SteelArea, 0x0760, count=32, fill=b'\x00' )
     #: Name of the level (ASCII string).
     name =              mrc.Bytes( 0x07e0, 32, default=b'                                ' )
 
@@ -525,7 +521,6 @@ class OddRecord( mrc.Block ):
     
     Used in Lemmings to repeat the same level with a different difficulty.
     """
-    _block_size = 56
 
     #: Minimum Lemming release-rate.
     release_rate =      mrc.UInt16_BE( 0x0000, range=range( 0, 251 ) )
@@ -562,10 +557,9 @@ class OddRecord( mrc.Block ):
 
 class OddtableDAT( mrc.Block ):
     """Represents a collection of OddRecord objects."""
-    _block_size = 4480
     
     #: List of OddRecord objects (80 slots).
-    records =           mrc.BlockList( OddRecord, 0x0000, count=80 )
+    records =           mrc.BlockField( OddRecord, 0x0000, count=80 )
 
 
 ##########
@@ -618,7 +612,6 @@ class InteractiveImage( mrc.Block ):
 
 class InteractiveInfo( mrc.Block ):
     """Contains a Ground style definition for an interactive object."""
-    _block_size =       28
 
     anim_flags =        mrc.UInt16_LE( 0x0000 )
     start_frame =       mrc.UInt8( 0x0002 )
@@ -707,7 +700,6 @@ class TerrainImage( mrc.Block ):
 
 
 class TerrainInfo( mrc.Block ):
-    _block_size =       8
 
     width =             mrc.UInt8( 0x0000 )
     height =            mrc.UInt8( 0x0001 )
@@ -736,18 +728,18 @@ class TerrainInfo( mrc.Block ):
 
 
 class GroundDAT( mrc.Block ):
-    _block_size =   1056
+    
     _vgagr = None           # should be manually pointed at the relevant VgagrDAT object
 
-    interactive_info        = mrc.BlockList( InteractiveInfo, 0x0000, count=16, fill=b'\x00' )
-    terrain_info            = mrc.BlockList( TerrainInfo, 0x01c0, count=64, fill=b'\x00' )
+    interactive_info        = mrc.BlockField( InteractiveInfo, 0x0000, count=16, fill=b'\x00' )
+    terrain_info            = mrc.BlockField( TerrainInfo, 0x01c0, count=64, fill=b'\x00' )
 
-    palette_ega_custom      = mrc.BlockList( ibm_pc.EGAColour, 0x03c0, count=8 )
-    palette_ega_standard    = mrc.BlockList( ibm_pc.EGAColour, 0x03c8, count=8 )
-    palette_ega_preview     = mrc.BlockList( ibm_pc.EGAColour, 0x03d0, count=8 )
-    palette_vga_custom      = mrc.BlockList( ibm_pc.VGAColour, 0x03d8, count=8 )
-    palette_vga_standard    = mrc.BlockList( ibm_pc.VGAColour, 0x03f0, count=8 )
-    palette_vga_preview     = mrc.BlockList( ibm_pc.VGAColour, 0x0408, count=8 )
+    palette_ega_custom      = mrc.BlockField( ibm_pc.EGAColour, 0x03c0, count=8 )
+    palette_ega_standard    = mrc.BlockField( ibm_pc.EGAColour, 0x03c8, count=8 )
+    palette_ega_preview     = mrc.BlockField( ibm_pc.EGAColour, 0x03d0, count=8 )
+    palette_vga_custom      = mrc.BlockField( ibm_pc.VGAColour, 0x03d8, count=8 )
+    palette_vga_standard    = mrc.BlockField( ibm_pc.VGAColour, 0x03f0, count=8 )
+    palette_vga_preview     = mrc.BlockField( ibm_pc.VGAColour, 0x0408, count=8 )
 
     @property
     def palette( self ):
@@ -870,7 +862,7 @@ class MainHUDGraphics( mrc.Block ):
 
 
 class MainDAT( mrc.Block ):
-    main_anims = mrc.BlockField( MainAnims, 0x0000, transform=DATCompressor() )
+    main_anims = mrc.BlockStream( MainAnims, 0x0000, transform=DATCompressor() )
     #main_masks = mrc.BlockField( MainMasks, transform=DATCompressor() )
     #main_hud_graphics_hp = mrc.BlockField( MainHUDGraphicsHP, transform=DATCompressor() )
     #main_menu_graphics = mrc.BlockField( MainMenuGraphics, transform=DATCompressor() )
@@ -885,9 +877,9 @@ class MainDAT( mrc.Block ):
 ##########
 
 class Special( mrc.Block ):
-    palette_vga =           mrc.BlockList( ibm_pc.VGAColour, 0x0000, count=8 )
-    palette_ega =           mrc.BlockList( ibm_pc.EGAColour, 0x0018, count=8 )
-    palette_ega_preview  =  mrc.BlockList( ibm_pc.EGAColour, 0x0020, count=8 )
+    palette_vga =           mrc.BlockField( ibm_pc.VGAColour, 0x0000, count=8 )
+    palette_ega =           mrc.BlockField( ibm_pc.EGAColour, 0x0018, count=8 )
+    palette_ega_preview  =  mrc.BlockField( ibm_pc.EGAColour, 0x0020, count=8 )
 
     image_data           =  mrc.Bytes( 0x0028, transform=SpecialCompressor() )
 
@@ -897,7 +889,7 @@ class Special( mrc.Block ):
 
 
 class VgaspecDAT( mrc.Block ):
-    special = mrc.BlockField( Special, 0x0000, transform=DATCompressor() )
+    special = mrc.BlockStream( Special, 0x0000, transform=DATCompressor() )
 
 
 ##########
@@ -941,7 +933,7 @@ class Loader( mrc.Loader ):
         for key, obj in file_map.items():
             if key[0] == 'VGASPEC':
                 # for special stages, hook up image field to show the VGA palette by default
-                obj.special.image._palette = obj.special.palette_vga
+                obj.special[0].image._palette = obj.special[0].palette_vga
             elif key[0] == 'GROUND':
                 if ('VGAGR', key[1]) in file_map:
                     obj._vgagr = file_map[('VGAGR', key[1])]

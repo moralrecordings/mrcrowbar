@@ -15,7 +15,6 @@ def decode_nfo( buffer ):
 
 
 class B800Char( mrc.Block ):
-    _block_size =   2
     _palette =      ibm_pc.EGA_DEFAULT_PALETTE
 
     code_point =    mrc.UInt8( 0x00 )

@@ -169,7 +169,6 @@ class ModelMeta( type ):
 
 
 class Block( object, metaclass=ModelMeta ):
-    _block_size = 0
     _parent = None
 
     def __init__( self, source_data=None, parent=None ):
@@ -202,7 +201,6 @@ class Block( object, metaclass=ModelMeta ):
         klass = self.__class__
         if raw_buffer:
             assert utils.is_bytes( raw_buffer )
-            assert len( raw_buffer ) >= klass._block_size
 
         self._field_data = {}
 
@@ -213,15 +211,16 @@ class Block( object, metaclass=ModelMeta ):
                 )
             else:
                 self._field_data[name] = klass._fields[name].default
-
-        for name, check in klass._checks.items():
-            check.check_buffer( raw_buffer, parent=self )
+        
+        if raw_buffer:
+            for name, check in klass._checks.items():
+                check.check_buffer( raw_buffer, parent=self )
         return
 
     def export_data( self, **kw ):
         klass = self.__class__
 
-        output = bytearray( b'\x00'*klass._block_size )
+        output = bytearray( b'\x00'*self.get_size() )
 
         for name in klass._fields:
             klass._fields[name].update_buffer_with_value(
@@ -237,3 +236,17 @@ class Block( object, metaclass=ModelMeta ):
         for name in klass._fields:
             klass._fields[name].validate( self._field_data[name], parent=self )
         return
+
+    def get_size( self ):
+        klass = self.__class__
+        size = 0
+        for name in klass._fields:
+            size = max( size, klass._fields[name].get_end_offset( self._field_data[name], parent=self ) )
+        for check in klass._checks.values():
+            size = max( size, check.get_end_offset( parent=self ) )
+        return size
+
+    def _prime( self ):
+        klass = self.__class__
+        for ref in klass._refs:
+            pass

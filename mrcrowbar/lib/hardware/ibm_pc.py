@@ -5,7 +5,6 @@ from mrcrowbar.lib.images import base as img
 
 
 class EGAColour( img.Colour ):
-    _block_size =   1
     r_high =        mrc.Bits( 0x00, 0b00000100 )
     g_high =        mrc.Bits( 0x00, 0b00000010 )
     b_high =        mrc.Bits( 0x00, 0b00000001 )
@@ -46,7 +45,6 @@ EGA_DEFAULT_PALETTE = (
 
 
 class VGAColour( img.Colour ):
-    _block_size =   3
     r_raw =         mrc.UInt8( 0x00, range=range( 0, 64 ) )
     g_raw =         mrc.UInt8( 0x01, range=range( 0, 64 ) )
     b_raw =         mrc.UInt8( 0x02, range=range( 0, 64 ) )

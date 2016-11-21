@@ -9,7 +9,6 @@ from mrcrowbar.lib.images import base as img
 # source: http://segaretro.org/Palette#Mega_Drive_Palette
 
 class VDPBlockMapping8( mrc.Block ):
-    _block_size = 2
     priority        = mrc.Bits( 0x0000, 0b10000000 )
     palette_line    = mrc.Bits( 0x0000, 0b01100000 )
     flip_horiz      = mrc.Bits( 0x0000, 0b00010000 )
@@ -24,7 +23,6 @@ class VDPBlockMapping8( mrc.Block ):
 
 
 class VDPColour( img.Colour ):
-    _block_size =   2
     b_raw = mrc.Bits( 0x0000, 0b00001110 )
     g_raw = mrc.Bits( 0x0001, 0b11100000 )
     r_raw = mrc.Bits( 0x0001, 0b00001110 )

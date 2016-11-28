@@ -37,6 +37,9 @@ class Loader( object ):
     def post_load( self, verbose=False ):
         pass
         
+    def save_file( self, target, verbose=False ):
+        assert target in self._files
+        pass
 
     def keys( self ):
         return self._files.keys()

@@ -5,6 +5,7 @@ from PIL import Image as PILImage
 
 from array import array
 import itertools
+import collections
 import math
 import sys
 
@@ -31,11 +32,44 @@ class Colour( mrc.Block ):
     def a( self ) -> float:
         return self.a_8/255
 
-    def __str__( self ):
+    @property
+    def luma( self ) -> float:
+        return 0.299*self.r + 0.587*self.g + 0.114*self.b
+
+    def clone_data( self, source ):
+        assert isinstance( source, Colour )
+        self.r_8 = source.r_8
+        self.g_8 = source.g_8
+        self.b_8 = source.b_8
+        self.a_8 = source.a_8
+
+    @property
+    def repr( self ):
         return '#{:02X}{:02X}{:02X}{:02X}'.format( self.r_8, self.g_8, self.b_8, self.a_8 )
+
+    def ansi_format( self, text=None ):
+        if text is None:
+            text = ' {} '.format( self.repr )
+        colour = White() if self.luma < 0.5 else Black()
+        return utils.ansi_format_string( text, colour, self )
+
+    def __str__( self ):
+        return self.ansi_format()
 
     def __eq__( self, other ):
         return (self.r_8 == other.r_8) and (self.g_8 == other.g_8) and (self.b_8 == other.b_8) and (self.a_8 == other.a_8)
+
+
+class White( Colour ):
+    r_8 = 255
+    g_8 = 255
+    b_8 = 255
+
+
+class Black( Colour ):
+    r_8 = 0
+    g_8 = 0
+    b_8 = 0
 
 
 class Transparent( Colour ):
@@ -46,6 +80,15 @@ class RGBColour( Colour ):
     r_8 = mrc.UInt8( 0x00 )
     g_8 = mrc.UInt8( 0x01 )
     b_8 = mrc.UInt8( 0x02 )
+
+
+class Palette( mrc.BlockField ):
+    def __init__( self, block_klass, offset, block_kwargs=None, count=None, fill=None, **kwargs ):
+        assert issubclass( block_klass, Colour )
+        super( Palette, self ).__init__( block_klass, offset, block_kwargs, count, fill, **kwargs )
+
+    def scrub( self, value, parent=None ):
+        return [x if isinstance( x, self.block_klass ) else self.block_klass( x ) for x in value]
 
 
 class Image( mrc.View ):
@@ -89,6 +132,21 @@ class Image( mrc.View ):
         return mrc.property_set( self._frame_count, self._parent, value )
 
 
+def to_palette_bytes( palette ):
+    return itertools.chain( *((c.r_8, c.g_8, c.b_8) for c in palette) )
+
+
+def from_palette_bytes( palette_bytes ):
+    result = []
+    for i in range( math.floor( len( palette_bytes )/3 ) ):
+        colour = Colour()
+        colour.r_8 = palette_bytes[3*i]
+        colour.g_8 = palette_bytes[3*i+1]
+        colour.b_8 = palette_bytes[3*i+2]
+        result.append( colour )
+    return result
+
+
 class IndexedImage( Image ):
     def __init__( self, parent, source, width, height, frame_count=1, palette=None ):
         super( IndexedImage, self ).__init__( parent, source, width, height, frame_count )
@@ -105,15 +163,32 @@ class IndexedImage( Image ):
     def get_image( self ):
         im = PILImage.new( 'P', (self.width, self.height) )
         im.putdata( self.source[:self.width*self.height] )
-        im.putpalette( itertools.chain( *((c.r_8, c.g_8, c.b_8) for c in self.palette) ) )
+        im.putpalette( to_palette_bytes( self.palette ) )
         return im
 
-    def set_image( self, image ):
-        assert type( image ) == PILImage
-        if self.width != image.width:
-            self.width = image.width
-        if self.height != image.height:
-            self.height = image.height
+    def set_image( self, image, change_dims=True, change_palette=False ):
+        if not isinstance( image, PILImage ):
+            raise TypeError( 'image must be a PILImage object!' )
+        if image.mode != 'P':
+            raise AttributeError( 'image must be indexed (mode P)' )
+        if change_dims:
+            if self.width != image.width:
+                print( "Changing width from {} to {}".format( self.width, image.width ) )
+                self.width = image.width
+            if self.height != image.height:
+                print( "Changing height from {} to {}".format( self.height, image.height ) )
+                self.height = image.height
+        else:
+            assert (self.width == image.width) and (self.height == image.height)
+
+        old_pal = to_palette_bytes( self.palette )
+        new_pal = image.palette.tobytes()
+        if old_pal != new_pal:
+            if change_palette:
+                self.palette = from_palette_bytes( new_pal )
+            else:
+                print( "WARNING: Palette of new image is different!" )
+        self.source = image.tobytes()
 
     def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0 ):
         assert x_start in range( 0, self.width )

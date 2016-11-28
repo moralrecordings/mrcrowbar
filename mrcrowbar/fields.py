@@ -55,11 +55,18 @@ class Field( object ):
         """Return the end offset of the Field's data. Useful for chainloading."""
         return self.get_start_offset( value, parent ) + self.get_size( value, parent )
 
+    def scrub( self, value, parent=None ):
+        """Return the value coerced to the correct type of the field (if necessary).
+
+        Throws FieldValidationError if value can't be coerced."""
+        return value
+
     def validate( self, value, parent=None ):
-        """Validate that a Python object meets the constraints for the field.
+        """Validate that a correctly-typed Python object meets the constraints for the field.
         
         Throws FieldValidationError if a constraint fails."""
         pass 
+
 
 
 class BlockStream( Field ):
@@ -105,7 +112,7 @@ class BlockStream( Field ):
 
 
 class BlockField( Field ):
-    def __init__( self, block_klass, offset, block_kwargs=None, count=0, fill=None, **kwargs ):
+    def __init__( self, block_klass, offset, block_kwargs=None, count=None, fill=None, **kwargs ):
         super( BlockField, self ).__init__( **kwargs )
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
@@ -145,7 +152,7 @@ class BlockField( Field ):
         return result
         
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        super( BlockList, self ).update_buffer_with_value( value, buffer, parent )
+        super( BlockField, self ).update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
 

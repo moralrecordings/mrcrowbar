@@ -190,14 +190,14 @@ class Block( object, metaclass=ModelMeta ):
 
     repr = None
 
-    def clone_data( self, source, **kw ):
+    def clone_data( self, source ):
         klass = self.__class__
         assert isinstance( source, klass )
 
         for name in klass._fields:
             self._field_data[name] = getattr( source, name )
 
-    def import_data( self, raw_buffer, **kw ):
+    def import_data( self, raw_buffer ):
         klass = self.__class__
         if raw_buffer:
             assert utils.is_bytes( raw_buffer )
@@ -217,24 +217,36 @@ class Block( object, metaclass=ModelMeta ):
                 check.check_buffer( raw_buffer, parent=self )
         return
 
-    def export_data( self, **kw ):
+    def export_data( self ):
         klass = self.__class__
 
         output = bytearray( b'\x00'*self.get_size() )
 
         for name in klass._fields:
+            scrubbed_data = klass._fields[name].scrub( 
+                self._field_data[name], parent=self 
+            )
+            klass._fields[name].validate( 
+                scrubbed_data, parent=self 
+            )
             klass._fields[name].update_buffer_with_value(
-                self._field_data[name], output, parent=self
+                scrubbed_data, output, parent=self
             )
 
         for name, check in klass._checks.items():
             check.update_buffer( output, parent=self )
         return output
 
-    def validate( self, **kw ):
+    def validate( self ):
         klass = self.__class__
+
         for name in klass._fields:
-            klass._fields[name].validate( self._field_data[name], parent=self )
+            scrubbed_data = klass._fields[name].scrub( 
+                self._field_data[name], parent=self 
+            )
+            klass._fields[name].validate( 
+                scrubbed_data, parent=self 
+            )
         return
 
     def get_size( self ):

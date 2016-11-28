@@ -16,25 +16,32 @@ class EGAColour( img.Colour ):
     def r_8( self ):
         return 85*((self.r_high << 1) + self.r_low)
 
+    @r_8.setter
+    def r_8( self, value ):
+        index = value//85
+        self.r_low = index & 1 
+        self.r_high = index >> 1
+
     @property
     def g_8( self ):
         return 85*((self.g_high << 1) + self.g_low)
+
+    @g_8.setter
+    def g_8( self, value ):
+        index = value//85
+        self.g_low = index & 1 
+        self.g_high = index >> 1
 
     @property
     def b_8( self ):
         return 85*((self.b_high << 1) + self.b_low)
 
-    @property
-    def r( self ):
-        return ((self.r_high << 1) + self.r_low)/3
+    @b_8.setter
+    def b_8( self, value ):
+        index = value//85
+        self.b_low = index & 1 
+        self.b_high = index >> 1
 
-    @property
-    def g( self ):
-        return ((self.g_high << 1) + self.g_low)/3
-
-    @property
-    def b( self ):
-        return ((self.b_high << 1) + self.b_low)/3
 
 EGA_DEFAULT_PALETTE = (
     EGAColour( b'\x00' ), EGAColour( b'\x01' ), EGAColour( b'\x02' ), EGAColour( b'\x03' ),
@@ -53,26 +60,24 @@ class VGAColour( img.Colour ):
     def r_8( self ):
         return self.r_raw*255//63
 
+    @r_8.setter
+    def r_8( self, value ):
+        self.r_raw = value*63//255
+
     @property
     def g_8( self ):
         return self.g_raw*255//63
+
+    @g_8.setter
+    def g_8( self, value ):
+        self.g_raw = value*63//255
 
     @property
     def b_8( self ):
         return self.b_raw*255//63
 
-    @property
-    def r( self ):
-        return self.r_raw/63
-
-    @property
-    def g( self ):
-        return self.g_raw/63
-
-    @property
-    def b( self ):
-        return self.b_raw/63
-
-
+    @b_8.setter
+    def b_8( self, value ):
+        self.b_raw = value*63//255
 
 

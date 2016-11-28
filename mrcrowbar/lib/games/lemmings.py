@@ -356,14 +356,14 @@ class Interactive( mrc.Block ):
     y =                 mrc.Int16_BE( 0x02, range=range( -41, 201 ) )
     #: Index of the InteractiveInfo block in the accompanying GroundDAT.
     obj_id =            mrc.UInt16_BE( 0x04, range=range( 0, 16 ) )
-    # If 1, blit image behind background.
+    #: If 1, blit image behind background.
     draw_back =         mrc.Bits( 0x06, 0b10000000 )
-    # If 1, draw piece flipped vertically.
+    #: If 1, draw piece flipped vertically.
     draw_masked =       mrc.Bits( 0x06, 0b01000000 )
-    # If 1, draw piece as a hole.
+    #: If 1, draw piece as a hole.
     draw_upsidedown =   mrc.Bits( 0x07, 0b10000000 )
 
-    # Check to ensure the last chunk of the block is empty.
+    #: Check to ensure the last chunk of the block is empty.
     mod_check =         mrc.Const( mrc.UInt16_BE( 0x06, bitmask=b'\x3f\x7f' ), 0x000f )
 
     @property
@@ -728,18 +728,33 @@ class TerrainInfo( mrc.Block ):
 
 
 class GroundDAT( mrc.Block ):
-    
+    """Represents a single graphical style."""
+
     _vgagr = None           # should be manually pointed at the relevant VgagrDAT object
 
+    #: Information for every type of interactive piece.
     interactive_info        = mrc.BlockField( InteractiveInfo, 0x0000, count=16, fill=b'\x00' )
+    #: Information for every type of terrain piece.
     terrain_info            = mrc.BlockField( TerrainInfo, 0x01c0, count=64, fill=b'\x00' )
 
-    palette_ega_custom      = mrc.BlockField( ibm_pc.EGAColour, 0x03c0, count=8 )
-    palette_ega_standard    = mrc.BlockField( ibm_pc.EGAColour, 0x03c8, count=8 )
-    palette_ega_preview     = mrc.BlockField( ibm_pc.EGAColour, 0x03d0, count=8 )
-    palette_vga_custom      = mrc.BlockField( ibm_pc.VGAColour, 0x03d8, count=8 )
-    palette_vga_standard    = mrc.BlockField( ibm_pc.VGAColour, 0x03f0, count=8 )
-    palette_vga_preview     = mrc.BlockField( ibm_pc.VGAColour, 0x0408, count=8 )
+    #: Extended EGA palette used for rendering the level preview.
+    palette_ega_preview     = img.Palette( ibm_pc.EGAColour, 0x03c0, count=8 )
+    #: Copy of EGA palette used for rendering lemmings/action bar.
+    #: Colours 0-6 are not used by the game, instead there is a palette embedded
+    #: in the executable. 
+    #: Colour 7 is used for drawing the minimap and dirt particles.
+    palette_ega_standard    = img.Palette( ibm_pc.EGAColour, 0x03c8, count=8 )
+    #: EGA palette used for rendering interactive/terrain pieces.
+    palette_ega_custom      = img.Palette( ibm_pc.EGAColour, 0x03d0, count=8 )
+    #: VGA palette used for rendering interactive/terrain pieces.
+    palette_vga_custom      = img.Palette( ibm_pc.VGAColour, 0x03d8, count=8 )
+    #: Copy of VGA palette used for rendering lemmings/action bar.
+    #: Colours 0-6 are not used by the game, instead there is a palette embedded
+    #: in the executable. 
+    #: Colour 7 is used for drawing the minimap and dirt particles.
+    palette_vga_standard    = img.Palette( ibm_pc.VGAColour, 0x03f0, count=8 )
+    #: VGA palette used for rendering the level preview.
+    palette_vga_preview     = img.Palette( ibm_pc.VGAColour, 0x0408, count=8 )
 
     @property
     def palette( self ):
@@ -749,6 +764,7 @@ class GroundDAT( mrc.Block ):
 
 
 class VgagrStore( mrc.Block ):
+    """Represents a blob store for style graphics."""
     data = mrc.Bytes( 0x0000 )
 
     def __init__( self, *args, **kwargs ):
@@ -862,7 +878,8 @@ class MainHUDGraphics( mrc.Block ):
 
 
 class MainDAT( mrc.Block ):
-    main_anims = mrc.BlockStream( MainAnims, 0x0000, transform=DATCompressor() )
+    pass
+    #main_anims = mrc.BlockStream( MainAnims, 0x0000, transform=DATCompressor() )
     #main_masks = mrc.BlockField( MainMasks, transform=DATCompressor() )
     #main_hud_graphics_hp = mrc.BlockField( MainHUDGraphicsHP, transform=DATCompressor() )
     #main_menu_graphics = mrc.BlockField( MainMenuGraphics, transform=DATCompressor() )
@@ -877,9 +894,9 @@ class MainDAT( mrc.Block ):
 ##########
 
 class Special( mrc.Block ):
-    palette_vga =           mrc.BlockField( ibm_pc.VGAColour, 0x0000, count=8 )
-    palette_ega =           mrc.BlockField( ibm_pc.EGAColour, 0x0018, count=8 )
-    palette_ega_preview  =  mrc.BlockField( ibm_pc.EGAColour, 0x0020, count=8 )
+    palette_vga =           img.Palette( ibm_pc.VGAColour, 0x0000, count=8 )
+    palette_ega =           img.Palette( ibm_pc.EGAColour, 0x0018, count=8 )
+    palette_ega_preview  =  img.Palette( ibm_pc.EGAColour, 0x0020, count=8 )
 
     image_data           =  mrc.Bytes( 0x0028, transform=SpecialCompressor() )
 

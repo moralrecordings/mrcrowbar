@@ -31,26 +31,25 @@ class VDPColour( img.Colour ):
     def r_8( self ):
         return (self.r_raw << 5)
 
+    @r_8.setter
+    def r_8( self, value ):
+        self.r_raw = value >> 5
+
     @property
     def g_8( self ):
         return (self.g_raw << 5)
+
+    @g_8.setter
+    def g_8( self, value ):
+        self.g_raw = value >> 5
 
     @property
     def b_8( self ):
         return (self.b_raw << 5)
 
-    @property
-    def r( self ):
-        return self.r_raw/8
-
-    @property
-    def g( self ):
-        return self.g_raw/8
-
-    @property
-    def b( self ):
-        return self.b_raw/8
-
+    @b_8.setter
+    def b_8( self, value ):
+        self.b_raw = value >> 5
 
 
 # source: http://www.emulatronia.com/doctec/consolas/megadrive/genesis_rom.txt

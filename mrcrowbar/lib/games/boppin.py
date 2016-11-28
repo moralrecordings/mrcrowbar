@@ -120,8 +120,6 @@ BOPPIN_SND_FILENAMES = [
 
 
 class Lookup( mrc.Block ):
-    _block_size =   8
-
     offset =        mrc.UInt32_LE( 0x00 )
     size =          mrc.UInt32_LE( 0x04 )
 

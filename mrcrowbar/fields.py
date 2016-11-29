@@ -102,13 +102,25 @@ class BlockStream( Field ):
         return result
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        # TODO: implement
-        pass
+        super( BlockStream, self ).update_buffer_with_value( value, buffer, parent )
+        offset = property_get( self.offset, parent )
+        
+        pointer = offset
+        block_data = bytearray()
+        for b in value:
+            data = b.export_data()
+            if self.transform:
+                data = self.transform.export_data( data, parent=parent )['payload']
+            block_data += data
+        
+        if len( buffer ) < offset+len( block_data ):
+            buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )
+        buffer[offset:offset+len( block_data )] = block_data
+        return         
 
     def get_start_offset( self, value, parent=None ):
         offset = property_get( self.offset, parent )
         return offset
-
 
 
 class BlockField( Field ):
@@ -217,7 +229,7 @@ class Bytes( Field ):
         
         data = value
         if self.transform:
-            data = self.transform.export_data( data, parent=parent )
+            data = self.transform.export_data( data, parent=parent )['payload']
 
         if len( buffer ) < offset+len( data ):
             buffer.extend( b'\x00'*(offset+len( data )-len( buffer )) )    

@@ -351,7 +351,7 @@ class Interactive( mrc.Block ):
     """Represents a single interactive piece placed in a level."""
     
     #: Raw value for the x position of the left edge.
-    x_raw =             mrc.Int16_BE( 0x00, range=range( -8, 1593 ) )
+    x_raw =             mrc.Int16_BE( 0x00, range=range( -8, 1601 ) )
     #: The y position of the top edge.
     y =                 mrc.Int16_BE( 0x02, range=range( -41, 201 ) )
     #: Index of the InteractiveInfo block in the accompanying GroundDAT.

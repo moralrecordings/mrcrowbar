@@ -441,7 +441,7 @@ class BitWriter( object ):
         last_byte = self.current_bits if (self.bits_remaining < 8) else None
 
         result = self.output
-        if last_byte:
+        if last_byte is not None:
             result = bytearray( result )
             result.append( last_byte )
 

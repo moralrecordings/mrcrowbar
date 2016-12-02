@@ -476,7 +476,6 @@ class Bits( UInt8 ):
         return value
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        super( Bits, self ).update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
 
         for i, x in enumerate( self.bits ):

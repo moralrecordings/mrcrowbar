@@ -36,6 +36,11 @@ class Colour( mrc.Block ):
     def luma( self ) -> float:
         return 0.299*self.r + 0.587*self.g + 0.114*self.b
 
+    def set_rgb( self, r_8, b_8, g_8 ):
+        self.r_8 = r_8
+        self.g_8 = g_8
+        self.b_8 = b_8
+
     def clone_data( self, source ):
         assert isinstance( source, Colour )
         self.r_8 = source.r_8
@@ -140,9 +145,7 @@ def from_palette_bytes( palette_bytes ):
     result = []
     for i in range( math.floor( len( palette_bytes )/3 ) ):
         colour = Colour()
-        colour.r_8 = palette_bytes[3*i]
-        colour.g_8 = palette_bytes[3*i+1]
-        colour.b_8 = palette_bytes[3*i+2]
+        colour.set_rgb( palette_bytes[3*i], palette_bytes[3*i+1], palette_bytes[3*i+2] )
         result.append( colour )
     return result
 

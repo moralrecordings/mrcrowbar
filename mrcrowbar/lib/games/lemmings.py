@@ -22,21 +22,7 @@ class DATCompressor( mrc.Transform ):
         return lrc
 
     def import_data( self, buffer, parent=None ):
-        assert utils.is_bytes( buffer )
-
-        def copy_prev_data( blocklen, offset_size, state ):
-            offset = state['bs'].get_bits( offset_size )
-            for i in range( blocklen ):
-                state['dptr'] -= 1
-                state['ddata'][state['dptr']] = state['ddata'][state['dptr']+offset+1]
-            return
-        
-        def dump_data( num_bytes, state ):
-            for i in range( num_bytes ):
-                state['dptr'] -= 1
-                state['ddata'][state['dptr']] = state['bs'].get_bits( 8 )
-            return
-        
+        assert utils.is_bytes( buffer )      
         
         pointer = 0;
         total_num_bytes = len( buffer )
@@ -46,20 +32,11 @@ class DATCompressor( mrc.Transform ):
         decompressed_size = utils.from_uint32_be( buffer[pointer+2:] )
         compressed_size = utils.from_uint32_be( buffer[pointer+6:] )
         
-        #print( '----   HEADER   ----' )
-        #print( 'bit_count = {}'.format( bit_count ) )
-        #print( 'checksum = {}'.format( checksum ) )
-        #print( 'decompressed_size = {}'.format( decompressed_size ) )
-        #print( 'compressed_size = {}'.format( compressed_size ) )
-        #print( '---- END HEADER ----' )
-        #print( 'Decompressing data...' )
-        
         pointer += 10
         total_num_bytes -= 10
         compressed_size -= 10
         
         compressed_data = buffer[pointer:pointer+compressed_size]
-        #print( 'computed checksum = {}'.format( _xor_checksum( compressed_data ) ) )
         if checksum != self._xor_checksum( compressed_data ):
             print( 'Warning: checksum doesn\'t match header' )  
         
@@ -69,8 +46,20 @@ class DATCompressor( mrc.Transform ):
         bs = utils.BitReader( compressed_data, compressed_size-1, bytes_reverse=True )
         bs.bits_remaining = bit_count
         
+        def copy_prev_data( blocklen, offset_size, state ):
+            offset = bs.get_bits( offset_size )
+            for i in range( blocklen ):
+                state['dptr'] -= 1
+                state['ddata'][state['dptr']] = state['ddata'][state['dptr']+offset+1]
+            return
+        
+        def dump_data( num_bytes, state ):
+            for i in range( num_bytes ):
+                state['dptr'] -= 1
+                state['ddata'][state['dptr']] = bs.get_bits( 8 )
+            return
+
         state = { 
-            'bs': bs,
             'dptr': decompressed_size, 
             'ddata': bytearray( decompressed_size ),
         }
@@ -108,22 +97,36 @@ class DATCompressor( mrc.Transform ):
     def export_data( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
 
-        def write_bits( value, length ):
-            bs.put_bits( value, length )
+        decompressed_size = len( buffer )
+
+        bs = utils.BitWriter( bits_reverse=True )
+
+        pointer = 0
 
         def encode_raw_data( length ):
             assert length <= 255+9
 
             if length > 8:
-                write_bits( length-9, 8 )
-                write_bits( 0x7, 3 )
+                bs.put_bits( length-9, 8 )
+                bs.put_bits( 0x7, 3 )
             elif length > 0:
-                write_bits( length-1, 3 )
-                write_bits( 0x0, 2 )
+                bs.put_bits( length-1, 3 )
+                bs.put_bits( 0x0, 2 )
 
         def find_reference():
+            # main form of compression is of the form:
+            # - while decompressing from end to start
+            # - look forward [up to max_offset] bytes in the decompressed data
+            # - copy [up to max_length] bytes to the current decompression position
+            # the largest offset supported by the file format is 4096, but this means
+            # every call to find_reference loops 4096 times.
+            # this takes foreeeever in Python!
+            # because the compression is worthless and time is money, max_offset has 
+            # been slashed to 16 to speed up proceedings.
+            #max_offset = (1 << 12) + 1
+            max_offset = (1 << 4) + 1
+            # largest length supported by the file format is 256
             max_length = (1 << 8) + 1
-            max_offset = (1 << 12) + 1
 
             length = 4  # throw away short references
             offset = 0 
@@ -163,11 +166,6 @@ class DATCompressor( mrc.Transform ):
 
             return length, offset
         
-        decompressed_size = len( buffer )
-
-        bs = utils.BitWriter( bits_reverse=True )
-
-        pointer = 0
         raw = 0
         while pointer < decompressed_size:
             length, ref = find_reference()
@@ -176,22 +174,22 @@ class DATCompressor( mrc.Transform ):
                     encode_raw_data( raw )
                     raw = 0
                 if length > 4:
-                    write_bits( ref-1, 12 )
-                    write_bits( length-1, 8 )
-                    write_bits( 0x6, 3 )
+                    bs.put_bits( ref-1, 12 )
+                    bs.put_bits( length-1, 8 )
+                    bs.put_bits( 0x6, 3 )
                 elif length == 4:
-                    write_bits( ref-1, 10 )
-                    write_bits( 0x5, 3 )
+                    bs.put_bits( ref-1, 10 )
+                    bs.put_bits( 0x5, 3 )
                 elif length == 3:
-                    write_bits( ref-1, 9 )
-                    write_bits( 0x4, 3 )
+                    bs.put_bits( ref-1, 9 )
+                    bs.put_bits( 0x4, 3 )
                 elif length == 2:
-                    write_bits( ref-1, 8 )
-                    write_bits( 0x1, 2 )
+                    bs.put_bits( ref-1, 8 )
+                    bs.put_bits( 0x1, 2 )
 
                 pointer += length
             else:
-                write_bits( buffer[pointer], 8 )
+                bs.put_bits( buffer[pointer], 8 )
 
                 raw += 1
                 if raw == 264:

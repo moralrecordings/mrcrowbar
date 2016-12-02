@@ -283,18 +283,17 @@ class SpecialCompressor( mrc.Transform ):
                     result.append( segment[start] )
                     pointer += 1
                 elif segment[end] == segment[start]:
-                    # either end of segment or 128 same characters
-                    while ((end+1) < len( segment )) and (segment[end+1] == segment[end]) and (end+1-start <= 128):
+                    while ((end+1) < len( segment )) and (segment[end+1] == segment[end]) and (end-start < 127):
                         end += 1
                     result.append( 257-(end+1-start) )
                     result.append( segment[start] )
                     pointer = end+1
                 else:
-                    while ((end+1) < len( segment )) and (segment[end+1] != segment[end]) and (end+1-start <= 128):
+                    while ((end+1) < len( segment )) and (segment[end+1] != segment[end]) and (end-1-start < 128):
                         end += 1
-                    result.append( end-start )
-                    result.extend( segment[start:end+1] )
-                    pointer = end+1
+                    result.append( end-1-start )
+                    result.extend( segment[start:end] )
+                    pointer = end
 
             result.append( 0x80 )
         
@@ -419,7 +418,7 @@ class SteelArea( mrc.Block ):
     #: Raw value (fine component) for the x position of the left edge.
     x_raw_fine =        mrc.Bits( 0x01, 0b10000000 )
     #: Raw value for the y position of the area's top edge.
-    y_raw =             mrc.UInt8( 0x01, bitmask=b'\x2f', range=range( 0, 157 ) )
+    y_raw =             mrc.UInt8( 0x01, bitmask=b'\x7f', range=range( 0, 128 ) )
     #: Raw value for the width.
     width_raw =         mrc.Bits( 0x02, 0b11110000 )
     #: Raw value for the height.

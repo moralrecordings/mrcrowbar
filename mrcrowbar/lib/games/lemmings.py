@@ -103,7 +103,7 @@ class DATCompressor( mrc.Transform ):
 
         pointer = 0
 
-        def encode_raw_data( length ):
+        def encode_raw_data( length, bs ):
             assert length <= 255+9
 
             if length > 8:
@@ -171,7 +171,7 @@ class DATCompressor( mrc.Transform ):
             length, ref = find_reference()
             if ref > 0:
                 if raw > 0:
-                    encode_raw_data( raw )
+                    encode_raw_data( raw, bs )
                     raw = 0
                 if length > 4:
                     bs.put_bits( ref-1, 12 )
@@ -193,12 +193,12 @@ class DATCompressor( mrc.Transform ):
 
                 raw += 1
                 if raw == 264:
-                    encode_raw_data( raw )
+                    encode_raw_data( raw, bs )
                     raw = 0
 
                 pointer += 1
 
-        encode_raw_data( raw )
+        encode_raw_data( raw, bs )
 
     
         compressed_data = bs.get_buffer()
@@ -206,7 +206,7 @@ class DATCompressor( mrc.Transform ):
         checksum = self._xor_checksum( compressed_data )
 
         output = bytearray( 6 )
-        output[0:1] = utils.to_uint8( 8-bs.bits_remaining )
+        output[0:1] = utils.to_uint8( 8-(bs.bits_remaining % 8) )
         output[1:2] = utils.to_uint8( checksum )
         output[2:6] = utils.to_uint32_be( decompressed_size )
         output[6:10] = utils.to_uint32_be( compressed_size )

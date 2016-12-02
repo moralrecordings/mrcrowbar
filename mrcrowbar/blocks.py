@@ -215,6 +215,16 @@ class Block( object, metaclass=ModelMeta ):
         if raw_buffer:
             for name, check in klass._checks.items():
                 check.check_buffer( raw_buffer, parent=self )
+
+            # debug stuff
+            #test = self.export_data()
+            #print( 'Stats for {}:'.format( self ) )
+            #print( 'Length: {} => {}'.format( len( raw_buffer ), len( test ) ) )
+            #if test == raw_buffer[:len( test )]:
+            #    print( 'Content: exact match!' )
+            #else:
+            #    print( 'Content:' )
+            #    print( utils.hexdump_diff( raw_buffer[:len( test )], test ) )
         return
 
     def export_data( self ):

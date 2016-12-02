@@ -39,7 +39,8 @@ class Loader( object ):
         
     def save_file( self, target, verbose=False ):
         assert target in self._files
-        pass
+        
+        return
 
     def keys( self ):
         return self._files.keys()

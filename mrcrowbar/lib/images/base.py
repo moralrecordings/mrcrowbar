@@ -36,7 +36,7 @@ class Colour( mrc.Block ):
     def luma( self ) -> float:
         return 0.299*self.r + 0.587*self.g + 0.114*self.b
 
-    def set_rgb( self, r_8, b_8, g_8 ):
+    def set_rgb( self, r_8, g_8, b_8 ):
         self.r_8 = r_8
         self.g_8 = g_8
         self.b_8 = b_8

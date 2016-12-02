@@ -89,7 +89,7 @@ def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_l
     Raises ValueError if both end and length are defined.
     """
     assert is_bytes( source )
-    from mrcrowbar.lib.os.dos import CP437
+    CP437 = """ ☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼ !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ """
     to_string = lambda b: ''.join( map( lambda x: CP437[x], b ) )
 
     start = 0 if (start is None) else start

@@ -170,7 +170,7 @@ class IndexedImage( Image ):
         return im
 
     def set_image( self, image, change_dims=True, change_palette=False ):
-        if not isinstance( image, PILImage ):
+        if not isinstance( image, PILImage.Image ):
             raise TypeError( 'image must be a PILImage object!' )
         if image.mode != 'P':
             raise AttributeError( 'image must be indexed (mode P)' )
@@ -185,7 +185,7 @@ class IndexedImage( Image ):
             assert (self.width == image.width) and (self.height == image.height)
 
         old_pal = to_palette_bytes( self.palette )
-        new_pal = image.palette.tobytes()
+        new_pal = image.palette.palette
         if old_pal != new_pal:
             if change_palette:
                 self.palette = from_palette_bytes( new_pal )

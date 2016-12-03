@@ -39,7 +39,9 @@ class Loader( object ):
         
     def save_file( self, target, verbose=False ):
         assert target in self._files
-        
+        export = self._files[target]['obj'].export_data()
+        with open( target, 'wb' ) as out:
+            out.write( export )
         return
 
     def keys( self ):

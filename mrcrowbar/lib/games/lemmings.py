@@ -899,7 +899,7 @@ class Special( mrc.Block ):
 
     def __init__( self, *args, **kwargs ):
         mrc.Block.__init__( self, *args, **kwargs )
-        self.image = img.IndexedImage( self, width=960, height=160, source=mrc.Ref( 'image_data' ) )
+        self.image = img.IndexedImage( self, width=960, height=160, source=mrc.Ref( 'image_data', allow_write=True ), palette=mrc.Ref( 'palette_vga', allow_write=True ) )
 
 
 class VgaspecDAT( mrc.Block ):
@@ -945,10 +945,7 @@ class Loader( mrc.Loader ):
             file_map[(x['match'][0].upper(), int( x['match'][1] ) if len( x['match'] )>1 else None )] = x['obj']
         
         for key, obj in file_map.items():
-            if key[0] == 'VGASPEC':
-                # for special stages, hook up image field to show the VGA palette by default
-                obj.special[0].image._palette = obj.special[0].palette_vga
-            elif key[0] == 'GROUND':
+            if key[0] == 'GROUND':
                 if ('VGAGR', key[1]) in file_map:
                     obj._vgagr = file_map[('VGAGR', key[1])]
                 else:

@@ -31,6 +31,12 @@ class Colour( mrc.Block ):
     @property
     def a( self ) -> float:
         return self.a_8/255
+ 
+    @property
+    def chroma( self ) -> float:
+        M = max( self.r, self.g, self.b )
+        m = min( self.r, self.g, self.b )
+        return M-m
 
     @property
     def luma( self ) -> float:

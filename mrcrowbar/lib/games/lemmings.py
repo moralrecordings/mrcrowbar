@@ -1,6 +1,26 @@
-"""File format classes for the game Lemmings (DOS, 1991)."""
+"""File format classes for the game Lemmings (DOS, 1991).
+
+Sources:
+DAT compressor
+http://www.camanis.net/lemmings/files/docs/lemmings_dat_file_format.txt
+
+Level file format
+http://www.camanis.net/lemmings/files/docs/lemmings_lvl_file_format.txt
+
+Vgagr/Ground DAT file formats
+http://www.camanis.net/lemmings/files/docs/lemmings_vgagrx_dat_groundxo_dat_file_format.txt
+
+Main DAT file format
+http://www.camanis.net/lemmings/files/docs/lemmings_main_dat_file_format.txt
+
+Vgaspec compressor/DAT file format
+http://www.camanis.net/lemmings/files/docs/lemmings_vgaspecx_dat_file_format.txt
+
+Extra special thanks to ccexplore and Mindless
+"""
 
 import itertools
+from enum import IntEnum
 
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
@@ -8,9 +28,6 @@ from mrcrowbar.lib.images import base as img
 from mrcrowbar import utils
 
 
-# DAT compressor
-# source: http://www.camanis.net/lemmings/files/docs/lemmings_dat_file_format.txt
-# extra special thanks: ccexplore, Mindless
 
 class DATCompressor( mrc.Transform ):
 
@@ -341,7 +358,6 @@ LEMMINGS_VGA_MENU_PALETTE = (
 
 ##########
 # levelXXX.dat parser
-# source: http://www.camanis.net/lemmings/files/docs/lemmings_lvl_file_format.txt
 ##########
 
 class Interactive( mrc.Block ):
@@ -561,8 +577,6 @@ class OddtableDAT( mrc.Block ):
 
 ##########
 # groundXo.dat and vgagrX.dat parser
-# source: http://www.camanis.net/lemmings/files/docs/lemmings_vgagrx_dat_groundxo_dat_file_format.txt
-# extra special thanks: ccexplore
 ##########
 
 class InteractiveImage( mrc.Block ):
@@ -607,6 +621,40 @@ class InteractiveImage( mrc.Block ):
                         palette=mrc.Ref( '_parent._parent.palette' ) 
                     )
 
+
+class TriggerEffect( IntEnum ):
+    NONE =          0x00
+    EXIT_LEVEL =    0x01
+    TRAP =          0x04
+    DROWN =         0x05
+    DISINTEGRATE =  0x06
+    ONEWAY_LEFT =   0x07
+    ONEWAY_RIGHT =  0x08
+    STEEL =         0x09  # not used?
+
+
+class SoundEffect( IntEnum ):
+    NONE =          0x00
+    SKILL_SELECT =  0x01
+    HATCH_OPEN =    0x02
+    LETS_GO =       0x03
+    ASSIGN =        0x04
+    OH_NO =         0x05
+    ELECTRIC_TRAP = 0x06
+    CRUSH_TRAP =    0x07
+    SPLAT =         0x08
+    ROPE_TRAP =     0x09
+    HIT_STEEL =     0x0a
+    UNKNOWN_1 =     0x0b
+    BOMBER =        0x0c
+    FIRE_TRAP =     0x0d
+    HEAVY_TRAP =    0x0e
+    BEAR_TRAP =     0x0f
+    YIPPEE =        0x10
+    DROWN =         0x11
+    BUILDER =       0x12
+
+
 class InteractiveInfo( mrc.Block ):
     """Contains a Ground style definition for an interactive object."""
 
@@ -625,14 +673,15 @@ class InteractiveInfo( mrc.Block ):
     trigger_y_raw =         mrc.UInt16_LE( 0x0010 )
     trigger_width_raw =     mrc.UInt8( 0x0012 )
     trigger_height_raw =    mrc.UInt8( 0x0013 )
-    trigger_effect_id =     mrc.UInt8( 0x0014 )
+    trigger_effect =        mrc.UInt8( 0x0014, enum=TriggerEffect )
 
     base_offset =       mrc.UInt16_LE( 0x0015 )
     preview_frame =     mrc.UInt16_LE( 0x0017 )
 
     unknown_3 =         mrc.UInt16_LE( 0x0019 )
 
-    sound_id =          mrc.UInt8( 0x001b )
+    #: Sound effect to play. Only used when trigger_effect is set to TRAP.
+    sound_effect =      mrc.UInt8( 0x001b, enum=SoundEffect )
    
     vgagr =             mrc.StoreRef( InteractiveImage, mrc.Ref( '_parent._vgagr.interact_store.store' ), mrc.Ref( 'base_offset' ), mrc.Ref( 'size' ) )
 
@@ -783,7 +832,6 @@ class VgagrDAT( mrc.Block ):
 
 ##########
 # main.dat parser
-# source: http://www.camanis.net/lemmings/files/docs/lemmings_main_dat_file_format.txt
 ##########
 
 class Anim( mrc.Block ):
@@ -887,7 +935,6 @@ class MainDAT( mrc.Block ):
     
 ##########
 # vgaspecX.dat parser
-# source: http://www.camanis.net/lemmings/files/docs/lemmings_vgaspecx_dat_file_format.txt
 ##########
 
 class Special( mrc.Block ):

@@ -349,7 +349,41 @@ class CStringN( Field ):
 
 
 class ValueField( Field ):
-    def __init__( self, format, field_size, format_type, format_range, offset, default=0, bitmask=None, range=None, count=None, **kwargs ):
+    def __init__( self, format, field_size, format_type, format_range, offset, default=0, count=None, bitmask=None, range=None, enum=None, **kwargs ):
+        """Base class for numeric value Fields.
+
+        format
+            Data format, represented as a Python 'struct' module format string. (Usually defined by child class)
+
+        field_size
+            Size of field in bytes. (Usually defined by child class)
+
+        format_type
+            Python native type equivalent. Used for validation. (Usually defined by child class)
+
+        format_range
+            Numeric bounds of format. Used for validation. (Usually defined by child class)
+
+        offset
+            Position of data, relative to the start of the parent block.
+
+        default
+            Default value of field. Used for creating an empty block.
+
+        count
+            Interpret data as an array of this size. None implies a single value, non-negative
+            numbers will return a Python list.
+
+        bitmask
+            Apply AND mask (bytes) to data before reading/writing. Used for demultiplexing
+            data to multiple fields, e.g. one byte with 8 flag fields.
+
+        range
+            Restrict allowed values to a list of choices. Used for validation
+
+        enum
+            Restrict allowed values to those provided by a Python enum type. Used for validation.
+        """
         super( ValueField, self ).__init__( default=default, **kwargs )
         self.offset = offset
         self.format = format
@@ -362,6 +396,7 @@ class ValueField( Field ):
         self.field_size = field_size
         self.bitmask = bitmask
         self.range = range
+        self.enum = enum
 
     def get_from_buffer( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
@@ -377,13 +412,25 @@ class ValueField( Field ):
             data = buffer[start:start+self.field_size]
             assert len( data ) == self.field_size
             if self.bitmask:
+                # if a bitmask is defined, AND with it first
                 data = (int.from_bytes( data, byteorder='big' ) & 
                         int.from_bytes( self.bitmask, byteorder='big' )
                         ).to_bytes( self.field_size, byteorder='big' )
 
+            # use Python's struct module to convert bytes to native
             value = struct.unpack( self.format, data )[0]
+            # friendly warnings if the imported data fails the range check
             if self.range and (value not in self.range):
                 print( 'Warning: value {} outside of range {}'.format( value, self.range ) )
+
+            # friendly warning if the imported data fails the enum check
+            if self.enum:
+                if (value not in [x.value for x in self.enum]):
+                    print( 'Warning: value {} not castable to {}'.format( value, self.enum ) )
+                else:
+                    # cast to enum because why not
+                    value = self.enum( value )
+
             result.append( value )
 
         if not is_array:
@@ -406,7 +453,11 @@ class ValueField( Field ):
             buffer.extend( b'\x00'*(offset+self.field_size*count-len( buffer )) )
         for j in range( count ):
             start = offset+self.field_size*j
-            data = struct.pack( self.format, value[j] ) 
+            item = value[j]
+            # cast via enum if required
+            if self.enum:
+                item = self.enum( item ).value
+            data = struct.pack( self.format, item )
             
             # force check for no data loss in the value from bitmask
             if self.bitmask:
@@ -425,6 +476,10 @@ class ValueField( Field ):
         return
 
     def validate( self, value, parent=None ):
+        if self.enum:
+            if (value not in [x.value for x in self.enum]):
+                raise FieldValidationError( 'Value {} not castable to {}'.format( value, self.enum ) )
+            value = self.enum(value).value
         if (type( value ) != self.format_type):
             raise FieldValidationError( 'Expecting type {}, not {}'.format( self.format_type, type( value ) ) )
         if self.format_range and (value not in self.format_range):

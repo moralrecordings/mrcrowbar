@@ -60,7 +60,7 @@ class DATCompressor( mrc.Transform ):
         pointer += compressed_size
         total_num_bytes -= compressed_size
     
-        bs = utils.BitReader( compressed_data, compressed_size-1, bytes_reverse=True )
+        bs = utils.BitReader( compressed_data, compressed_size-1, bytes_reverse=True, output_reverse=True )
         bs.bits_remaining = bit_count
         
         def copy_prev_data( blocklen, offset_size, state ):

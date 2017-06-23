@@ -312,7 +312,7 @@ def ansi_format_string( string, foreground, background ):
 class BitReader( object ):
     """Class for reading data as a stream of bits."""
 
-    def __init__( self, buffer, start_offset, bytes_reverse=False, bits_reverse=False ):
+    def __init__( self, buffer, start_offset, bytes_reverse=False, bits_reverse=False, output_reverse=False, bytes_to_cache=1 ):
         """Create a BitReader instance.
 
         buffer
@@ -327,42 +327,52 @@ class BitReader( object ):
         bits_reverse
             If enabled, fetch bits starting from the most-significant bit (i.e. 0x80)
             through least-significant bit (0x01).
+
+        output_reverse
+            If enabled, return fetched bits starting from the most-significant bit (e.g. 
+            0x80) through least-significant bit (0x01).
+
+        bytes_to_cache
+            Number of bytes to cache. Defaults to 1. Only useful for algorithms which
+            change the position pointer mid-read.
         """
         assert is_bytes( buffer )
         assert start_offset in range( len( buffer ) )
         self.buffer = buffer
         self.bits_reverse = bits_reverse
         self.bytes_reverse = bytes_reverse
+        self.output_reverse = output_reverse
         self.pos = start_offset
-        self.bits_remaining = 8
-        self.current_bits = self.buffer[self.pos]
+        self.bytes_to_cache = bytes_to_cache
+        self._fill_buffer()
+
+
+    def _fill_buffer( self ):
+        self.bits_remaining = 8*self.bytes_to_cache
+        self.current_bits = 0
+        for i in range( self.bytes_to_cache ):
+            if self.pos not in range( len( self.buffer ) ):
+                raise IndexError( 'Hit the end of the buffer, no more bytes' )
+            self.current_bits |= self.buffer[self.pos] << (8*i)
+            new_pos = self.pos + (-1 if self.bytes_reverse else 1)
+            self.pos = new_pos
 
 
     def set_offset( self, offset ):
         """Set the current read offset (in bytes) for the instance."""
         assert offset in range( len( self.buffer ) )
         self.pos = offset
-        self.bits_remaining = 8
-        self.current_bits = self.buffer[self.pos]
+        self._fill_buffer()
 
 
     def get_bits( self, count ):
-        """Get an integer containing the next [count] bits from the source.
-
-        The result is always stored from least-significant bit to most-significant bit.
-        """
+        """Get an integer containing the next [count] bits from the source."""
         result = 0
-        for _ in range( count ):
+        for i in range( count ):
             if self.bits_remaining <= 0:
-                new_pos = self.pos + (-1 if self.bytes_reverse else 1)
-                if new_pos not in range( len( self.buffer ) ):
-                    raise IndexError( 'Hit the end of the buffer, no more bytes' )
-
-                self.pos = new_pos
-                self.current_bits = self.buffer[self.pos]
-                self.bits_remaining = 8
+                self._fill_buffer()
             if self.bits_reverse:
-                bit = (1 if (self.current_bits & 0x80) else 0)
+                bit = (1 if (self.current_bits & (0x80 << 8*(self.bytes_to_cache-1))) else 0)
                 self.current_bits <<= 1
                 self.current_bits &= 0xff
             else:
@@ -371,8 +381,11 @@ class BitReader( object ):
 
             self.bits_remaining -= 1
 
-            result <<= 1
-            result |= bit
+            if self.output_reverse:
+                result <<= 1
+                result |= bit
+            else:
+                result |= bit << i
         return result
 
 

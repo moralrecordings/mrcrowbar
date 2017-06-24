@@ -13,7 +13,7 @@ from mrcrowbar import utils
 
 
 class SplashEGA( mrc.Block ):
-    image_data =    mrc.Bytes( 0x0000, transform=img.Planarizer( 320, 200, 4 ) )
+    image_data =    mrc.Bytes( 0x0000, transform=img.Planarizer( bpp=4, width=320, height=200 ) )
 
     def __init__( self, *args, **kwargs ):
         mrc.Block.__init__( self, *args, **kwargs )

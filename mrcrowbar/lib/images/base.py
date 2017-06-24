@@ -230,10 +230,40 @@ class IndexedImage( Image ):
 
 
 class Planarizer( mrc.Transform ):
-    def __init__( self, width: int, height: int, bpp: int, plane_padding: int=0, frame_offset: int=0, frame_stride: int=None, frame_count: int=1 ):
+    """Class for converting between planar and chunky image data."""
+
+    def __init__( self, bpp: int, width: int=None, height: int=None, plane_size: int=None, plane_padding: int=0, frame_offset: int=0, frame_stride: int=None, frame_count: int=1 ):
+        """Create a Planarizer instance.
+
+        bpp
+            Bits per pixel (aka. number of bitplanes).
+
+        width
+            Width of destination image (in pixels).
+
+        height
+            Height of destination image (in pixels).
+
+        plane_size
+            Size of the image data for a single plane in bytes. Default is (width*height//8). Can't be defined if width or height are defined.
+
+        plane_padding
+            Additional bytes per plane not used in the chunky data.
+
+        frame_offset
+            Start of the first frame of data. The frame controls are useful for storing multiple image frames sequentially with seperate sets of bitplanes per frame. They aren't required for multiple frames stored in the same larger set of bitplanes.
+
+        frame_stride
+            Bytes between the start of each frame. Default is bpp*(plane_size+plane_padding).
+
+        frame_count
+            Number of frames.
+        
+        """
+        self.bpp = bpp
         self.width = width
         self.height = height
-        self.bpp = bpp
+        self.plane_size = plane_size
         self.plane_padding = plane_padding
         self.frame_offset = frame_offset
         self.frame_count = frame_count
@@ -244,27 +274,39 @@ class Planarizer( mrc.Transform ):
         assert utils.is_bytes( buffer )
 
         # load in constructor properties
+        bpp = mrc.property_get( self.bpp, parent )
         width = mrc.property_get( self.width, parent )
         height = mrc.property_get( self.height, parent )
-        bpp = mrc.property_get( self.bpp, parent )
+        plane_size = mrc.property_get( self.plane_size, parent )
         plane_padding = mrc.property_get( self.plane_padding, parent )
         frame_offset = mrc.property_get( self.frame_offset, parent )
         frame_count = mrc.property_get( self.frame_count, parent )
         frame_stride = mrc.property_get( self.frame_stride, parent )
+
+        assert (bpp >= 0) and (bpp <= 8)
+        if (width or height):
+            assert (width*height) % 8 == 0
+            if plane_size:
+                raise Exception( 'Can\'t define plane_size when either width or height is defined.' )
+        else:
+            assert plane_size is not None
+        assert (frame_count >= 1)
+
+        if not plane_size:
+            plane_size = math.ceil( width*height/8 )
+
         if frame_count >= 2 and frame_stride is None:
-            frame_stride = bpp*((width*height//8)+plane_padding)
+            frame_stride = bpp*(plane_size+plane_padding)
         else:
             frame_stride = frame_stride if frame_stride is not None else 0
-        assert (width*height) % 8 == 0
-        assert (bpp >= 0) and (bpp <= 8)
-        assert (frame_count >= 1)
+
         # because frame_stride can potentially read past the buffer, only worry about measuring
         # the last n-1 strides + one frame
-        assert len( buffer ) >= frame_offset + (frame_count-1)*frame_stride + math.ceil( (bpp*width*height)/8 ) 
+        assert len( buffer ) >= frame_offset + (frame_count-1)*frame_stride + bpp*plane_size
 
 
         # our output is going to be "chunky"; each byte is a pixel (8-bit or 256 colour mode)
-        raw_image = bytearray( width*height*frame_count )
+        raw_image = bytearray( plane_size*frame_count )
 
         # the input is planar. this is a packed format found occasionally in old graphics hardware,
         # and in old image formats where space was paramount.
@@ -276,13 +318,13 @@ class Planarizer( mrc.Transform ):
         # in order for the calculations to be fast, planar graphics are pretty much always divisible by 8.
         # we're going to abuse this and unpack our bitplanes using 64-bit integers.
         # let's make a big array of them.
-        planes = array( 'Q', (0,)*(width*height//8) )
-        plane_size = (width*height//8)+plane_padding
+        planes = array( 'Q', (0,)*(plane_size) )
+        segment_size = plane_size+plane_padding
     
         for f in range( frame_count ):
             pointer = frame_offset+f*frame_stride
             for b in range( bpp ):
-                for i in range( width*height//8 ):
+                for i in range( plane_size ):
                     # for the first iteration, clear the plane
                     if b==0:
                         planes[i] = 0
@@ -292,7 +334,7 @@ class Planarizer( mrc.Transform ):
                     # we can effectively work on 8 chunky pixels at once!
                     # because the chunky pixels are bitfields, combining planes is an easy
                     # left shift (i.e. move all the bits up by [plane ID] places) and bitwise OR
-                    planes[i] |= utils.unpack_bits( buffer[pointer+b*plane_size+i] ) << b
+                    planes[i] |= utils.unpack_bits( buffer[pointer+b*segment_size+i] ) << b
                     
             # check for endianness! for most intel and ARM chips the order of bytes in hardware is reversed,
             # so we need to flip it around for the bytes to be sequential.
@@ -300,12 +342,12 @@ class Planarizer( mrc.Transform ):
                 planes.byteswap()
 
             # convert our planes array to bytes, and you have your chunky pixels
-            raw_image[f*(width*height):(f+1)*(width*height)] = planes.tobytes()
+            raw_image[f*plane_size*8:(f+1)*plane_size*8] = planes.tobytes()
 
         if frame_count > 1:
             end_offset = frame_offset + frame_count*frame_stride
         else:
-            bits = width*height*bpp
+            bits = plane_size*8*bpp
             end_offset = frame_offset + (bits)//8 + (1 if (bits % 8) else 0)
 
         result = {
@@ -320,29 +362,42 @@ class Planarizer( mrc.Transform ):
         assert utils.is_bytes( buffer )
 
         # load in constructor properties
+        bpp = mrc.property_get( self.bpp, parent )
         width = mrc.property_get( self.width, parent )
         height = mrc.property_get( self.height, parent )
-        bpp = mrc.property_get( self.bpp, parent )
+        plane_size = mrc.property_get( self.plane_size, parent )
         plane_padding = mrc.property_get( self.plane_padding, parent )
         frame_offset = mrc.property_get( self.frame_offset, parent )
         frame_count = mrc.property_get( self.frame_count, parent )
         frame_stride = mrc.property_get( self.frame_stride, parent )
+
+        assert (bpp >= 0) and (bpp <= 8)
+        if (width or height):
+            assert (width*height) % 8 == 0
+            if plane_size:
+                raise Exception( 'Can\'t define plane_size when either width or height is defined.' )
+        else:
+             assert plane_size is not None
+
+        if not plane_size:
+            plane_size = math.ceil( width*height/8 )
+
+        assert (frame_count >= 1)
         if frame_count >= 2 and frame_stride is None:
-            frame_stride = bpp*((width*height//8)+plane_padding)
+            frame_stride = bpp*(plane_size+plane_padding)
         else:
             frame_stride = frame_stride if frame_stride is not None else 0
-        assert (width*height) % 8 == 0
-        assert (bpp >= 0) and (bpp <= 8)
+
         if frame_count == 1:
-            assert len( buffer ) >= frame_offset + width*height 
+            assert len( buffer ) >= frame_offset + plane_size*8 
         else:
             assert len( buffer ) >= frame_offset + frame_count*frame_stride
 
         # this method just does the opposite of the above; split chunky pixels back into planes.
         planes = array( 'Q' )
-        plane_size = (width*height//8)+plane_padding
+        segment_size = plane_size+plane_padding
         if frame_count == 1:
-            raw_planes = bytearray( frame_offset+plane_size*bpp )
+            raw_planes = bytearray( frame_offset+segment_size*bpp )
         else:
             raw_planes = bytearray( frame_offset+frame_count*frame_stride )
     
@@ -350,7 +405,7 @@ class Planarizer( mrc.Transform ):
             pointer = frame_offset+f*frame_stride
             planes = planes[0:0]
             # load our chunky pixels into the 64-bit int array
-            planes.frombytes( buffer[f*(width*height):(f+1)*(width*height)] )
+            planes.frombytes( buffer[f*plane_size*8:(f+1)*plane_size*8] )
             # check for endianness!
             if sys.byteorder == 'little':
                 planes.byteswap()
@@ -359,7 +414,7 @@ class Planarizer( mrc.Transform ):
                 for i in range( width*height//8 ):
                     # for each group of 8 chunky pixels, use pack_bits to fill up 8 bits
                     # of the relevant bitplane
-                    raw_planes[pointer+b*plane_size+i] = utils.pack_bits( (planes[i] >> b) )
+                    raw_planes[pointer+b*segment_size+i] = utils.pack_bits( (planes[i] >> b) )
 
         result = {
             'payload': raw_planes

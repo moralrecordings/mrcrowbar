@@ -219,7 +219,7 @@ class SoundRef( mrc.Block ):
 class PreviewCompressor( mrc.Transform ):
     rle = RLECompressor()
     # each plane is stored with 192 bytes padding at the end
-    plan = img.Planarizer( 320, 200, 4, plane_padding=192 ) 
+    plan = img.Planarizer( bpp=4, width=320, height=200, plane_padding=192 ) 
     
     def import_data( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )

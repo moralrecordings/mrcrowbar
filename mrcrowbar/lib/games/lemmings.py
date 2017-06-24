@@ -240,7 +240,7 @@ class DATCompressor( mrc.Transform ):
 class SpecialCompressor( mrc.Transform ):
     DECOMPRESSED_SIZE = 14400    
 
-    plan = img.Planarizer( 960, 40, 3 )
+    plan = img.Planarizer( bpp=3, width=960, height=40 )
 
     def import_data( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
@@ -584,9 +584,9 @@ class InteractiveImage( mrc.Block ):
 
     image_data  =       mrc.Bytes( 
                             0x0000, transform=img.Planarizer( 
+                                bpp=4, 
                                 width=mrc.Ref( '_parent.width' ), 
                                 height=mrc.Ref( '_parent.height' ), 
-                                bpp=4, 
                                 frame_count=mrc.Ref( '_parent.end_frame' ), 
                                 frame_stride=mrc.Ref( '_parent.frame_data_size' ) 
                             ) 
@@ -594,9 +594,9 @@ class InteractiveImage( mrc.Block ):
     mask_data   =       mrc.Bytes( 
                             mrc.Ref( '_parent.mask_rel_offset' ), 
                             transform=img.Planarizer( 
+                                bpp=1, 
                                 width=mrc.Ref( '_parent.width' ), 
                                 height=mrc.Ref( '_parent.height' ), 
-                                bpp=1, 
                                 frame_count=mrc.Ref( '_parent.end_frame' ), 
                                 frame_stride=mrc.Ref( '_parent.frame_data_size' ) 
                             ) 
@@ -713,17 +713,17 @@ class InteractiveInfo( mrc.Block ):
 class TerrainImage( mrc.Block ):
     image_data =        mrc.Bytes( 
                             0x0000, transform=img.Planarizer( 
+                                bpp=4,
                                 width=mrc.Ref( '_parent.width' ), 
                                 height=mrc.Ref( '_parent.height' ), 
-                                bpp=4 
                             ) 
                         )
     mask_data =         mrc.Bytes( 
                             mrc.Ref( '_parent.mask_offset' ), 
                             transform=img.Planarizer( 
+                                bpp=1, 
                                 width=mrc.Ref( '_parent.width' ), 
                                 height=mrc.Ref( '_parent.height' ), 
-                                bpp=1 
                             ) 
                         )
 
@@ -835,7 +835,7 @@ class VgagrDAT( mrc.Block ):
 ##########
 
 class Anim( mrc.Block ):
-    image_data           =  mrc.Bytes( 0x0000, transform=img.Planarizer( width=mrc.Ref( 'width' ), height=mrc.Ref( 'height' ), bpp=mrc.Ref( 'bpp' ), frame_count=mrc.Ref( 'frame_count' ) ) )
+    image_data           =  mrc.Bytes( 0x0000, transform=img.Planarizer( bpp=mrc.Ref( 'bpp' ), width=mrc.Ref( 'width' ), height=mrc.Ref( 'height' ), frame_count=mrc.Ref( 'frame_count' ) ) )
 
     def __init__( self, width, height, bpp, frame_count, *args, **kwargs ):
         self.width = width

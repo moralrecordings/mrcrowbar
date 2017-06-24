@@ -8,6 +8,7 @@ import itertools
 import collections
 import math
 import sys
+import io
 
 
 class Colour( mrc.Block ):
@@ -157,6 +158,8 @@ def from_palette_bytes( palette_bytes ):
 
 
 class IndexedImage( Image ):
+    """Class for viewing indexed (palette-based) chunky image data."""
+
     def __init__( self, parent, source, width, height, frame_count=1, palette=None ):
         super( IndexedImage, self ).__init__( parent, source, width, height, frame_count )
         self._palette = palette if (palette is not None) else []
@@ -196,28 +199,47 @@ class IndexedImage( Image ):
             if change_palette:
                 self.palette = from_palette_bytes( new_pal )
             else:
-                print( "WARNING: Palette of new image is different!" )
+                print( "Warning: Palette of new image is different!" )
         self.source = image.tobytes()
 
-    def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0 ):
+    def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0, columns=1 ):
         assert x_start in range( 0, self.width )
         assert y_start in range( 0, self.height )
-        assert frame in range( 0, self.frame_count )
+        frames = []
+        if isinstance( frame, int ):
+            assert frame in range( 0, self.frame_count )
+            frames = [frame]
+        else:
+            frames = [f for f in frame if f in range( 0, self.frame_count )]
+
         if not width:
             width = self.width-x_start
         if not height:
             height = self.height-y_start
-        result = []
-        for y in range( 0, height, 2 ):
-            for x in range( 0, width ):
-                stride = width*height
-                i1 = self.width*(y_start+y) + (x_start+x)
-                i2 = self.width*(y_start+y+1) + (x_start+x)
-                p1 = self.palette[self.source[stride*frame+i1]]
-                p2 = self.palette[self.source[stride*frame+i2]] if (i2) < (self.width*self.height) else Transparent()
-                result.append( utils.ansi_format_pixels( p1, p2 ) )
-            result.append( '\n' )
-        return u''.join( result )
+        result = io.StringIO()
+
+        palette_cache = {}
+        def get_pal( p1, p2 ):
+            if ( p1, p2 ) not in palette_cache:
+                c1 = self.palette[p1] if p1 is not None else Transparent()
+                c2 = self.palette[p2] if p2 is not None else Transparent()
+                palette_cache[(p1, p2)] = utils.ansi_format_pixels( c1, c2 )
+            return palette_cache[(p1, p2)]
+
+        rows = math.ceil( len( frames )/columns )
+        for r in range( rows ):
+            for y in range( 0, height, 2 ):
+                for c in range( min( (len( frames )-r*columns), columns ) ):
+                    for x in range( 0, width ):
+                        fr = frames[r*columns + c]
+                        stride = width*height
+                        i1 = self.width*(y_start+y) + (x_start+x)
+                        i2 = self.width*(y_start+y+1) + (x_start+x)
+                        p1 = self.source[stride*fr+i1]
+                        p2 = self.source[stride*fr+i2] if (i2) < (self.width*self.height) else None
+                        result.write( get_pal( p1, p2 ) )
+                result.write( '\n' )
+        return result.getvalue()
     
     def print( self, *args, **kwargs ):
         print( self.ansi_format( *args, **kwargs ) )

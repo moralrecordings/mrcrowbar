@@ -123,6 +123,14 @@ Open up Lemmings and change the difficulty to "Tricky".
 How about that? You master hacker you.
 
 
+Okay I'm slightly intrigued, but what about image and audio data?
+=================================================================
+
+We're working on base classes and views for those. As a bonus, you don't even have to leave the terminal to preview stuff:
+
+.. image:: doc/source/_static/image_print.png
+
+
 Contributing 
 ============
 

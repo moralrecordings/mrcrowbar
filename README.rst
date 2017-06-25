@@ -6,4 +6,127 @@ Mr. Crowbar
 Wait, what?!
 ============
 
-A better README is in the works.
+Mr. Crowbar is a Django-esque model framework that makes it super easy to work with proprietary binary formats while reverse engineering. 
+
+File formats are described with Python classes that allow ORM-like free modification of structures and properties, which in turn can be validated and converted back to the binary equivalent at any time.
+
+The eventual goal is to provide a library for storing file format information that retains the readability of a text file, while providing instant read/write support for almost no cost.
+
+
+Getting started
+===============
+
+Mr. Crowbar is written in Python 3. (Python 2 is not supported, and there are no plans to add support due to deficiencies in the type system)
+
+The best way to use the tools right now is to check out a copy of the project, then `create a virtualenv for Python 3 <http://python-guide-pt-br.readthedocs.io/en/latest/dev/virtualenvs/`_:
+
+.. code-block:: bash
+    cd mrcrowbar
+    virtualenv -p /usr/bin/python3 venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+    pip install -e .
+    pip install ipython     # for a nicer Python shell with autocomplete
+
+Windows 10 users: I highly recommend installing the `Windows Subsystem for Linux <https://msdn.microsoft.com/en-us/commandline/wsl/install_guide>`_ and using that.
+
+[This chunk of the README needs a lot of work. If you are struggling, please hit me up via `email <mailto:code@moral.net.au>`_ or on Twitter at `@moralrecordings <https://twitter.com/moralrecordings>`_.]
+
+
+Give us an example
+==================
+
+Here's a class for a level file used by the 1991 DOS game *Lemmings*, taken from mrcrowbar.lib.games.lemmings:
+
+.. code-block:: python
+    class Level( mrc.Block ):
+        """Represents a single Lemmings level."""
+
+        #: Minimum Lemming release-rate.
+        release_rate =      mrc.UInt16_BE( 0x0000, range=range( 0, 251 ) )
+        #: Number of Lemmings released.
+        num_released =      mrc.UInt16_BE( 0x0002, range=range( 0, 115 ) )
+        #: Number of Lemmings required to be saved.
+        num_to_save =       mrc.UInt16_BE( 0x0004, range=range( 0, 115 ) )
+        #: Time limit for the level (minutes).
+        time_limit_mins =   mrc.UInt16_BE( 0x0006, range=range( 0, 256 ) )
+        #: Number of skills.
+        num_climbers =      mrc.UInt16_BE( 0x0008, range=range( 0, 251 ) )
+        num_floaters =      mrc.UInt16_BE( 0x000a, range=range( 0, 251 ) )
+        num_bombers =       mrc.UInt16_BE( 0x000c, range=range( 0, 251 ) )
+        num_blockers =      mrc.UInt16_BE( 0x000e, range=range( 0, 251 ) )
+        num_builders =      mrc.UInt16_BE( 0x0010, range=range( 0, 251 ) )
+        num_bashers =       mrc.UInt16_BE( 0x0012, range=range( 0, 251 ) )
+        num_miners =        mrc.UInt16_BE( 0x0014, range=range( 0, 251 ) )
+        num_diggers =       mrc.UInt16_BE( 0x0016, range=range( 0, 251 ) )
+        #: Raw value for the start x position of the camera.
+        camera_x_raw =      mrc.UInt16_BE( 0x0018, range=range( 0, 1265 ) )
+        
+        #: Index denoting which graphical Style to use.
+        style_index =       mrc.UInt16_BE( 0x001a )
+        #: Index denoting which Special graphic to use (optional).
+        custom_index =      mrc.UInt16_BE( 0x001c )
+
+        #: List of Interactive object references (32 slots).
+        interactives =      mrc.BlockField( Interactive, 0x0020, count=32, fill=b'\x00' )
+        #: List of Terrain object references (400 slots).
+        terrains =          mrc.BlockField( Terrain, 0x0120, count=400, fill=b'\xff' )
+        #: List of SteelArea object references (32 slots).
+        steel_areas =       mrc.BlockField( SteelArea, 0x0760, count=32, fill=b'\x00' )
+        #: Name of the level (ASCII string).
+        name =              mrc.Bytes( 0x07e0, 32, default=b'                                ' )
+
+        @property
+        def camera_x( self ):
+            """Start x position of the camera."""
+            return self.camera_x_raw - (self.camera_x_raw % 8)
+
+        @property
+        def repr( self ):
+            return self.name.strip().decode( 'utf8' )
+
+Binary layouts in Mr. Crowbar are called blocks. To open a binary format, you can create a Python class inheriting from ``Block``, with a number of ``Field`` objects as class variables. Fields are rules for how to interpret bytes in a block.
+
+All of the numeric variables (e.g. release rate, number of each skill) are stored at the start of the file as unsigned 16-bit big-endian integers. To read these, the ``Level`` class defines a number of ``UInt16_BE`` field objects at the class level. Each ``UInt16_BE`` is created with a (block relative) offset to read data from, and occasionally a ``range`` parameter which constrains it to a list of allowable values. (Adding a ``range`` is an example of an extra validation rule you can add to a field.)
+
+Mr. Crowbar offers fields for all of the common primitive types. There are also special fields such as ``Bits``, which lets you create variables from masked-off bits in a single byte.
+
+Finally, there is the option to load other ``Block`` classes from inside a parent block; ``interactives``, ``terrains`` and ``steel_areas`` are defined using ``BlockField``, which produces lists of ``Interactive``, ``Terrain`` and ``SteelArea`` blocks respectively.
+
+As blocks are Python classes, it is trivial to extend them with custom code; here we've created a ``camera_x`` property which provides a transformed view of ``camera_x_raw`` taking into account the limitations of the game engine. This is useful for e.g. bitpacked values that need mathematical transformation to get the unpacked real-world equivalent.
+
+
+That wasn't an example, that was a snoozefest! Just tell me how to hack already 
+===============================================================================
+
+Here's some code to edit a Lemmings level.
+
+.. code-block:: python
+    from mrcrowbar.lib.games import lemmings
+
+    ll = lemmings.Loader()
+    ll.load( '/path/to/copy/of/lemmings' )
+
+    level = ll['/path/to/copy/of/lemmings/Level000.dat'].levels[0]   # <Level: This should be a doddle!>
+    level.release_rate = 99
+    level.num_to_save = 1
+    level.name = b'  oh hey I just hacked a level  '
+    ll.save_file('/path/to/copy/of/lemmings/Level000.dat')
+
+Open up Lemmings and change the difficulty to "Tricky". 
+
+.. image:: doc/source/_static/leet_hacksaw.png
+
+How about that? You master hacker you.
+
+
+Contributing 
+============
+
+If you've developed models using Mr. Crowbar and want to share them with people, that's pretty great! Pull requests are more than welcome, along with feature requests and discussion. The framework is still being cooked for an initial release, so not all of the interfaces are set in stone yet.
+
+
+Licensing
+=========
+
+Mr. Crowbar is licensed under the BSD 3-Clause license. Any code that implements or otherwise builds upon reverse engineering research produced by other individuals or groups must be attributed and cited in the header of the module.

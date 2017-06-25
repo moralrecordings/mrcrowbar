@@ -18,7 +18,7 @@ Getting started
 
 Mr. Crowbar is written in Python 3. (Python 2 is not supported, and there are no plans to add support due to deficiencies in the type system)
 
-The best way to use the tools right now is to check out a copy of the project, then `create a virtualenv for Python 3 <http://python-guide-pt-br.readthedocs.io/en/latest/dev/virtualenvs/`_:
+The best way to use the tools right now is to check out a copy of the project, then `create a virtualenv for Python 3 <http://python-guide-pt-br.readthedocs.io/en/latest/dev/virtualenvs/>`_:
 
 .. code-block:: bash
     cd mrcrowbar

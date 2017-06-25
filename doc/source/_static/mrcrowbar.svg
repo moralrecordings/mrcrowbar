@@ -15,8 +15,11 @@
    viewBox="0 0 700.00002 340.00001"
    id="svg2"
    version="1.1"
-   inkscape:version="0.91 r13725"
-   sodipodi:docname="mrcrowbar.svg">
+   inkscape:version="0.92.1 r"
+   sodipodi:docname="mrcrowbar.svg"
+   inkscape:export-filename="/home/scott/Development/mrcrowbar/doc/source/_static/mrcrowbar.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96">
   <defs
      id="defs4">
     <linearGradient
@@ -59,16 +62,16 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1"
-     inkscape:cx="628.57729"
-     inkscape:cy="-46.297713"
+     inkscape:cx="203.35019"
+     inkscape:cy="107.75552"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="1858"
-     inkscape:window-height="1153"
-     inkscape:window-x="62"
-     inkscape:window-y="25"
-     inkscape:window-maximized="1"
+     inkscape:window-width="1690"
+     inkscape:window-height="737"
+     inkscape:window-x="137"
+     inkscape:window-y="288"
+     inkscape:window-maximized="0"
      units="px" />
   <metadata
      id="metadata7">
@@ -78,7 +81,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -178,39 +181,38 @@
          id="rect4425"
          style="opacity:1;fill:#ffcc00;fill-opacity:1;stroke:#806600;stroke-width:0.69566286;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
       <text
-         sodipodi:linespacing="125%"
          id="text4318-9-0"
          y="652.37701"
          x="761.17365"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:4.40107059px;line-height:125%;font-family:'League Spartan';-inkscape-font-specification:'League Spartan Bold';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:0%;font-family:'League Spartan';-inkscape-font-specification:'League Spartan Bold';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
          xml:space="preserve"><tspan
            id="tspan4342-9"
            y="652.37701"
            x="761.17365"
-           sodipodi:role="line"><tspan
+           sodipodi:role="line"
+           style="font-size:4.40107107px;line-height:1.25"><tspan
              id="tspan4364"
              style="font-size:6.25px;fill:#aa0000">WARNING </tspan><tspan
              id="tspan4378"
              style="font-size:5px">- SHOOTS FLAMING BALLS</tspan></tspan></text>
       <text
-         sodipodi:linespacing="125%"
          id="text4318-9-6"
          y="659.01251"
          x="812.86615"
-         style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:4.84266758px;line-height:125%;font-family:'League Gothic';-inkscape-font-specification:'League Gothic Medium';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;line-height:0%;font-family:'League Gothic';-inkscape-font-specification:'League Gothic Medium';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
          xml:space="preserve"><tspan
            id="tspan4451"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:sans-serif;-inkscape-font-specification:sans-serif;text-align:center;text-anchor:middle"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.84266806px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:sans-serif;text-align:center;text-anchor:middle"
            y="659.01251"
            x="812.86615"
            sodipodi:role="line">POINT AWAY FROM HANDS AND FACE</tspan><tspan
            id="tspan4455"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:sans-serif;-inkscape-font-specification:sans-serif;text-align:center;text-anchor:middle"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.84266806px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:sans-serif;text-align:center;text-anchor:middle"
            y="665.06586"
            x="812.86615"
            sodipodi:role="line">PACKAGING IS NOT MICROWAVE SAFE</tspan><tspan
            id="tspan4449"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:sans-serif;-inkscape-font-specification:sans-serif;text-align:center;text-anchor:middle"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.84266806px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:sans-serif;text-align:center;text-anchor:middle"
            y="671.1192"
            x="812.86615"
            sodipodi:role="line">CAREFULLY READ WARNING ON OTHER SIDE</tspan></text>
@@ -329,28 +331,27 @@
        transform="matrix(4.2557961,0,0,4.2526665,-2580.6963,-1320.2572)"
        id="g4298-6-4">
       <text
-         sodipodi:linespacing="125%"
          id="text5270-9-1-6"
          y="504.52448"
          x="611.41388"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:26.30425644px;line-height:125%;font-family:Pussycat;-inkscape-font-specification:Pussycat;letter-spacing:0px;word-spacing:0px;fill:#800000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0%;font-family:Pussycat;-inkscape-font-specification:Pussycat;letter-spacing:0px;word-spacing:0px;fill:#800000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
          xml:space="preserve"><tspan
            y="504.52448"
            x="611.41388"
            id="tspan5272-0-0-8"
-           sodipodi:role="line">Mr. Crowbar! </tspan></text>
+           sodipodi:role="line"
+           style="font-size:26.30425644px;line-height:1.25">Mr. Crowbar! </tspan></text>
       <text
-         sodipodi:linespacing="125%"
          id="text5270-8-9"
          y="503.81024"
          x="610.69952"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:26.30425644px;line-height:125%;font-family:Pussycat;-inkscape-font-specification:Pussycat;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#d40000;stroke-width:0.23327486;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0%;font-family:Pussycat;-inkscape-font-specification:Pussycat;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#d40000;stroke-width:0.23327486;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          xml:space="preserve"><tspan
            y="503.81024"
            x="610.69952"
            id="tspan5272-6-8"
            sodipodi:role="line"
-           style="stroke-width:0.23327486">Mr. Crowbar! </tspan></text>
+           style="font-size:26.30425644px;line-height:1.25;stroke-width:0.23327486">Mr. Crowbar! </tspan></text>
     </g>
     <g
        id="g4990"
@@ -398,16 +399,15 @@
     </g>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:19.60167885px;line-height:125%;font-family:'League Spartan';-inkscape-font-specification:'League Spartan Bold';letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#d40000;stroke-width:0.49620256;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       x="569.31213"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:0%;font-family:'League Spartan';-inkscape-font-specification:'League Spartan Bold';text-align:end;letter-spacing:0px;word-spacing:0px;text-anchor:end;fill:#ffffff;fill-opacity:1;stroke:#d40000;stroke-width:0.49620256;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       x="687.06403"
        y="740.8382"
-       id="text5164"
-       sodipodi:linespacing="125%"><tspan
+       id="text5164"><tspan
          sodipodi:role="line"
          id="tspan5166"
-         x="569.31213"
+         x="687.06403"
          y="740.8382"
-         style="stroke-width:0.49620256">ages 26-29</tspan></text>
+         style="font-size:19.60167885px;line-height:1.25;text-align:end;text-anchor:end;stroke-width:0.49620256">ages 6-90</tspan></text>
     <g
        id="g5224"
        transform="matrix(0.96592583,-0.25881905,0.25881905,0.96592583,-388.00065,197.88203)">
@@ -419,21 +419,22 @@
          id="path5222"
          style="opacity:1;fill:#ffd42a;fill-opacity:1;stroke:#d40000;stroke-width:0.09671172;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
       <text
-         sodipodi:linespacing="125%"
          id="text4318"
          y="1000.4193"
          x="763.9632"
-         style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:27.63829803px;line-height:125%;font-family:'League Gothic';-inkscape-font-specification:'League Gothic Medium';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;line-height:0%;font-family:'League Gothic';-inkscape-font-specification:'League Gothic Medium';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
          xml:space="preserve"><tspan
            y="1000.4193"
            x="766.09546"
            id="tspan4320"
-           sodipodi:role="line">jimmyin' </tspan><tspan
+           sodipodi:role="line"
+           style="font-size:27.63829803px;line-height:1.25">jimmyin' </tspan><tspan
            dy="-6"
            id="tspan4340"
            y="1034.9672"
            x="763.9632"
-           sodipodi:role="line">action!</tspan></text>
+           sodipodi:role="line"
+           style="font-size:27.63829803px;line-height:1.25">action!</tspan></text>
     </g>
   </g>
 </svg>

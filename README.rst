@@ -20,7 +20,7 @@ Mr. Crowbar is written in Python 3. (Python 2 is not supported, and there are no
 
 The best way to use the tools right now is to check out a copy of the project, then `create a virtualenv for Python 3 <http://python-guide-pt-br.readthedocs.io/en/latest/dev/virtualenvs/>`_:
 
-.. code-block:: bash
+.. code:: bash
     cd mrcrowbar
     virtualenv -p /usr/bin/python3 venv
     source venv/bin/activate
@@ -38,7 +38,7 @@ Give us an example
 
 Here's a class for a level file used by the 1991 DOS game *Lemmings*, taken from mrcrowbar.lib.games.lemmings:
 
-.. code-block:: python
+.. code:: python
     class Level( mrc.Block ):
         """Represents a single Lemmings level."""
 
@@ -101,7 +101,7 @@ That wasn't an example, that was a snoozefest! Just tell me how to hack already
 
 Here's some code to edit a Lemmings level.
 
-.. code-block:: python
+.. code:: python
     from mrcrowbar.lib.games import lemmings
 
     ll = lemmings.Loader()

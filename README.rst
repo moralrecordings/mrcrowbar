@@ -16,7 +16,7 @@ The eventual goal is to provide a library for storing file format information th
 Getting started
 ===============
 
-Mr. Crowbar is written in Python 3. (Python 2 is not supported, and there are no plans to add support due to deficiencies in the type system)
+Mr. Crowbar is written in Python 3. (Unfortunately Python 2 is not supported, as there are too many quirks in the type system)
 
 The best way to use the tools right now is to check out a copy of the project, then `create a virtualenv for Python 3 <http://python-guide-pt-br.readthedocs.io/en/latest/dev/virtualenvs/>`_:
 

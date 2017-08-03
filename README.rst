@@ -87,15 +87,15 @@ Here's a class for a level file used by the 1991 DOS game *Lemmings*, taken from
         def repr( self ):
             return self.name.strip().decode( 'utf8' )
 
-Binary layouts in Mr. Crowbar are called blocks. To open a binary format, you can create a Python class inheriting from ``Block``, with a number of ``Field`` objects as class variables. Fields are rules for how to interpret bytes in a block.
+Binary layouts in Mr. Crowbar are called blocks. To open a binary format, you can create a Python class inheriting from ``Block``, with a number of ``Field`` objects as class variables. Fields are rules for how to interpret bytes in a block. At any time, you can construct a new ``Block`` object from a raw byte string, or generate the byte string equivalent of an existing ``Block`` object.
 
-All of the numeric variables (e.g. release rate, number of each skill) are stored at the start of the file as unsigned 16-bit big-endian integers. To read these, the ``Level`` class defines a number of ``UInt16_BE`` field objects at the class level. Each ``UInt16_BE`` is created with a (block relative) offset to read data from, and occasionally a ``range`` parameter which constrains it to a list of allowable values. (Adding a ``range`` is an example of an extra validation rule you can add to a field.)
+In the Lemmings level format, all of the numeric variables (e.g. release rate, number of each skill) are stored at the start of the file as unsigned 16-bit big-endian integers. To read these, the ``Level`` class defines a number of ``UInt16_BE`` field objects at the class level. Each ``UInt16_BE`` is created with a (block relative) offset to read data from, and occasionally a ``range`` parameter which constrains it to a list of allowable values. (Adding a ``range`` is an example of an extra validation rule you can add to a field.)
 
-Mr. Crowbar offers fields for all of the common primitive types. There are also special fields such as ``Bits``, which lets you create variables from masked-off bits in a single byte.
+Mr. Crowbar offers fields for all of the common primitive types. There are also special fields that extend the primitives; an example is ``Bits``, which lets you create multiple variables from masked-off bits in the same byte.
 
 Finally, there is the option to load other ``Block`` classes from inside a parent block; ``interactives``, ``terrains`` and ``steel_areas`` are defined using ``BlockField``, which produces lists of ``Interactive``, ``Terrain`` and ``SteelArea`` blocks respectively.
 
-As blocks are Python classes, it is trivial to extend them with custom code; here we've created a ``camera_x`` property which provides a transformed view of ``camera_x_raw`` taking into account the limitations of the game engine. This is useful for e.g. bitpacked values that need mathematical transformation to get the unpacked real-world equivalent.
+As blocks are Python classes, it is trivial to extend them with custom code; here we've created a ``camera_x`` property which provides a transformed view of ``camera_x_raw`` taking into account the limitations of the game engine. This is useful for e.g. bitpacked values that need mathematical transformation to get the useful real-world equivalent.
 
 
 That wasn't an example, that was a snoozefest! Just tell me how to hack already 

@@ -119,6 +119,15 @@ BOPPIN_SND_FILENAMES = [
 ]
 
 
+class Colour( img.Colour ):
+    r_8 =           mrc.UInt8( 0x00 )
+    unknown_1 =     mrc.UInt8( 0x01 )
+    g_8 =           mrc.UInt8( 0x02 )
+    unknown_2 =     mrc.UInt8( 0x03 )
+    b_8 =           mrc.UInt8( 0x04 )
+    unknown_3 =     mrc.UInt8( 0x05 )
+
+
 class Lookup( mrc.Block ):
     offset =        mrc.UInt32_LE( 0x00 )
     size =          mrc.UInt32_LE( 0x04 )
@@ -145,23 +154,26 @@ def resource_stop_check( buffer, offset ):
 
 
 class Resource( mrc.Block ):
-    lookup_table =  mrc.BlockList( Lookup, 0x00, stride=0x08, count=64, stop_check=resource_stop_check, fill=b'\xff\xff\xff\xff\x00\x00\x00\x00' )
+    lookup_table =  mrc.BlockField( Lookup, 0x00, stride=0x08, count=64, stop_check=resource_stop_check, fill=b'\xff\xff\xff\xff\x00\x00\x00\x00' )
 
 
 class BoppinCompressor( mrc.Transform ):
     
     def import_data( self, buffer, parent=None ):
+        if len( buffer ) == 0:
+            return {'payload': b'', 'end_offset': 0}
+
         lc = lzss.LZSSCompressor()
         size_comp = utils.from_uint32_le( buffer )
 
         if size_comp != len( buffer ):
             print( 'File not compressed!' )
-            return buffer
+            return {'payload': buffer, 'end_offset': len( buffer )}
         
         size_raw = utils.from_uint32_le( buffer[4:] )
-        result = lc.import_data( buffer[8:] )
+        result = lc.import_data( buffer[8:][:size_comp] )
         if len( result ) != size_raw:
-            print( 'Was expecting a decompressed size of {}, got {}!'.format( size_raw, len( result ) ) )
+            print( 'Was expecting a decompressed size of {}, got {}!'.format( size_raw, len( result['payload'] ) ) )
         return result
 
 

@@ -74,6 +74,10 @@ BYTE_REVERSE =  b'\x00\x80@\xc0 \xa0`\xe0\x10\x90P\xd00\xb0p\xf0' \
                 b"\x07\x87G\xc7'\xa7g\xe7\x17\x97W\xd77\xb7w\xf7" \
                 b'\x0f\x8fO\xcf/\xafo\xef\x1f\x9f_\xdf?\xbf\x7f\xff'
 
+BYTE_GLYPH_MAP = """ ☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼ !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ """
+
+BYTE_COLOUR_MAP = (12,) + (14,)*32 + (11,)*94 + (14,)*128 + (12,)
+
 
 def _load_byte_types():
     for byte_type, (type_code, type_size) in BYTE_TYPES.items():
@@ -83,7 +87,7 @@ def _load_byte_types():
 _load_byte_types()
 
 
-def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_len=4 ):
+def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True ):
     """Return the contents of a byte string in tabular hexadecimal/ASCII format.
     
     source
@@ -104,11 +108,17 @@ def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_l
     minor_len
         Number of bytes per hexadecimal group
 
+    colour
+        Add ANSI colour formatting to output (default: true)
+
     Raises ValueError if both end and length are defined.
     """
     assert is_bytes( source )
-    CP437 = """ ☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼ !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ """
-    to_string = lambda b: ''.join( map( lambda x: CP437[x], b ) )
+    colour_wrap = lambda s, index: s if not colour else '{}{}{}'.format(
+        ANSI_FORMAT_FOREGROUND_XTERM.format( BYTE_COLOUR_MAP[index] ),
+        s, ANSI_FORMAT_RESET
+    )
+    to_string = lambda b: ''.join( map( lambda x: colour_wrap( BYTE_GLYPH_MAP[x], x ), b ) )
 
     start = 0 if (start is None) else start
     if (end is not None) and (length is not None):
@@ -132,14 +142,15 @@ def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_l
                 if suboffset >= end:
                     line.append( '   ' )
                     continue
-                line.append( '{:02x} '.format( source[suboffset] ) )
+                line.append( colour_wrap( '{:02x} '.format( source[suboffset] ), source[suboffset] ) )
             line.append( ' ' )
         line.append( '│ {}'.format( to_string( source[offset:offset+major_len*minor_len] ) ) )
         lines.append( ''.join( line ) )
+    lines.append( '' )
     return '\n'.join(lines)
 
 
-def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4 ):
+def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True ):
     """Print the contents of a byte string in tabular hexadecimal/ASCII format.
     
     source
@@ -159,6 +170,9 @@ def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4
 
     minor_len
         Number of bytes per hexadecimal group
+
+    colour
+        Add ANSI colour formatting to output (default: true)
 
     Raises ValueError if both end and length are defined.
     """
@@ -191,15 +205,17 @@ def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len
 
     Raises ValueError if both end and length are defined.
     """
-    hex1 = hexdump_str( source1, start, end, length, major_len, minor_len ).splitlines( 1 )
-    hex2 = hexdump_str( source2, start, end, length, major_len, minor_len ).splitlines( 1 )
+    hex1 = hexdump_str( source1, start, end, length, major_len, minor_len, colour=False ).splitlines( 1 )
+    hex2 = hexdump_str( source2, start, end, length, major_len, minor_len, colour=False ).splitlines( 1 )
     diff = difflib.Differ()
     print( ''.join( diff.compare( hex1, hex2 ) ) )
 
 
 
-#: Unicode representation of a bar graph.
-UNICODE_BAR_GRAPH = u' ▁▂▃▄▅▆▇█'
+#: Unicode representation of a vertical bar graph.
+BAR_VERT   = u' ▁▂▃▄▅▆▇█'
+#: Unicode representation of a horizontal bar graph.
+BAR_HORIZ  = u' ▏▎▍▌▋▊▉█'
 
 class Stats( object ):
     """Helper class for performing some basic statistical analysis on binary data."""
@@ -239,11 +255,11 @@ class Stats( object ):
             result.append( ' ' )
             for _, x_value in enumerate( buckets_norm ):
                 if (x_value // 8) >= y_pos:
-                    result.append( UNICODE_BAR_GRAPH[8] )
+                    result.append( BAR_VERT[8] )
                 elif (x_value // 8) == y_pos-1:
-                    result.append( UNICODE_BAR_GRAPH[round( x_value % 8 )] )
+                    result.append( BAR_VERT[round( x_value % 8 )] )
                 else:
-                    result.append( UNICODE_BAR_GRAPH[0] )
+                    result.append( BAR_VERT[0] )
             result.append( '\n' )
 
         result.append( '╘'+('═'*width)+'╛\n' )
@@ -282,6 +298,10 @@ ANSI_FORMAT_RESET = '\x1b[0m'
 ANSI_FORMAT_FOREGROUND = '\x1b[38;2;{};{};{}m'
 #: ANSI escape sequence for setting the background colour (24-bit).
 ANSI_FORMAT_BACKGROUND = '\x1b[48;2;{};{};{}m'
+#: ANSI escape sequence for setting the foreground colour (xterm).
+ANSI_FORMAT_FOREGROUND_XTERM = '\x1b[38;5;{}m'
+#: ANSI escape sequence for setting the background colour (xterm).
+ANSI_FORMAT_BACKGROUND_XTERM = '\x1b[48;5;{}m'
 #: ANSI escape sequence for setting the foreground and background colours (24-bit).
 ANSI_FORMAT_COLOURS = '\x1b[38;2;{};{};{};48;2;{};{};{}m'
 

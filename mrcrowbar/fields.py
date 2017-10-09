@@ -19,7 +19,7 @@ class Field( object ):
         """Base class for Fields.
 
         default
-            Default value to emit in the case of creating an empty file.
+            Default value to emit in the case of e.g. creating an empty Block.
         """
         self._position_hint = next( _next_position_hint )
         self.default = default
@@ -34,39 +34,97 @@ class Field( object ):
 
 
     def get_from_buffer( self, buffer, parent=None ):
-        """Create a Python object from a byte string, using the field definition."""
+        """Create a Python object from a byte string, using the field definition.
+
+        buffer
+            Input byte string to process.
+
+        parent
+            Parent block object where this Field is defined. Used for e.g.
+            evaluating Refs.
+        """
         return None
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        """Write a Python object into a byte array, using the field definition."""
+        """Write a Python object into a byte array, using the field definition.
+
+        value
+            Input Python object to process.
+
+        buffer
+            Output byte array to encode value into.
+
+        parent
+            Parent block object where this Field is defined. Used for e.g.
+            evaluating Refs.
+        """
         assert utils.is_bytes( buffer )
         self.validate( value )
         return
     
     def get_start_offset( self, value, parent=None ):
-        """Return the start offset of where the Field's data is to be stored in the Block."""
+        """Return the start offset of where the Field's data is to be stored in the Block.
+
+        value
+            Input Python object to process.
+
+        parent
+            Parent block object where this Field is defined. Used for e.g.
+            evaluating Refs.
+        """
         return 0
 
     def get_size( self, value, parent=None ):
-        """Return the size of the field data (in bytes)."""
+        """Return the size of the field data (in bytes).
+
+        value
+            Input Python object to process.
+
+        parent
+            Parent block object where this Field is defined. Used for e.g.
+            evaluating Refs.
+        """
         return 0
 
     def get_end_offset( self, value, parent=None ):
-        """Return the end offset of the Field's data. Useful for chainloading."""
+        """Return the end offset of the Field's data. Useful for chainloading.
+
+        value
+            Input Python object to process.
+
+        parent
+            Parent block object where this Field is defined. Used for e.g.
+            evaluating Refs.
+        """
         return self.get_start_offset( value, parent ) + self.get_size( value, parent )
 
     def scrub( self, value, parent=None ):
         """Return the value coerced to the correct type of the field (if necessary).
 
-        Throws FieldValidationError if value can't be coerced."""
+        value
+            Input Python object to process.
+
+        parent
+            Parent block object where this Field is defined. Used for e.g.
+            evaluating Refs.
+
+        Throws FieldValidationError if value can't be coerced.
+        """
         return value
 
     def validate( self, value, parent=None ):
         """Validate that a correctly-typed Python object meets the constraints for the field.
-        
-        Throws FieldValidationError if a constraint fails."""
-        pass 
 
+        value
+            Input Python object to process.
+
+        parent
+            Parent block object where this Field is defined. Used for e.g.
+            evaluating Refs.
+
+        Throws FieldValidationError if a constraint fails.
+        """
+        pass 
 
 
 class BlockStream( Field ):

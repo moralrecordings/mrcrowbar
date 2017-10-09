@@ -8,27 +8,15 @@ from mrcrowbar.checks import *
 from mrcrowbar import utils
 
 class FieldDescriptor( object ):
-
-    """
-    The FieldDescriptor serves as a wrapper for Types that converts them into
-    fields.
-
-    A field is then the merger of a Type and it's Model.
-    """
-
     def __init__( self, name ):
-        """
-        :param name:
-            The field's name
+        """Attribute wrapper class for Fields.
+
+        name
+            Name of the Field.
         """
         self.name = name
 
     def __get__( self, instance, cls ):
-        """
-        Checks the field name against the definition of the model and returns
-        the corresponding data for valid fields or raises the appropriate error
-        for fields missing from a class.
-        """
         try:
             if instance is None:
                 return cls._fields[self.name]
@@ -37,22 +25,12 @@ class FieldDescriptor( object ):
             raise AttributeError( self.name )
 
     def __set__( self, instance, value ):
-        """
-        Checks the field name against a model and sets the value.
-        """
-        #from .types.compound import ModelType
-        #field = instance._fields[self.name]
-        #if not isinstance( value, Model ) and isinstance( field, ModelType ):
-        #    value = field.model_class( value )
         if instance is None:
             return
         instance._field_data[self.name] = value
         return
 
     def __delete__( self, instance ):
-        """
-        Checks the field name against a model and deletes the field.
-        """
         if self.name not in instance._fields:
             raise AttributeError( "{} has no attribute {}".format(
                 type( instance ).__name__, self.name ) )
@@ -61,6 +39,11 @@ class FieldDescriptor( object ):
 
 class RefDescriptor( object ):
     def __init__( self, name ):
+        """Attribute wrapper class for Refs.
+
+        name
+            Name of the Ref.
+        """
         self.name = name
 
     def __get__( self, instance, cls ):
@@ -84,33 +67,14 @@ class RefDescriptor( object ):
         raise AttributeError( "can't delete Ref" )
 
 
-class ModelMeta( type ):
-
-    """
-    Meta class for Models.
-    """
-
+class BlockMeta( type ):
     def __new__( mcs, name, bases, attrs ):
-        """
-        This metaclass adds four attributes to host classes: mcs._fields,
-        mcs._serializables, mcs._validator_functions, and mcs._options.
-
-        This function creates those attributes like this:
-
-        ``mcs._fields`` is list of fields that are schematics types
-        ``mcs._serializables`` is a list of functions that are used to generate
-        values during serialization
-        ``mcs._validator_functions`` are class level validation functions
-        ``mcs._options`` is the end result of parsing the ``Options`` class
-        """
+        """Metaclass for Block which detects and wraps attributes from the class definition."""
 
         # Structures used to accumulate meta info
         fields = OrderedDict()
         refs = OrderedDict()
         checks = OrderedDict()
-
-        serializables = {}
-        #validator_functions = {}  # Model level
 
         # Parse this class's attributes into meta structures
         for key, value in attrs.items():
@@ -120,8 +84,6 @@ class ModelMeta( type ):
                 refs[key] = value
             elif isinstance( value, Check ):
                 checks[key] = value
-        #    elif isinstance( value, View ):
-        #        views[key] = value
 
         # Convert list of types into fields for new klass
         fields = OrderedDict( sorted( fields.items(), key=lambda i: i[1]._position_hint ) )
@@ -137,21 +99,8 @@ class ModelMeta( type ):
 
         klass = type.__new__( mcs, name, bases, attrs )
 
-        # Add reference to klass to each field instance
-        #def set_owner_model( field, klass ):
-        #    field.owner_model = klass
-        #    if hasattr( field, 'field' ):
-        #        set_owner_model( field.field, klass )
-
         for field_name, field in fields.items():
-        #    set_owner_model(field, klass)
             field._name = field_name
-
-        # Register class on ancestor models
-        #klass._subclasses = []
-        #for base in klass.__mro__[1:]:
-        #    if isinstance(base, ModelMeta):
-        #        base._subclasses.append(klass)
 
         return klass
 
@@ -168,10 +117,21 @@ class ModelMeta( type ):
         return cls._checks
 
 
-class Block( object, metaclass=ModelMeta ):
+class Block( object, metaclass=BlockMeta ):
     _parent = None
+    repr = None
 
     def __init__( self, source_data=None, parent=None ):
+        """Base class for Blocks.
+
+        source_data
+            Source data to construct Block with. Can be a byte string or 
+            another Block object.
+
+        parent
+            Parent Block object where this Block is defined. Used for e.g. 
+            evaluating Refs.
+        """
         self._field_data = {}
         self._ref_cache = {}
         self._parent = parent
@@ -188,9 +148,12 @@ class Block( object, metaclass=ModelMeta ):
             desc = self.repr
         return '<{}: {}>'.format( self.__class__.__name__, desc )
 
-    repr = None
-
     def clone_data( self, source ):
+        """Clone data from another Block.
+
+        source
+            Block instance to copy from.
+        """
         klass = self.__class__
         assert isinstance( source, klass )
 
@@ -198,6 +161,11 @@ class Block( object, metaclass=ModelMeta ):
             self._field_data[name] = getattr( source, name )
 
     def import_data( self, raw_buffer ):
+        """Import data from a byte array.
+
+        raw_buffer
+            Byte array to import from.
+        """
         klass = self.__class__
         if raw_buffer:
             assert utils.is_bytes( raw_buffer )
@@ -228,6 +196,7 @@ class Block( object, metaclass=ModelMeta ):
         return
 
     def export_data( self ):
+        """Export data to a byte array."""
         klass = self.__class__
 
         output = bytearray( b'\x00'*self.get_size() )
@@ -248,6 +217,7 @@ class Block( object, metaclass=ModelMeta ):
         return output
 
     def validate( self ):
+        """Validate all the fields on this Block instance."""
         klass = self.__class__
 
         for name in klass._fields:
@@ -260,6 +230,7 @@ class Block( object, metaclass=ModelMeta ):
         return
 
     def get_size( self ):
+        """Get the projected size (in bytes) of the exported data from this Block instance."""
         klass = self.__class__
         size = 0
         for name in klass._fields:

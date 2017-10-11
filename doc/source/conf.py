@@ -13,6 +13,8 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
+import sphinx_rtd_theme
+
 import sys
 import os
 
@@ -58,7 +60,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Mr. Crowbar'
-copyright = '2016, Moral Recordings'
+copyright = '2017, Moral Recordings'
 author = 'Scott Percival'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -119,15 +121,17 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#html_theme_options = {}
+html_theme_options = {
+    'navigation_depth': 8
+}
 
 # Add any paths that contain custom themes here, relative to this directory.
-#html_theme_path = []
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -278,7 +282,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'MrCrowbar', 'Mr. Crowbar - Documentation',
-     author, 'MrCrowbar', 'Untold reverse engineering fun for ages 26-29',
+     author, 'MrCrowbar', 'Untold reverse engineering fun for ages 6-90',
      'Miscellaneous'),
 ]
 

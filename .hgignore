@@ -2,6 +2,7 @@ syntax: glob
 *.pyc
 *.swp
 *.swo
+build
 dist
 *.egg-info
 venv

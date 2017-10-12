@@ -7,10 +7,17 @@ Requirements
 
 Mr. Crowbar is written in Python 3. (Unfortunately Python 2 is not supported, as there are too many quirks in the type system)
 
-The best way to use the tools right now is to check out a copy of the project, then `create a virtualenv for Python 3 <http://python-guide-pt-br.readthedocs.io/en/latest/dev/virtualenvs/>`_:
+You can install the latest point release of the library from the Python Package Index:
+
+.. code:: bash
+
+   pip3 install mrcrowbar
+
+For development, you can check out the latest source tree, `create a virtualenv for Python 3 <http://python-guide-pt-br.readthedocs.io/en/latest/dev/virtualenvs/>`_, and load it in as a package:
 
 .. code:: bash
    
+    hg clone https://bitbucket.org/moralrecordings/mrcrowbar
     cd mrcrowbar
     virtualenv -p /usr/bin/python3 venv
     source venv/bin/activate
@@ -18,7 +25,7 @@ The best way to use the tools right now is to check out a copy of the project, t
     pip install -e .
     pip install ipython     # for a nicer Python shell with autocomplete
 
-Windows 10 users: I highly recommend installing the `Windows Subsystem for Linux <https://msdn.microsoft.com/en-us/commandline/wsl/install_guide>`_ and using that.
+Windows 10 users: I highly recommend installing the `Windows Subsystem for Linux <https://msdn.microsoft.com/en-us/commandline/wsl/install_guide>`_ and using Ubuntu's bundled Python installation, instead of the native Win32 console edition.
 
 [This chunk of the docs needs a lot of work. If you are struggling, please hit me up via `email <mailto:code@moral.net.au>`_ or on Twitter at `@moralrecordings <https://twitter.com/moralrecordings>`_.]
 

@@ -14,22 +14,14 @@ File formats are described with Python classes that allow ORM-like free modifica
 The eventual goal is to provide a library for storing file format information that retains the readability of a text file, while providing instant read/write support for almost no cost.
 
 
-
-
-
 But why?!?
 ----------
 
-What is the best way to engage people with computer science?
+I was kind of taken aback at how non-standardised this field of reverse engineering was. Everyone seems to have a story of writing their own tools and solving identical problems over and over again for each target.
 
-Lots of people are trying their best to answer this question. Hell, with CS one of the few bright points left in an otherwise bleak economic picture for kids entering the workforce, politicians with no experience are tripping over themselves to endorse learn-to-code initiatives without questioning their efficacy. 
+Take game mods and ROM hacks. The golden age of game modding firmly predates the recent mainstreaming of publishing as open source. Visit gbatemp.net or romhacking.net and you'll find hundreds of game specific hand-rolled tools from years past; none of them actively maintained, nearly all of them without source code. For other areas it's just text; thousands of text files explaining what a proprietary format does. These documents are mostly static, and could disappear from the internet at any second.
 
-You don't need me to tell you this, but rote learning isn't the same as engaging!
-
-Let's focus on the example of modding games. Modding games is great hacking experience; whether it's making custom levels, swapping out character sprites for something new, or even translating all of the text and artwork into a new language. You get the advantage of building upon a solid foundation of assets and code, with a pre-existing audience of fans. Most importantly, you will gain knowledge of how things are done in the real world and why; an education you can't get from following examples or reading StackOverflow.
-
-
-The era of DIY game modding predates the recent mainstreaming of open source. Visit gbatemp.net or romhacking.net and you'll find hundreds of hand-rolled tools from years past; none of them actively maintained, nearly all of them without source code.
+Deep down, I hope that putting together something like this makes activities like game modding more accessible to a wider group of people. A lot of talented developers got their start by reverse engineering; in the case of game mods building upon a solid foundation of assets and code along with a strong network of fans. Reverse engineering gives you knowledge of how systems work in the real world and why; an education you can't get from following examples or reading StackOverflow.
 
 
 What's with the name?

@@ -1,7 +1,10 @@
 from mrcrowbar import models as mrc
 from mrcrowbar import utils
 
-from PIL import Image as PILImage
+try:
+    from PIL import Image as PILImage
+except ImportError:
+    PILImage = None
 
 from array import array
 import itertools
@@ -173,12 +176,16 @@ class IndexedImage( Image ):
         return mrc.property_set( self._palette, self._parent, value )
 
     def get_image( self ):
+        if not PILImage:
+            raise ImportError( 'Pillow must be installed for image manipulation support (see http://pillow.readthedocs.io/en/latest/installation.html)' )
         im = PILImage.new( 'P', (self.width, self.height) )
         im.putdata( self.source[:self.width*self.height] )
         im.putpalette( to_palette_bytes( self.palette ) )
         return im
 
     def set_image( self, image, change_dims=True, change_palette=False ):
+        if not PILImage:
+            raise ImportError( 'Pillow must be installed for image manipulation support (see http://pillow.readthedocs.io/en/latest/installation.html)' )
         if not isinstance( image, PILImage.Image ):
             raise TypeError( 'image must be a PILImage object!' )
         if image.mode != 'P':

@@ -28,8 +28,5 @@ setup(name='mrcrowbar',
         'Programming Language :: Python :: 3.7',
     ],
     python_requires='>=3',
-    install_requires=[
-        'Pillow>=2.8.1',
-        'pyaudio>=0.2.9',
-    ],
+    install_requires=[],
     packages=find_packages(exclude=['doc']))

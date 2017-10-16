@@ -3,14 +3,17 @@ from mrcrowbar import utils
 
 from array import array
 
-import pyaudio
+try:
+    import pyaudio
+except ImportError:
+    pyaudio = None
 
-SAMPLE_WIDTH_UINT8 = (pyaudio.paUInt8, b'\x80')
-SAMPLE_WIDTH_INT8 = (pyaudio.paInt8, b'\x00')
-SAMPLE_WIDTH_INT16_LE = (pyaudio.paInt16, b'\x00\x00')
-#SAMPLE_WIDTH_INT24_LE = (pyaudio.paInt24, b'\x00\x00\x00')
-SAMPLE_WIDTH_INT32_LE = (pyaudio.paInt32, b'\x00\x00\x00\x00')
-SAMPLE_WIDTH_FLOAT_LE = (pyaudio.paFloat32, b'\x00\x00\x00\x00')
+SAMPLE_WIDTH_UINT8 = ('paUInt8', b'\x80')
+SAMPLE_WIDTH_INT8 = ('paInt8', b'\x00')
+SAMPLE_WIDTH_INT16_LE = ('paInt16', b'\x00\x00')
+#SAMPLE_WIDTH_INT24_LE = ('paInt24', b'\x00\x00\x00')
+SAMPLE_WIDTH_INT32_LE = ('paInt32', b'\x00\x00\x00\x00')
+SAMPLE_WIDTH_FLOAT_LE = ('paFloat32', b'\x00\x00\x00\x00')
 
 #: Perform no audio interpolation and let PortAudio sort it out. 
 #: (Sounds like AUDIO_INTERPOLATION_CUBIC)
@@ -77,9 +80,11 @@ class Wave( mrc.View ):
         self._sample_rate = sample_rate
 
     def play( self, interpolation=AUDIO_INTERPOLATION_LINEAR ):
+        if not pyaudio:
+            raise ImportError( 'pyaudio must be installed for audio playback support (see https://people.csail.mit.edu/hubert/pyaudio)' )
         audio = pyaudio.PyAudio()
         data = b''
-        format=self._sample_width[0]
+        format=getattr( pyaudio, self._sample_width[0] )
         rate = self._sample_rate
 
         if interpolation == AUDIO_INTERPOLATION_NONE:

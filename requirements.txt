@@ -1,4 +1,2 @@
-Pillow>=2.8.1
-pylint>=1.6.2
-pyaudio>=0.2.9
-sphinx-rtd-theme>=0.2.4
+pylint >= 1.6.2
+sphinx-rtd-theme >= 0.2.4

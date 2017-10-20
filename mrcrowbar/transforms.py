@@ -13,7 +13,9 @@ class Transform( object ):
         parent
             Parent object of the source (to provide context for Refs).
         """
-        return None
+        return {
+            'payload': b'',
+        }
 
     def import_data( self, buffer, parent=None ):
         """Perform a reverse-transform on a byte string.

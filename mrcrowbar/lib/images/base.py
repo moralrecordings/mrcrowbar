@@ -68,6 +68,9 @@ class Colour( mrc.Block ):
         colour = White() if self.luma < 0.5 else Black()
         return utils.ansi_format_string( text, colour, self )
 
+    def print( self, *args, **kwargs ):
+        print( self.ansi_format( *args, **kwargs ) )
+
     def __str__( self ):
         return self.ansi_format()
 
@@ -261,20 +264,20 @@ class IndexedImage( Image ):
 class Planarizer( mrc.Transform ):
     """Class for converting between planar and chunky image data."""
 
-    def __init__( self, bpp: int, width: int=None, height: int=None, plane_size: int=None, plane_padding: int=0, frame_offset: int=0, frame_stride: int=None, frame_count: int=1 ):
+    def __init__( self, bpp: int, width: int=None, height: int=None, plane_size: int=None, plane_padding: int=0, frame_offset: int=0, frame_stride: int=None, frame_count: int=1, row_planar_size: int=None, plane_order=None ):
         """Create a Planarizer instance.
 
         bpp
             Bits per pixel (aka. number of bitplanes).
 
         width
-            Width of destination image (in pixels).
+            Width of destination image in pixels.
 
         height
-            Height of destination image (in pixels).
+            Height of destination image in pixels.
 
         plane_size
-            Size of the image data for a single plane in bytes. Default is (width*height//8). Can't be defined if width or height are defined.
+            Size of the image data for a single plane in bytes. Default is (width*height//8). Can't be specified if width or height are defined.
 
         plane_padding
             Additional bytes per plane not used in the chunky data.
@@ -287,7 +290,12 @@ class Planarizer( mrc.Transform ):
 
         frame_count
             Number of frames.
-        
+       
+        row_planar_size
+            Number of bytes per row-plane in a row-planar image. Default is to process a graphic-planar image without rows.
+
+        plane_order
+            List of integers describing how to order the bitplanes in chunky output, from least significant to most significant. Defaults to all planes sequential.            
         """
         self.bpp = bpp
         self.width = width
@@ -297,6 +305,8 @@ class Planarizer( mrc.Transform ):
         self.frame_offset = frame_offset
         self.frame_count = frame_count
         self.frame_stride = frame_stride
+        self.row_planar_size = row_planar_size
+        self.plane_order = plane_order
 
 
     def import_data( self, buffer: bytes, parent=None ):
@@ -311,6 +321,9 @@ class Planarizer( mrc.Transform ):
         frame_offset = mrc.property_get( self.frame_offset, parent )
         frame_count = mrc.property_get( self.frame_count, parent )
         frame_stride = mrc.property_get( self.frame_stride, parent )
+        row_planar_size = mrc.property_get( self.row_planar_size, parent )
+        plane_order = mrc.property_get( self.plane_order, parent )
+
 
         assert (bpp >= 0) and (bpp <= 8)
         if (width or height):
@@ -321,13 +334,22 @@ class Planarizer( mrc.Transform ):
             assert plane_size is not None
         assert (frame_count >= 1)
 
-        if not plane_size:
+        if plane_size is None:
             plane_size = math.ceil( width*height/8 )
 
         if frame_count >= 2 and frame_stride is None:
             frame_stride = bpp*(plane_size+plane_padding)
         else:
             frame_stride = frame_stride if frame_stride is not None else 0
+
+        if row_planar_size:
+            assert row_planar_size >= 1
+        
+        if not plane_order:
+            plane_order = range( bpp )
+        else: 
+            assert all( [y in range( bpp ) for y in plane_order] )
+            assert len( plane_order ) == len( set( plane_order ) )
 
         # because frame_stride can potentially read past the buffer, only worry about measuring
         # the last n-1 strides + one frame
@@ -352,18 +374,23 @@ class Planarizer( mrc.Transform ):
     
         for f in range( frame_count ):
             pointer = frame_offset+f*frame_stride
-            for b in range( bpp ):
+            for bi, b in enumerate( plane_order ):
                 for i in range( plane_size ):
                     # for the first iteration, clear the plane
-                    if b==0:
+                    if bi==0:
                         planes[i] = 0
+
+                    if row_planar_size is None:
+                        address = pointer+b*segment_size+i
+                    else:
+                        address = pointer + (row_planar_size*bpp)*(i // row_planar_size) + row_planar_size*b + (i % row_planar_size)
 
                     # utils.unpack_bits is a helper method which converts a 1-byte bitfield
                     # into 8 bool bytes (i.e. 1 or 0) stored as a 64-bit int.
                     # we can effectively work on 8 chunky pixels at once!
                     # because the chunky pixels are bitfields, combining planes is an easy
                     # left shift (i.e. move all the bits up by [plane ID] places) and bitwise OR
-                    planes[i] |= utils.unpack_bits( buffer[pointer+b*segment_size+i] ) << b
+                    planes[i] |= utils.unpack_bits( buffer[address] ) << bi
                     
             # check for endianness! for most intel and ARM chips the order of bytes in hardware is reversed,
             # so we need to flip it around for the bytes to be sequential.

@@ -12,6 +12,7 @@ class Loader( object ):
         self._files = OrderedDict()
 
     def load( self, target_path, verbose=False ):
+        
         #target_path = os.path.abspath( target_path )
         for root, subFolders, files in os.walk( target_path ):
             for f in files:
@@ -20,16 +21,19 @@ class Loader( object ):
                 for key, regex in self.file_re_map.items():
                     match = regex.search( full_path )
                     if match:
-                        with open( full_path, 'r+b' ) as f:
-                            data = mmap( f.fileno(), 0 )
-                            if verbose:
-                                print( '{} => {}'.format( full_path, self.file_class_map[key] ) )
-                            self._files[full_path] = {
-                                'klass': self.file_class_map[key],
-                                'match': match.groups(),
-                                'obj': self.file_class_map[key]( data )
-                            }
-                            data.close()
+                        self._files[full_path] = {
+                            'klass': self.file_class_map[key],
+                            're': key,
+                            'match': match.groups()
+                        }
+
+        for path, info in self._files.items():
+            with open( path, 'r+b' ) as f:
+                data = mmap( f.fileno(), 0 )
+                if verbose:
+                    print( '{} => {}'.format( path, info['klass'] ) )
+                info['obj'] = info['klass']( data )
+                data.close()
 
         self.post_load( verbose )
         return

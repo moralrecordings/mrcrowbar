@@ -66,15 +66,8 @@ class SAMTileset16( mrc.Block ):
                         height=mrc.Ref( 'height' ),
                         source=mrc.Ref( 'image_data' ),
                         frame_count=mrc.Ref( 'count' ),
-                        palette=ibm_pc.EGA_DEFAULT_PALETTE
-                    )
-        self.mask = img.IndexedImage( 
-                        self,
-                        width=mrc.Ref( 'width' ),
-                        height=mrc.Ref( 'height' ),
-                        source=mrc.Ref( 'mask_data' ),
-                        frame_count=mrc.Ref( 'count' ),
-                        palette=ibm_pc.EGA_DEFAULT_PALETTE
+                        palette=ibm_pc.EGA_DEFAULT_PALETTE,
+                        mask=mrc.Ref( 'mask_data' )
                     )
         
 

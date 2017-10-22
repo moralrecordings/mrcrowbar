@@ -166,9 +166,10 @@ def from_palette_bytes( palette_bytes ):
 class IndexedImage( Image ):
     """Class for viewing indexed (palette-based) chunky image data."""
 
-    def __init__( self, parent, source, width, height, frame_count=1, palette=None ):
+    def __init__( self, parent, source, width, height, frame_count=1, palette=None, mask=None ):
         super( IndexedImage, self ).__init__( parent, source, width, height, frame_count )
         self._palette = palette if (palette is not None) else []
+        self._mask = mask
 
     @property
     def palette( self ):
@@ -177,6 +178,14 @@ class IndexedImage( Image ):
     @palette.setter
     def palette( self, value ):
         return mrc.property_set( self._palette, self._parent, value )
+
+    @property
+    def mask( self ):
+        return mrc.property_get( self._mask, self._parent )
+
+    @mask.setter
+    def mask( self, value ):
+        return mrc.property_set( self._mask, self._parent, value )
 
     def get_image( self ):
         if not PILImage:
@@ -245,8 +254,12 @@ class IndexedImage( Image ):
                         stride = width*height
                         i1 = self.width*(y_start+y) + (x_start+x)
                         i2 = self.width*(y_start+y+1) + (x_start+x)
-                        p1 = self.source[stride*fr+i1]
-                        p2 = self.source[stride*fr+i2] if (i2) < (self.width*self.height) else None
+                        if self.mask:
+                            p1 = self.source[stride*fr+i1] if self.mask[stride*fr+i1] else None
+                            p2 = self.source[stride*fr+i2] if ((i2) < (self.width*self.height) and self.mask[stride*fr+i2]) else None
+                        else:
+                            p1 = self.source[stride*fr+i1]
+                            p2 = self.source[stride*fr+i2] if (i2) < (self.width*self.height) else None
                         result.write( get_pal( p1, p2 ) )
                 result.write( '\n' )
         return result.getvalue()

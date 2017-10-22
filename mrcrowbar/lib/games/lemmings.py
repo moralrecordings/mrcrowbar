@@ -325,7 +325,7 @@ class SpecialCompressor( mrc.Transform ):
 # this palette is actually stored in the first half of each GroundDat palette block,
 # but it's handy to have a static copy for e.g. checking out the MainAnims block
 LEMMINGS_VGA_DEFAULT_PALETTE = (
-    img.Transparent(),
+    ibm_pc.VGAColour( b'\x00\x00\x00' ),
     ibm_pc.VGAColour( b'\x10\x10\x38' ),
     ibm_pc.VGAColour( b'\x00\x2c\x00' ),
     ibm_pc.VGAColour( b'\x3c\x34\x34' ),
@@ -610,15 +610,8 @@ class InteractiveImage( mrc.Block ):
                         height=mrc.Ref( '_parent.height' ), 
                         source=mrc.Ref( 'image_data' ), 
                         frame_count=mrc.Ref( '_parent.end_frame' ), 
-                        palette=mrc.Ref( '_parent._parent.palette' ) 
-                    )
-        self.mask = img.IndexedImage( 
-                        self, 
-                        width=mrc.Ref( '_parent.width' ), 
-                        height=mrc.Ref( '_parent.height' ), 
-                        source=mrc.Ref( 'mask_data' ), 
-                        frame_count=mrc.Ref( '_parent.end_frame' ), 
-                        palette=mrc.Ref( '_parent._parent.palette' ) 
+                        palette=mrc.Ref( '_parent._parent.palette' ),
+                        mask=mrc.Ref( 'mask_data' )
                     )
 
 
@@ -734,14 +727,8 @@ class TerrainImage( mrc.Block ):
                         width=mrc.Ref( '_parent.width' ), 
                         height=mrc.Ref( '_parent.height' ), 
                         source=mrc.Ref( 'image_data' ), 
-                        palette=mrc.Ref( '_parent._parent.palette' ) 
-                    )
-        self.mask = img.IndexedImage( 
-                        self, 
-                        width=mrc.Ref( '_parent.width' ), 
-                        height=mrc.Ref( '_parent.height' ), 
-                        source=mrc.Ref( 'mask_data' ), 
-                        palette=mrc.Ref( '_parent._parent.palette' ) 
+                        palette=mrc.Ref( '_parent._parent.palette' ),
+                        mask=mrc.Ref( 'mask_data' )
                     )
 
 

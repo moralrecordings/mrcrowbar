@@ -248,7 +248,7 @@ class Stats( object ):
         """
         bucket = 256//width
         buckets = [sum( self.histo[i:i+bucket] ) for i in range( 0, 256, bucket )]
-        scale = height*8.0/max( buckets )
+        scale = height*8.0/max( buckets ) if max( buckets ) else height*8.0
         buckets_norm = [b*scale for b in buckets]
         result = []
         for y_pos in range( height, 0, -1 ):

@@ -35,9 +35,13 @@ class TextRef( mrc.Block ):
     length = mrc.UInt16_LE( 0x04 )
 
 
-class VCL( mrc.Block ):
-
-    pass
+class VCLFile( mrc.Block ):
+    sound_offsets   = mrc.UInt32_LE( 0x00, count=50 )
+    sound_lengths   = mrc.UInt16_LE( 0xc8, count=50 )
+    sound_freqs     = mrc.UInt16_LE( 0x12c, count=50 )
+    text_offsets    = mrc.UInt32_LE( 0x190, count=40 )
+    text_lengths    = mrc.UInt16_LE( 0x230, count=40 )
+    data            = mrc.Bytes( 0x280 )
 
 
 # source: http://www.shikadi.net/moddingwiki/SHA_Format
@@ -69,7 +73,7 @@ class JillLoader( mrc.Loader ):
 
     _JILL_FILE_CLASS_MAP = {
         _SEP+'JN[1-3]SAVE\.[0-9]$': None,
-        _SEP+'JILL[1-3]\.VCL$': None,
+        _SEP+'JILL[1-3]\.VCL$': VCLFile,
         _SEP+'JILL[1-3]\.SHA$': SHAFile,
         _SEP+'JILL.DMA$': None,
         _SEP+'.*\.DDT$': None,
@@ -79,10 +83,16 @@ class JillLoader( mrc.Loader ):
     def __init__( self ):
         super( JillLoader, self ).__init__( self._JILL_FILE_CLASS_MAP )
 
+
 class XargonLoader( mrc.Loader ):
     """Loader for the game Xargon (DOS, 1994)."""
     _SEP = mrc.Loader._SEP
 
     _XARGON_FILE_CLASS_MAP = {
-        _SEP+'BOARD_[0-9]{2}.XR[1-3]$': None
+        _SEP+'BOARD_[0-9]{2}.XR[1-3]$': None,
+        _SEP+'AUDIO.XR[1-3]$': VCLFile
     }
+
+    def __init__( self ):
+        super( XargonLoader, self ).__init__( self._XARGON_FILE_CLASS_MAP )
+

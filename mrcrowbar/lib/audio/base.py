@@ -91,7 +91,7 @@ class Wave( mrc.View ):
             padding = self._sample_width[1]*(2*PLAYBACK_BUFFER-(len( self._source ) % PLAYBACK_BUFFER))
             data = self._source+padding
         else:
-            format = RESAMPLE_WIDTH[0]
+            format = getattr( pyaudio, RESAMPLE_WIDTH[0] )
             rate=RESAMPLE_RATE
 
             samp_array = normalize_audio( self._source, self._sample_width )+[0.0]

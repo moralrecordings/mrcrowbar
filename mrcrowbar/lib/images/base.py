@@ -117,37 +117,10 @@ class Image( mrc.View ):
         self._height = height
         self._frame_count = frame_count
     
-    @property
-    def source( self ):
-        return mrc.property_get( self._source, self._parent )
-
-    @source.setter
-    def source( self, value ):
-        return mrc.property_set( self._source, self._parent, value )
- 
-    @property
-    def width( self ):
-        return mrc.property_get( self._width, self._parent )
-
-    @width.setter
-    def width( self, value ):
-        return mrc.property_set( self._width, self._parent, value )
-
-    @property
-    def height( self ):
-        return mrc.property_get( self._height, self._parent )
-
-    @height.setter
-    def height( self, value ):
-        return mrc.property_set( self._height, self._parent, value )
-
-    @property
-    def frame_count( self ):
-        return mrc.property_get( self._frame_count, self._parent )
-
-    @frame_count.setter
-    def frame_count( self, value ):
-        return mrc.property_set( self._frame_count, self._parent, value )
+    source = mrc.view_property( '_source' )
+    width = mrc.view_property( '_width' )
+    height = mrc.view_property( '_height' )
+    frame_count = mrc.view_property( '_frame_count' )
 
 
 def to_palette_bytes( palette ):
@@ -171,21 +144,9 @@ class IndexedImage( Image ):
         self._palette = palette if (palette is not None) else []
         self._mask = mask
 
-    @property
-    def palette( self ):
-        return mrc.property_get( self._palette, self._parent )
-
-    @palette.setter
-    def palette( self, value ):
-        return mrc.property_set( self._palette, self._parent, value )
-
-    @property
-    def mask( self ):
-        return mrc.property_get( self._mask, self._parent )
-
-    @mask.setter
-    def mask( self, value ):
-        return mrc.property_set( self._mask, self._parent, value )
+    palette = mrc.view_property( '_palette' )
+    mask = mrc.view_property( '_mask' )
+    
 
     def get_image( self ):
         if not PILImage:

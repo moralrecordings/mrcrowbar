@@ -6,10 +6,14 @@ class View( object ):
     def __init__( self, parent, *args, **kwargs ):
         self._parent = parent
 
+    @property
+    def parent( self ):
+        return self._parent
+
 
 class Store( View ):
     def __init__( self, parent, source, fill=b'\x00', **kwargs ):
-        super( Store, self ).__init__( parent )
+        super( Store, self ).__init__( parent, **kwargs )
         self._source = source
         self.fill = fill
         self.refs = OrderedDict()
@@ -82,3 +86,4 @@ class StoreRef( Ref ):
 
     def set( self, instance ):
         raise AttributeError( "can't set StoreRef directly" )
+

@@ -73,7 +73,7 @@ def resample_audio( norm_source, sample_rate, interpolation ):
 
 class Wave( mrc.View ):
     def __init__( self, parent, source, channels, sample_width, sample_rate ):
-        super( Wave, self ).__init__( parent )
+        super().__init__( parent )
         self._source = source
         self._channels = channels
         self._sample_width = sample_width

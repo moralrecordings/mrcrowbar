@@ -13,7 +13,7 @@ class View( object ):
 
 class Store( View ):
     def __init__( self, parent, source, fill=b'\x00', **kwargs ):
-        super( Store, self ).__init__( parent, **kwargs )
+        super().__init__( parent, **kwargs )
         self._source = source
         self.fill = fill
         self.refs = OrderedDict()

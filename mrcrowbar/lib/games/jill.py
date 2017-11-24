@@ -81,7 +81,7 @@ class JillLoader( mrc.Loader ):
     }
 
     def __init__( self ):
-        super( JillLoader, self ).__init__( self._JILL_FILE_CLASS_MAP )
+        super().__init__( self._JILL_FILE_CLASS_MAP )
 
 
 class XargonLoader( mrc.Loader ):
@@ -94,5 +94,5 @@ class XargonLoader( mrc.Loader ):
     }
 
     def __init__( self ):
-        super( XargonLoader, self ).__init__( self._XARGON_FILE_CLASS_MAP )
+        super().__init__( self._XARGON_FILE_CLASS_MAP )
 

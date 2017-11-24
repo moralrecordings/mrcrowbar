@@ -129,7 +129,7 @@ class Field( object ):
 
 class BlockStream( Field ):
     def __init__( self, block_klass, offset, block_kwargs=None, transform=None, stop_check=None, **kwargs ):
-        super( BlockStream, self ).__init__( **kwargs )
+        super().__init__( **kwargs )
         self.block_klass = block_klass
         self.offset = offset
         self.block_kwargs = block_kwargs if block_kwargs else {}
@@ -160,7 +160,7 @@ class BlockStream( Field ):
         return result
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        super( BlockStream, self ).update_buffer_with_value( value, buffer, parent )
+        super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
         
         pointer = offset
@@ -183,7 +183,7 @@ class BlockStream( Field ):
 
 class BlockField( Field ):
     def __init__( self, block_klass, offset, block_kwargs=None, count=None, fill=None, **kwargs ):
-        super( BlockField, self ).__init__( **kwargs )
+        super().__init__( **kwargs )
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
         self.stride = self.block_klass( **self.block_kwargs ).get_size()
@@ -222,7 +222,7 @@ class BlockField( Field ):
         return result
         
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        super( BlockField, self ).update_buffer_with_value( value, buffer, parent )
+        super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
 
@@ -261,7 +261,7 @@ class Bytes( Field ):
             assert utils.is_bytes( default )
         else:
             default = b''
-        super( Bytes, self ).__init__( default=default, **kwargs )
+        super().__init__( default=default, **kwargs )
         self.offset = offset
         self.length = length
         self.transform = transform
@@ -281,7 +281,7 @@ class Bytes( Field ):
         return data
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        super( Bytes, self ).update_buffer_with_value( value, buffer, parent )
+        super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
         length = property_get( self.length, parent )
         
@@ -331,7 +331,7 @@ class Bytes( Field ):
 class CString( Field ):
     def __init__( self, offset, default=b'', **kwargs ):
         assert utils.is_bytes( default )
-        super( CString, self ).__init__( default=default, **kwargs )
+        super().__init__( default=default, **kwargs )
         self.offset = offset
 
     def get_from_buffer( self, buffer, parent=None ):
@@ -341,7 +341,7 @@ class CString( Field ):
         return buffer[offset:].split( b'\x00', 1 )[0]
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        super( CString, self ).update_buffer_with_value( value, buffer, parent )
+        super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
 
         block_data = value + b'\x00'
@@ -366,7 +366,7 @@ class CString( Field ):
 class CStringN( Field ):
     def __init__( self, offset, length, default=b'', **kwargs ):
         assert utils.is_bytes( default )
-        super( CStringN, self ).__init__( default=default, **kwargs )
+        super().__init__( default=default, **kwargs )
         self.offset = offset
         self.length = length
 
@@ -378,7 +378,7 @@ class CStringN( Field ):
         return buffer[offset:offset+length].split( b'\x00', 1 )[0]
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        super( CStringN, self ).update_buffer_with_value( value, buffer, parent )
+        super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
         length = property_get( self.length, parent )
 
@@ -442,7 +442,7 @@ class ValueField( Field ):
         enum
             Restrict allowed values to those provided by a Python enum type. Used for validation.
         """
-        super( ValueField, self ).__init__( default=default, **kwargs )
+        super().__init__( default=default, **kwargs )
         self.offset = offset
         self.format = format
         self.format_type = format_type
@@ -496,7 +496,7 @@ class ValueField( Field ):
         return result
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        super( ValueField, self ).update_buffer_with_value( value, buffer, parent )
+        super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
         is_array = count is not None
@@ -577,14 +577,14 @@ class UInt8( ValueField ):
 
 class Bits( UInt8 ):
     def __init__( self, offset, bits, default=0, *args, **kwargs ):
-        super( Bits, self ).__init__( offset, default=default, *args, **kwargs )
+        super().__init__( offset, default=default, *args, **kwargs )
         assert type( bits ) == int
         self.mask_bits = bin( bits ).split( 'b', 1 )[1]
         self.bits = [(1<<i) for i, x in enumerate( reversed( self.mask_bits ) ) if x == '1']
         self.format_range = range( 0, 1<<len( self.bits ) )
 
     def get_from_buffer( self, buffer, parent=None ):
-        result = super( Bits, self ).get_from_buffer( buffer, parent )
+        result = super().get_from_buffer( buffer, parent )
         value = 0
         for i, x in enumerate( self.bits ):
             value += (1 << i) if (result & x) else 0

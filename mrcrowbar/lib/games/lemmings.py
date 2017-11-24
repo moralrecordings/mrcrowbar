@@ -963,7 +963,7 @@ class Loader( mrc.Loader ):
     }
 
     def __init__( self ):
-        super( Loader, self ).__init__( self._LEMMINGS_FILE_CLASS_MAP )
+        super().__init__( self._LEMMINGS_FILE_CLASS_MAP )
 
     def post_load( self, verbose=False ):
         unique_check = set([''.join(x['match']).upper() for x in self._files.values()])

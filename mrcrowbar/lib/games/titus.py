@@ -93,4 +93,4 @@ class Loader( mrc.Loader ):
     }
 
     def __init__( self ):
-        super( Loader, self ).__init__( self.TITUS_FILE_CLASS_MAP )
+        super().__init__( self.TITUS_FILE_CLASS_MAP )

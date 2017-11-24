@@ -103,7 +103,7 @@ class RGBColour( Colour ):
 class Palette( mrc.BlockField ):
     def __init__( self, block_klass, offset, block_kwargs=None, count=None, fill=None, **kwargs ):
         assert issubclass( block_klass, Colour )
-        super( Palette, self ).__init__( block_klass, offset, block_kwargs, count, fill, **kwargs )
+        super().__init__( block_klass, offset, block_kwargs, count, fill, **kwargs )
 
     def scrub( self, value, parent=None ):
         return [x if isinstance( x, self.block_klass ) else self.block_klass( x ) for x in value]
@@ -111,7 +111,7 @@ class Palette( mrc.BlockField ):
 
 class Image( mrc.View ):
     def __init__( self, parent, source, width, height, frame_count=1 ):
-        super( Image, self ).__init__( parent )
+        super().__init__( parent )
         self._source = source
         self._width = width
         self._height = height
@@ -140,7 +140,7 @@ class IndexedImage( Image ):
     """Class for viewing indexed (palette-based) chunky image data."""
 
     def __init__( self, parent, source, width, height, frame_count=1, palette=None, mask=None ):
-        super( IndexedImage, self ).__init__( parent, source, width, height, frame_count )
+        super().__init__( parent, source, width, height, frame_count )
         self._palette = palette if (palette is not None) else []
         self._mask = mask
 

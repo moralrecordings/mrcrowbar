@@ -72,12 +72,12 @@ class JillLoader( mrc.Loader ):
     _SEP = mrc.Loader._SEP
 
     _JILL_FILE_CLASS_MAP = {
-        _SEP+'JN[1-3]SAVE\.[0-9]$': None,
-        _SEP+'JILL[1-3]\.VCL$': VCLFile,
-        _SEP+'JILL[1-3]\.SHA$': SHAFile,
-        _SEP+'JILL.DMA$': None,
-        _SEP+'.*\.DDT$': None,
-        _SEP+'.*\.JN[1-3]$': None
+        _SEP+'JN([1-3])(SAVE)\.([0-9])$': None,
+        _SEP+'(JILL)([1-3])\.(VCL)$': VCLFile,
+        _SEP+'(JILL)([1-3])\.(SHA)$': SHAFile,
+        _SEP+'(JILL)\.(DMA)$': None,
+        _SEP+'(.*)\.(DDT)$': None,
+        _SEP+'(.*)\.JN([1-3])$': None
     }
 
     def __init__( self ):
@@ -89,8 +89,8 @@ class XargonLoader( mrc.Loader ):
     _SEP = mrc.Loader._SEP
 
     _XARGON_FILE_CLASS_MAP = {
-        _SEP+'BOARD_[0-9]{2}.XR[1-3]$': None,
-        _SEP+'AUDIO.XR[1-3]$': VCLFile
+        _SEP+'(BOARD)_([0-9]{2}).XR([1-3])$': None,
+        _SEP+'(AUDIO).XR([1-3])$': VCLFile
     }
 
     def __init__( self ):

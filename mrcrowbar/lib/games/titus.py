@@ -87,9 +87,11 @@ class ZIVCompressor( mrc.Transform ):
 
 
 class Loader( mrc.Loader ):
+    _SEP = mrc.Loader._SEP
+
     TITUS_FILE_CLASS_MAP = {
-        #'/TITRE.SQZ$': SplashVGA,
-        #'/TITREEGA.SQZ$': SplashEGA,
+        #_SEP+'(TITRE).SQZ$': SplashVGA,
+        #_SEP+'(TITREEGA).SQZ$': SplashEGA,
     }
 
     def __init__( self ):

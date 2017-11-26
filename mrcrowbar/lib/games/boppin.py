@@ -181,8 +181,8 @@ class Loader( mrc.Loader ):
     _SEP = mrc.Loader._SEP
 
     _BOPPIN_FILE_CLASS_MAP = {
-        _SEP+'(BOPPIN)(\d).LVL$': None,
-        _SEP+'(BOPPIN).RES$': Resource,
+        _SEP+'(BOPPIN)(\d).(LVL)$': None,
+        _SEP+'(BOPPIN).(RES)$': Resource,
     }
 
     def __init__( self ):

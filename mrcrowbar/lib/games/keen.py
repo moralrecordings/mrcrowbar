@@ -129,7 +129,7 @@ class LZWCompressor( mrc.Transform ):
 
         result = {
             'payload': bytes( output ),
-            'end_offset': bs.pos
+            'end_offset': len( buffer )
         }
 
         return result
@@ -137,6 +137,8 @@ class LZWCompressor( mrc.Transform ):
 
 
 class EGAHeader( mrc.Block ):
+    _egalatch = None           # should be manually pointed at the relevant EGALatch object
+
     latch_plane_size    = mrc.UInt32_LE( 0x00 )
     sprite_plane_size   = mrc.UInt32_LE( 0x04 )
     image_data_start    = mrc.UInt32_LE( 0x08 )
@@ -180,25 +182,100 @@ class EGAHeaderSpriteRef( mrc.Block ):
         return self.location_raw*16
 
 
+class EGATile8( mrc.Block ):
+    image_data = mrc.Bytes( 0x00, length=mrc.Ref( '_parent.tile8_size' ) )
 
-class EGATiles( mrc.Block ):
-    pass
-#    tile_data           =   mrc.Bytes(
-#                                0x00, transform=img.Planarizer(
-#                                    width=32,
-#                                    height,
-#                                    bpp=4,
-#                                    frame_count
-#                                )
-#                            )
-    
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, **kwargs )
+        self.tiles = img.IndexedImage( 
+                        self,
+                        width=8, height=8,
+                        source=mrc.Ref( 'image_data' ),
+                        frame_count=mrc.Ref( '_parent._parent._egahead.tile8_count' ),
+                        palette=ibm_pc.EGA_DEFAULT_PALETTE
+                    )
+
+
+class EGATile16( mrc.Block ):
+    image_data = mrc.Bytes( 0x00, length=mrc.Ref( '_parent.tile16_size' ) )
+
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, **kwargs )
+        self.tiles = img.IndexedImage( 
+                        self,
+                        width=16, height=16,
+                        source=mrc.Ref( 'image_data' ),
+                        frame_count=mrc.Ref( '_parent._parent._egahead.tile16_count' ),
+                        palette=ibm_pc.EGA_DEFAULT_PALETTE
+                    )
+
+class EGATile32( mrc.Block ):
+    image_data = mrc.Bytes( 0x00, length=mrc.Ref( '_parent.tile32_size' ) )
+
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, **kwargs )
+        self.tiles = img.IndexedImage( 
+                        self,
+                        width=32, height=32,
+                        source=mrc.Ref( 'image_data' ),
+                        frame_count=mrc.Ref( '_parent._parent._egahead.tile32_count' ),
+                        palette=ibm_pc.EGA_DEFAULT_PALETTE
+                    )
+
+
+class EGATileStore( mrc.Block ):
+    data = mrc.Bytes( 0x00, transform=img.Planarizer(
+                        bpp=4,
+                        plane_size=mrc.Ref( '_parent._egahead.latch_plane_size' )
+                    ) )
+
+    tile8 =  mrc.StoreRef( EGATile8,  mrc.Ref( 'store' ), mrc.Ref( 'tile8_offset' ),  mrc.Ref( 'tile8_size' ) )
+    tile16 = mrc.StoreRef( EGATile16, mrc.Ref( 'store' ), mrc.Ref( 'tile16_offset' ), mrc.Ref( 'tile16_size' ) )
+    tile32 = mrc.StoreRef( EGATile32, mrc.Ref( 'store' ), mrc.Ref( 'tile32_offset' ), mrc.Ref( 'tile32_size' ) )
+
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, **kwargs )
+        self.store = mrc.Store( self, mrc.Ref( 'data' ) )
+        
+    @property
+    def tile8_offset( self ):
+        return self._parent._egahead.tile8_offset*8
+
+    @property
+    def tile16_offset( self ):
+        return self._parent._egahead.tile16_offset*8
+
+    @property
+    def tile32_offset( self ):
+        return self._parent._egahead.tile32_offset*8
+
+    @property
+    def tile8_size( self ):
+        return self._parent._egahead.tile8_count*8*8
+
+    @property
+    def tile16_size( self ):
+        return self._parent._egahead.tile16_count*16*16
+
+    @property
+    def tile32_size( self ):
+        return self._parent._egahead.tile16_count*32*32
+
 
 class EGALatch( mrc.Block ):
-    tiles               = mrc.BlockField( EGATiles, 0x00 )
+    _egahead            = None
+
+    tilestore           = mrc.BlockField( EGATileStore, 0x00 )
 
 
 class EGALatchComp( mrc.Block ):
-    tiles               = mrc.BlockField( EGATiles, 0x00, transform=LZWCompressor() )
+    _egahead            = None
+
+    tiles_set           = mrc.BlockStream( EGATileStore, 0x00, transform=LZWCompressor() )
+    
+    @property
+    def tilestore( self ):
+        return self.tiles_set[0]
 
 
 class SoundHeader( mrc.Block ):
@@ -240,9 +317,9 @@ class Preview( mrc.Block ):
         self.image = img.IndexedImage( self, width=320, height=200, palette=ibm_pc.EGA_DEFAULT_PALETTE, source=mrc.Ref( 'image_data' ) )
 
 
-# source: http://www.shikadi.net/moddingwiki/Commander_Keen_1-3_Level_format
 
-class Level( mrc.Block ):
+
+class Level( mrc.Unknown ):
     pass
 
 
@@ -289,16 +366,22 @@ class Loader( mrc.Loader ):
     _SEP = mrc.Loader._SEP
 
     _KEEN_FILE_CLASS_MAP = {
-        _SEP+'(EGAHEAD).CK[1-3]$': EGAHeader,
-        _SEP+'(EGALATCH).CK1$': EGALatchComp,
-        _SEP+'(EGALATCH).CK[2-3]$': EGALatch,
-        _SEP+'(FINALE).CK[1-3]$': Preview,
-        _SEP+'(LEVEL)([0-9]{2}).CK[1-3]$': Level,
-        _SEP+'(PREVIEW)([2-3]).CK[1-3]$': Preview,
-        _SEP+'(SCORES).CK[1-3]$': Scores,
+        _SEP+'(EGAHEAD).CK([1-3])$': EGAHeader,
+        _SEP+'(EGALATCH).CK(1)$': EGALatchComp,
+        _SEP+'(EGALATCH).CK([2-3])$': EGALatch,
+        _SEP+'(FINALE).CK([1-3])$': Preview,
+        _SEP+'(LEVEL)([0-9]{2}).CK([1-3])$': Level,
+        _SEP+'(PREVIEW)([2-3]).CK([1-3])$': Preview,
+        _SEP+'(SCORES).CK([1-3])$': Scores,
     }
 
+    _KEEN_DEPS = [
+        (_SEP+'(EGALATCH).CK([1-3])$', _SEP+'(EGAHEAD).CK([1-3])$', ('EGAHEAD', '{1}'), '_egahead')
+    ]
 
 
     def __init__( self ):
-        super().__init__( self._KEEN_FILE_CLASS_MAP )
+        super().__init__( self._KEEN_FILE_CLASS_MAP, self._KEEN_DEPS )
+
+    def post_load( self, verbose=False ): 
+        pass

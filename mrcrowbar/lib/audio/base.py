@@ -52,6 +52,9 @@ def normalize_audio( source, sample_width ):
 
 
 def resample_audio( norm_source, sample_rate, interpolation ):
+    if sample_rate == 0:
+        return array( 'f' ).tobytes()
+
     samp_len = len( norm_source )-1
     new_len = RESAMPLE_RATE*samp_len//sample_rate
 
@@ -68,7 +71,7 @@ def resample_audio( norm_source, sample_rate, interpolation ):
         return array( 'f', (
             norm_source[sample_rate*i//RESAMPLE_RATE]
             for i in range( new_len )) ).tobytes()
-    return data
+    return array( 'f' ).tobytes()
 
 
 class Wave( mrc.View ):
@@ -79,32 +82,36 @@ class Wave( mrc.View ):
         self._sample_width = sample_width
         self._sample_rate = sample_rate
 
+    source = mrc.view_property( '_source' )
+    channels = mrc.view_property( '_channels' )
+    sample_rate = mrc.view_property( '_sample_rate' )
+
     def play( self, interpolation=AUDIO_INTERPOLATION_LINEAR ):
         if not pyaudio:
             raise ImportError( 'pyaudio must be installed for audio playback support (see https://people.csail.mit.edu/hubert/pyaudio)' )
         audio = pyaudio.PyAudio()
         data = b''
         format=getattr( pyaudio, self._sample_width[0] )
-        rate = self._sample_rate
+        rate = self.sample_rate
 
         if interpolation == AUDIO_INTERPOLATION_NONE:
-            padding = self._sample_width[1]*(2*PLAYBACK_BUFFER-(len( self._source ) % PLAYBACK_BUFFER))
-            data = self._source+padding
+            padding = self._sample_width[1]*(2*PLAYBACK_BUFFER-(len( self.source ) % PLAYBACK_BUFFER))
+            data = self.source+padding
         else:
             format = getattr( pyaudio, RESAMPLE_WIDTH[0] )
             rate=RESAMPLE_RATE
 
-            samp_array = normalize_audio( self._source, self._sample_width )+[0.0]
+            samp_array = normalize_audio( self.source, self._sample_width )+[0.0]
                 
             samp_len = len( self._source )
-            new_len = RESAMPLE_RATE*samp_len//self._sample_rate
+            new_len = RESAMPLE_RATE*samp_len//self.sample_rate if self.sample_rate else 0
 
             padding = RESAMPLE_WIDTH[1]*(2*PLAYBACK_BUFFER-(new_len % PLAYBACK_BUFFER))
-            data = resample_audio( samp_array, self._sample_rate, interpolation ) + padding
+            data = resample_audio( samp_array, self.sample_rate, interpolation ) + padding
            
         stream = audio.open( 
             format=format,
-            channels=self._channels,
+            channels=self.channels,
             rate=rate,
             output=True
         )

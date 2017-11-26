@@ -82,7 +82,6 @@ class Loader( object ):
                         dependencies.append( (i, path, targets[0]) )
         
         # make dependency lookup table
-        print( dependencies )
         dependency_map = defaultdict( list )
         for index, source, dest in dependencies:
             dependency_map[source].append( (dest, self.dependency_list[index][3]) )
@@ -119,13 +118,12 @@ class Loader( object ):
                 data = mmap( f.fileno(), 0 )
                 if verbose:
                     print( '{} => {}'.format( path, info['klass'] ) )
-                info['obj'] = info['klass']( data )
+
+                deps = {attr: self._files[dest]['obj'] for dest, attr in dependency_map[path]}
+
+                info['obj'] = info['klass']( data, preload_attrs=deps )
                 data.close()
 
-                # link in dependencies
-                if path in dependency_map:
-                    for dest, attr in dependency_map[path]:
-                        setattr( info['obj'], attr, self._files[dest]['obj'] )
 
         self.post_load( verbose )
         return

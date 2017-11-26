@@ -121,7 +121,7 @@ class Block( object, metaclass=BlockMeta ):
     _parent = None
     repr = None
 
-    def __init__( self, source_data=None, parent=None ):
+    def __init__( self, source_data=None, parent=None, preload_attrs=None ):
         """Base class for Blocks.
 
         source_data
@@ -131,10 +131,18 @@ class Block( object, metaclass=BlockMeta ):
         parent
             Parent Block object where this Block is defined. Used for e.g. 
             evaluating Refs.
+
+        preload_attrs
+            Attributes on the Block to set before importing the data. Used
+            for linking in dependencies before loading.
         """
         self._field_data = {}
         self._ref_cache = {}
         self._parent = parent
+
+        if preload_attrs:
+            for attr, value in preload_attrs.items():
+                setattr( self, attr, value )
 
         # start the initial load of data
         if isinstance( source_data, Block ):

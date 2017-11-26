@@ -243,3 +243,10 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
         for ref in klass._refs:
             pass
+
+
+class Unknown( Block ):
+    """Placeholder block for data of an unknown format."""
+
+    #: Raw data.
+    data =  Bytes( 0x0000 )

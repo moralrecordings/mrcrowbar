@@ -603,7 +603,7 @@ class InteractiveImage( mrc.Block ):
                         )
 
     def __init__( self, *args, **kwargs ):
-        mrc.Block.__init__( self, *args, **kwargs )
+        super().__init__( *args, **kwargs )
         self.image = img.IndexedImage( 
                         self, 
                         width=mrc.Ref( '_parent.width' ), 
@@ -721,7 +721,7 @@ class TerrainImage( mrc.Block ):
                         )
 
     def __init__( self, *args, **kwargs ):
-        mrc.Block.__init__( self, *args, **kwargs )
+        super().__init__( *args, **kwargs )
         self.image = img.IndexedImage( 
                         self, 
                         width=mrc.Ref( '_parent.width' ), 
@@ -763,7 +763,7 @@ class TerrainInfo( mrc.Block ):
 class GroundDAT( mrc.Block ):
     """Represents a single graphical style."""
 
-    _vgagr = None           # should be manually pointed at the relevant VgagrDAT object
+    _vgagr = None           # should be replaced by the correct VgagrDAT object
 
     #: Information for every type of interactive piece.
     interactive_info        = mrc.BlockField( InteractiveInfo, 0x0000, count=16, fill=b'\x00' )
@@ -801,7 +801,7 @@ class VgagrStore( mrc.Block ):
     data = mrc.Bytes( 0x0000 )
 
     def __init__( self, *args, **kwargs ):
-        mrc.Block.__init__( self, *args, **kwargs )
+        super().__init__( *args, **kwargs )
         self.store = mrc.Store( self, mrc.Ref( 'data' ) )
 
 
@@ -830,7 +830,7 @@ class Anim( mrc.Block ):
         self.bpp = bpp
         self.frame_count = frame_count
         self.image = img.IndexedImage( self, width=width, height=height, source=mrc.Ref( 'image_data' ), frame_count=frame_count, palette=LEMMINGS_VGA_DEFAULT_PALETTE )
-        mrc.Block.__init__( self, *args, **kwargs )
+        super().__init__( *args, **kwargs )
 
 
 AnimField = lambda offset, width, height, bpp, frame_count: mrc.BlockField( Anim, offset, block_kwargs={ 'width': width, 'height': height, 'bpp': bpp, 'frame_count': frame_count } )
@@ -932,7 +932,7 @@ class Special( mrc.Block ):
     image_data           =  mrc.Bytes( 0x0028, transform=SpecialCompressor() )
 
     def __init__( self, *args, **kwargs ):
-        mrc.Block.__init__( self, *args, **kwargs )
+        super().__init__( *args, **kwargs )
         self.image = img.IndexedImage( self, width=960, height=160, source=mrc.Ref( 'image_data', allow_write=True ), palette=mrc.Ref( 'palette_vga', allow_write=True ) )
 
 
@@ -962,28 +962,14 @@ class Loader( mrc.Loader ):
         _SEP+'(VGASPEC)(\d).DAT$': VgaspecDAT,
     }
 
+    _LEMMINGS_DEPS = [
+        (_SEP+'(GROUND)(\d)O.DAT$', _SEP+'(VGAGR)(\d).DAT$', ('VGAGR', '{1}'), '_vgagr')
+    ]
+
     def __init__( self ):
-        super().__init__( self._LEMMINGS_FILE_CLASS_MAP )
+        super().__init__( self._LEMMINGS_FILE_CLASS_MAP, dependency_list=self._LEMMINGS_DEPS )
 
     def post_load( self, verbose=False ):
-        unique_check = set([''.join(x['match']).upper() for x in self._files.values()])
-
-        if len( unique_check ) != len( self._files ):
-            self._files = {}
-            raise Exception( 'Multiple matches found for the same source file! Please ensure that the path passed to load() has only one copy of Lemmings in it.' ) 
-
-        file_map = {}
-        for x in self._files.values():
-            if verbose:
-                print( x )
-            file_map[(x['match'][0].upper(), int( x['match'][1] ) if len( x['match'] )>1 else None )] = x['obj']
-        
-        for key, obj in file_map.items():
-            if key[0] == 'GROUND':
-                if ('VGAGR', key[1]) in file_map:
-                    obj._vgagr = file_map[('VGAGR', key[1])]
-                else:
-                   print( 'Missing VGAGR{}.DAT, graphics not avaiable in GROUND{}O.DAT' )
 
         # TODO: wire up inter-file class relations here
         return

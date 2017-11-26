@@ -143,15 +143,15 @@ class BlockStream( Field ):
         pointer = offset
         result = []
         while pointer < len( buffer ):
+            # run the stop check (if exists): if it returns true, we've hit the end of the stream
+            if self.stop_check and (self.stop_check( buffer, pointer )):
+                break
             if self.transform:
                 data = self.transform.import_data( buffer[pointer:], parent=parent )
                 block = self.block_klass( source_data=data['payload'], parent=parent, **self.block_kwargs )
                 result.append( block )
                 pointer += data['end_offset']
             else:
-                # run the stop check (if exists): if it returns true, we've hit the end of the stream
-                if self.stop_check and (self.stop_check( buffer, pointer )):
-                    break
                 block = self.block_klass( source_data=buffer[pointer:], parent=parent, **self.block_kwargs )
                 size = block.get_size()
                 assert size > 0

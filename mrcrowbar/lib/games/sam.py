@@ -142,9 +142,9 @@ class Loader( mrc.Loader ):
 
     _SAM_FILE_CLASS_MAP = {
         _SEP+'(SAM)([1-3]).(APO|CRD|END|TTL)$': None,
-        _SEP+'(SAM)([1-3])01.(GFX)$': SAMGfx16,
-        _SEP+'(SAM)([1-3])02.(GFX)$': SAMGfx8,
-        _SEP+'(SAM)([1-3])03.(GFX)$': None,
+        _SEP+'(SAM)([1-3])0(1).(GFX)$': SAMGfx16,
+        _SEP+'(SAM)([1-3])0(2).(GFX)$': SAMGfx8,
+        _SEP+'(SAM)([1-3])0(3).(GFX)$': None,
         _SEP+'(SAM)([1-3])0([1-3])E.(SND)$': None,
     }
 

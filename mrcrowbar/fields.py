@@ -562,6 +562,9 @@ class ValueField( Field ):
         return offset
 
     def get_size( self, value, parent=None ):
+        count = property_get( self.count, parent )
+        if count:
+            return self.field_size*count
         return self.field_size
 
 

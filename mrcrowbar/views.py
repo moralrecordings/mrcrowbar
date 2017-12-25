@@ -18,13 +18,7 @@ class Store( View ):
         self.fill = fill
         self.refs = OrderedDict()
 
-    @property
-    def source( self ):
-        return property_get( self._source, self._parent )
-
-    @source.setter
-    def source( self, value ):
-        return property_set( self._source, self._parent, value )
+    source = view_property( '_source' )
 
     def get_object( self, instance, offset, size, block_klass, block_kwargs=None ):
         # key is the combination of:
@@ -38,6 +32,58 @@ class Store( View ):
         if key not in self.refs:
             self.refs[key] = block_klass( source_data=self.source[offset:offset+size], parent=instance, **block_kwargs )
         return self.refs[key]
+
+
+class LinearStore( View ):
+    def __init__( self, parent, source, block_klass, offsets=None, sizes=None, base_offset=0, fill=b'\x00', **kwargs ):
+        super().__init__( parent, **kwargs )
+        self._source = source
+        self._offsets = offsets
+        self._sizes = sizes
+        self._base_offset = base_offset
+        self.block_klass = block_klass
+        self.refs = None
+
+    source = view_property( '_source' )
+    offsets = view_property( '_offsets' )
+    sizes = view_property( '_sizes' )
+    base_offset = view_property( '_base_offset' )
+
+    def validate( self ):
+        offsets = self.offsets
+        sizes = self.sizes
+        if offsets and not isinstance( offsets, list ):
+            raise TypeError( 'offsets must be a list of values' )
+        if sizes and not isinstance( sizes, list ):
+            raise TypeError( 'sizes must be a list of values' )
+        if not offsets and not sizes:
+            raise ValueError( 'either offsets or sizes must be defined' )
+        if offsets and sizes and not (len( offsets ) == len( sizes )):
+            raise ValueError( 'array length of offsets and sizes must match' )
+
+    def cache( self ):
+        self.validate()
+        offsets = self.offsets
+        sizes = self.sizes
+        if not sizes:
+            sizes = [offsets[i+1]-offsets[i] for i in range( len( offsets )-1)]
+            sizes.append( len( self.source ) - offsets[-1] )
+        elif not offsets:
+            offsets = [sum( sizes[:i] ) for i in range( len( sizes ) )]
+        self.refs = [self.block_klass( self.source[self.base_offset+offsets[i]:][:sizes[i]] ) for i in range( len( sizes ) )]
+
+    def __getitem__( self, key ):
+        if self.refs is None:
+            self.cache()
+        return self.refs[key]
+
+    def __setitem__( self, key, value ):
+        if self.refs is None:
+            self.cache()
+        self.refs[key] = value
+
+    def __len__( self ):
+        return len( self.refs )
 
 
 # Loading a Store is a tricky business.

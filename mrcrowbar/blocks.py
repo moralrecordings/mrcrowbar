@@ -247,10 +247,17 @@ class Block( object, metaclass=BlockMeta ):
             size = max( size, check.get_end_offset( parent=self ) )
         return size
 
-    def _prime( self ):
+    def get_field_start_offset( self, field_name ):
         klass = self.__class__
-        for ref in klass._refs:
-            pass
+        return klass._fields[field_name].get_start_offset( self._field_data[field_name], parent=self )
+
+    def get_field_size( self, field_name ):
+        klass = self.__class__
+        return klass._fields[field_name].get_size( self._field_data[field_name], parent=self )
+
+    def get_field_end_offset( self, field_name ):
+        klass = self.__class__
+        return klass._fields[field_name].get_end_offset( self._field_data[field_name], parent=self )
 
 
 class Unknown( Block ):

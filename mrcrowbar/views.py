@@ -12,13 +12,15 @@ class View( object ):
 
 
 class Store( View ):
-    def __init__( self, parent, source, fill=b'\x00', **kwargs ):
+    def __init__( self, parent, source, fill=b'\x00', base_offset=0, **kwargs ):
         super().__init__( parent, **kwargs )
         self._source = source
+        self._base_offset = base_offset
         self.fill = fill
         self.refs = OrderedDict()
 
     source = view_property( '_source' )
+    base_offset = view_property( '_base_offset' )
 
     def get_object( self, instance, offset, size, block_klass, block_kwargs=None ):
         # key is the combination of:
@@ -30,7 +32,7 @@ class Store( View ):
         block_kwargs = block_kwargs if block_kwargs else {}
 
         if key not in self.refs:
-            self.refs[key] = block_klass( source_data=self.source[offset:offset+size], parent=instance, **block_kwargs )
+            self.refs[key] = block_klass( source_data=self.source[self.base_offset+offset:][:size], parent=instance, **block_kwargs )
         return self.refs[key]
 
 

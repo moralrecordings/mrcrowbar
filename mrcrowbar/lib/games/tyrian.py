@@ -5,7 +5,7 @@ from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar import utils
 
-class Patch( mrc.Block ):
+class SongPatch( mrc.Block ):
     mod_visc =          mrc.UInt8( 0x0000 )
     mod_vol =           mrc.UInt8( 0x0001 )
     mod_ad =            mrc.UInt8( 0x0002 )
@@ -40,6 +40,24 @@ class Patch( mrc.Block ):
     middum2 =           mrc.UInt8( 0x002d )
 
 
+class SongPositionChannel( mrc.Block ):
+    pattern_num_raw =   mrc.UInt16_LE( 0x00 )
+    transpose =         mrc.UInt8( 0x02 )
+
+    @property
+    def pattern_num( self ):
+        return self.pattern_num_raw//2
+
+
+class SongPosition( mrc.Block ):
+    channels =           mrc.BlockField( SongPositionChannel, 0x00, count=9 )
+
+
+class SongPattern( mrc.Block ):
+    func =              mrc.UInt8( 0x00 )
+    value =             mrc.UInt8( 0x01 )
+
+
 class Song( mrc.Block ):
     mode =              mrc.UInt8( 0x0000 )
     speed =             mrc.UInt16_LE( 0x0001 )
@@ -47,9 +65,15 @@ class Song( mrc.Block ):
     pattlen =           mrc.UInt8( 0x0004 )
     chandelay =         mrc.UInt8( 0x0005, count=9 )
     regbd =             mrc.UInt8( 0x000e )
-    patch_count =       mrc.UInt16_LE( 0x000f )
 
-    patches =           mrc.BlockField( Patch, 0x0011, count=mrc.Ref( 'patch_count' ) )
+    patch_count =       mrc.UInt16_LE( 0x000f )
+    patches =           mrc.BlockField( SongPatch, 0x0011, count=mrc.Ref( 'patch_count' ) )
+
+    position_count =    mrc.UInt16_LE( mrc.EndOffset( 'patches' ) )
+    positions =         mrc.BlockField( SongPosition, mrc.EndOffset( 'position_count' ), count=mrc.Ref( 'position_count' ) )
+
+    num_digital =       mrc.UInt16_LE( mrc.EndOffset( 'positions' ) )
+    patterns =          mrc.BlockStream( SongPattern, mrc.EndOffset( 'num_digital' ) )
     
     #data =      Bytes( 0x0000 )
 
@@ -58,15 +82,8 @@ class MUSFile( mrc.Block ):
     song_count =    mrc.UInt16_LE( 0x00 )
     song_offsets =  mrc.UInt32_LE( 0x02, count=mrc.Ref( 'song_count' ) )
 
-    songs_raw =     mrc.Bytes( mrc.Ref( 'song_data_offset' ) )
+    songs_raw =     mrc.Bytes( mrc.EndOffset( 'song_offsets' ) )
     
-    @property
-    def song_data_offset( self ):
-        return self.get_field_end_offset( 'song_offsets' )
-
-    @property
-    def song_data_neg_offset( self ):
-        return -self.get_field_end_offset( 'song_offsets' )
 
     def __init__( self, *args, **kwargs ):
         super().__init__( *args, **kwargs )
@@ -74,5 +91,5 @@ class MUSFile( mrc.Block ):
                                      source=mrc.Ref( 'songs_raw' ), 
                                      block_klass=Song,
                                      offsets=mrc.Ref( 'song_offsets' ),
-                                     base_offset=mrc.Ref( 'song_data_neg_offset' ) )
+                                     base_offset=mrc.EndOffset( 'song_offsets', neg=True ) )
 

@@ -108,3 +108,36 @@ def view_property( prop ):
         return property_set( getattr( self, prop ), self.parent, value )
 
     return property( getter, setter )
+
+
+class EndOffset( Ref ):
+    """Cross-reference for getting the offset of the end of a Field. Used for chaining variable length Fields."""
+    def __init__( self, path, neg=False ):
+        """Create a new EndOffset instance.
+
+        path
+            The path to traverse from the context object to reach the target Field.
+            Child lookups should be in property dot syntax (e.g. obj1.obj2.target).
+            For Blocks that are constructed by other Blocks, you can use the _parent property
+            to traverse up the stack.
+
+        neg
+            Whether to return the end offset as a negative value. Useful for
+            e.g. globally offsetting Stores which use an index relative to the
+            very start of the file, even if the first chunk contains headers.
+        """
+        super().__init__( path )
+        self.neg = neg
+
+    def get( self, instance ):
+        target = instance
+        for attr in self.path[:-1]:
+            target = getattr( target, attr )
+        target = target.get_field_end_offset( self.path[-1] )
+        if self.neg:
+            target *= -1
+        return target
+
+    def set( self, instance, value ):
+        raise AttributeError( "can't change the end offset of another field" )
+

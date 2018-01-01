@@ -31,14 +31,14 @@ BOPPIN_RES_FILENAMES = [
     'UNKNOWN1',
     'UNKNOWN2',
     'UNKNOWN3',
-    'BOPPIN.LVL',
     'UNKNOWN4',
-    'UNKNOWN5',
-    'UNKNOWN6',
-    'UNKNOWN7',
+    'BOPPIN1.LVL',
+    'BOPPIN2.LVL',
+    'BOPPIN3.LVL',
+    'BOPPIN4.LVL',
     'ENDSCRN.BIN',
-    'UNKNOWN8',
-    'UNKNOWN9'
+    'UNKNOWN5',
+    'UNKNOWN6'
 ]
 
 BOPPIN_MUS_FILENAMES = [
@@ -119,6 +119,20 @@ BOPPIN_SND_FILENAMES = [
 ]
 
 
+# levels can pick:
+# - 6 banks of 16x tiles
+# - 2 banks of 6x bopping blocks 
+# - 2 banks of 2x source blocks 
+# - 2 banks of 4x wall tiles
+# - 2 banks of 7x floor tiles
+# - 2 banks of 2x elevator tiles
+# 
+# each bg bank has its own palette? might be common 256col palette for whole game
+# prize bank is common, has 128 items
+# each prize item has its own 16 colour palette
+# colours 24-27 and 28-30 are strobing palette
+
+
 class Colour( img.Colour ):
     r_8 =           mrc.UInt8( 0x00 )
     unknown_1 =     mrc.UInt8( 0x01 )
@@ -131,6 +145,7 @@ class Colour( img.Colour ):
 class Lookup( mrc.Block ):
     offset =        mrc.UInt32_LE( 0x00 )
     size =          mrc.UInt32_LE( 0x04 )
+
 
 # stop looking for more lookup-table entries once we hit the first result that references the end of the file
 def resource_stop_check( buffer, offset ):
@@ -155,6 +170,12 @@ def resource_stop_check( buffer, offset ):
 
 class Resource( mrc.Block ):
     lookup_table =  mrc.BlockField( Lookup, 0x00, stride=0x08, count=64, stop_check=resource_stop_check, fill=b'\xff\xff\xff\xff\x00\x00\x00\x00' )
+    files_raw = mrc.Bytes( mrc.EndOffset( 'lookup_table' ) )
+    
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, **kwargs )
+        self.files = mrc.Store( parent=self, source=mrc.Ref( 'files_raw' ), base_offset=mrc.EndOffset( 'lookup_table', neg=True ) )
+
 
 
 class BoppinCompressor( mrc.Transform ):
@@ -172,7 +193,7 @@ class BoppinCompressor( mrc.Transform ):
         
         size_raw = utils.from_uint32_le( buffer[4:] )
         result = lc.import_data( buffer[8:][:size_comp] )
-        if len( result ) != size_raw:
+        if len( result['payload'] ) != size_raw:
             print( 'Was expecting a decompressed size of {}, got {}!'.format( size_raw, len( result['payload'] ) ) )
         return result
 

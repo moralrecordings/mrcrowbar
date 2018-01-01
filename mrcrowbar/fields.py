@@ -254,6 +254,16 @@ class BlockField( Field ):
             if (b is not None) and (not isinstance( b, self.block_klass )):
                  raise FieldValidationError( 'Expecting block class {}, not {}'.format( self.block_klass, type( b ) ) )
 
+    def get_start_offset( self, value, parent=None ):
+        offset = property_get( self.offset, parent )
+        return offset
+
+    def get_size( self, value, parent=None ):
+        count = property_get( self.count, parent )
+        if count:
+            return self.stride*count
+        return self.stride
+
 
 class Bytes( Field ):
     def __init__( self, offset, length=None, default=None, transform=None, **kwargs ):
@@ -404,6 +414,53 @@ class CStringN( Field ):
     def get_size( self, value, parent=None ):
         length = property_get( self.length, parent )
         return len( length )
+
+
+class CStringNStream( Field ):
+    def __init__( self, offset, length_field, **kwargs ):
+        assert issubclass( length_field, ValueField )
+        super().__init__( **kwargs )
+        self.offset = offset
+        self.length_field = length_field( 0x00 )
+
+    def get_from_buffer( self, buffer, parent=None ):
+        assert utils.is_bytes( buffer )
+        offset = property_get( self.offset, parent )
+        strings = []
+
+        pointer = offset
+        while pointer < len( buffer ):
+            count = self.length_field.get_from_buffer( buffer[pointer:] )
+            pointer += self.length_field.field_size
+            strings.append( buffer[pointer:pointer+count].split( b'\x00', 1 )[0] )
+            pointer += count
+        return strings
+
+    def update_buffer_with_value( self, value, buffer, parent=None ):
+        super().update_buffer_with_value( value, buffer, parent )
+        offset = property_get( self.offset, parent )
+        length = self.length_field.field_size
+
+        pointer = offset
+        for s in value:
+            assert utils.is_bytes( s )
+            string_data = s+b'\x00'
+            self.length_field.offset = pointer
+            self.length_field.update_buffer_with_value( len( string_data ), buffer )
+            pointer += length
+            buffer[pointer:pointer+len( string_data )] = string_data
+            pointer += len( string_data )
+
+    def get_start_offset( self, value, parent=None ):
+        offset = property_get( self.offset, parent )
+        return offset
+
+    def get_size( self, value, parent=None ):
+        size = 0
+        for x in value:
+            size += self.length_field.field_size
+            size += len( x )
+        return size
 
 
 class ValueField( Field ):

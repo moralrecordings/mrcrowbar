@@ -50,6 +50,11 @@ class Colour( mrc.Block ):
         self.r_8 = r_8
         self.g_8 = g_8
         self.b_8 = b_8
+        return self
+
+    def set_a( self, a_8 ):
+        self.a_8 = a_8
+        return self
 
     def clone_data( self, source ):
         assert isinstance( source, Colour )
@@ -127,13 +132,35 @@ def to_palette_bytes( palette ):
     return itertools.chain( *((c.r_8, c.g_8, c.b_8) for c in palette) )
 
 
-def from_palette_bytes( palette_bytes ):
+def from_palette_bytes( palette_bytes, stride=3, order=(0, 1, 2) ):
     result = []
-    for i in range( math.floor( len( palette_bytes )/3 ) ):
-        colour = Colour()
-        colour.set_rgb( palette_bytes[3*i], palette_bytes[3*i+1], palette_bytes[3*i+2] )
+    for i in range( math.floor( len( palette_bytes )/stride ) ):
+        colour = Colour().set_rgb( palette_bytes[stride*i+order[0]], palette_bytes[stride*i+order[1]], palette_bytes[stride*i+order[2]] )
         result.append( colour )
     return result
+
+
+def mix( col_a, col_b, alpha ):
+    r = round( (col_b.r_8 - col_a.r_8)*alpha + col_a.r_8 )
+    g = round( (col_b.g_8 - col_a.g_8)*alpha + col_a.g_8 )
+    b = round( (col_b.b_8 - col_a.b_8)*alpha + col_a.b_8 )
+    a = round( (col_b.a_8 - col_a.a_8)*alpha + col_a.a_8 )
+
+    return Colour().set_rgb( r, g, b ).set_a( a )
+
+def gradient_to_palette( points ):
+    count = len( points ) - 1
+    return [mix( points[(i*count//256)], points[(i*count//256)+1], math.fmod( (i*count/256), 1 ) ) for i in range( 256 )]
+
+TEST_PALETTE_POINTS = [
+    Colour().set_rgb( 0x00, 0x00, 0x00 ),
+    Colour().set_rgb( 0x70, 0x34, 0x00 ),
+    Colour().set_rgb( 0xe8, 0x6c, 0x00 ),
+    Colour().set_rgb( 0xf0, 0xb0, 0x40 ),
+    Colour().set_rgb( 0xf8, 0xec, 0xa0 ),
+]
+
+TEST_PALETTE = gradient_to_palette( TEST_PALETTE_POINTS )
 
 
 class IndexedImage( Image ):

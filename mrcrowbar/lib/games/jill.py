@@ -52,8 +52,11 @@ class Tileset( mrc.Block ):
     len_cga         = mrc.UInt16_LE( 0x03 )
     len_ega         = mrc.UInt16_LE( 0x05 )
     len_vga         = mrc.UInt16_LE( 0x07 )
-    depth           = mrc.UInt8( 0x09 )
+    colour_depth    = mrc.UInt8( 0x09 )
     flags           = mrc.UInt16_LE( 0x0a )
+
+    
+
 
 
 class SHAFile( mrc.Block ):
@@ -89,8 +92,15 @@ class XargonLoader( mrc.Loader ):
     _SEP = mrc.Loader._SEP
 
     _XARGON_FILE_CLASS_MAP = {
-        _SEP+'(BOARD)_([0-9]{2}).XR([1-3])$': None,
-        _SEP+'(AUDIO).XR([1-3])$': VCLFile
+        _SEP+'(AUDIO).XR([1-3])$': VCLFile,
+        _SEP+'(BOARD)_([0-9A-Z]+).XR([1-3])$': None,
+        _SEP+'(DEMO)([1-3]).XR([1-3])$': None,
+        _SEP+'(GRAPHICS).XR([1-3])$': SHAFile,
+        _SEP+'(INTRO).XR([1-3])$': None,
+        _SEP+'(MAP).XR([1-3])$': None,
+        _SEP+'(SONG)_([0-9]+).XR([1-3])$': None,
+        _SEP+'(STORY).XR([1-3])$': None,
+        _SEP+'(TILES).XR([1-3])$': None,
     }
 
     def __init__( self ):

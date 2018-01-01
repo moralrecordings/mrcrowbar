@@ -59,7 +59,7 @@ class SAMTileset16( mrc.Block ):
                         ) )
 
     def __init__( self, *args, **kwargs ):
-        mrc.Block.__init__( self, *args, **kwargs )
+        super().__init__( *args, **kwargs )
         self.image = img.IndexedImage( 
                         self,
                         width=mrc.Ref( 'width' ),
@@ -106,7 +106,7 @@ class SAMTileset8( mrc.Block ):
                         ) )
 
     def __init__( self, *args, **kwargs ):
-        mrc.Block.__init__( self, *args, **kwargs )
+        super().__init__( *args, **kwargs )
         self.image = img.IndexedImage( 
                         self,
                         width=mrc.Ref( 'width' ),

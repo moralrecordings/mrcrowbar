@@ -65,21 +65,21 @@ class SNDS( mrc.Block ):
 # 16, 0, 0, 0 - ???
 # 17, 0, 0, 0 - overlayable scenery
 
-# 32, 0, 2, 0 - spaceport
-# 32, 0, 4, 0 - puzzle
-# 32, 0, 8, 0 - puzzle filled
-# 32, 0, 16, 0 - door
-# 32, 0, 32, 0 - door filled
-# 32, 0, 64, 0 - north wall
-# 32, 0, 128, 0 - south wall
-# 32, 0, 0, 1 - west wall
-# 32, 0, 0, 2 - east wall
-# 32, 0, 0, 4 - north wall open
-# 32, 0, 0, 8 - south wall open
-# 32, 0, 0, 16 - west wall open
-# 32, 0, 0, 32 - east wall open
-# 32, 0, 0, 64 - goal
-# 32, 0, 0, 128 - location
+# 32, 0, 2, 0 - map: spaceport
+# 32, 0, 4, 0 - map: puzzle
+# 32, 0, 8, 0 - map: puzzle filled
+# 32, 0, 16, 0 - map: door
+# 32, 0, 32, 0 - map: door filled
+# 32, 0, 64, 0 - map: north wall
+# 32, 0, 128, 0 - map: south wall
+# 32, 0, 0, 1 - map: west wall
+# 32, 0, 0, 2 - map: east wall
+# 32, 0, 0, 4 - map: north wall open
+# 32, 0, 0, 8 - map: south wall open
+# 32, 0, 0, 16 - map: west wall open
+# 32, 0, 0, 32 - map: east wall open
+# 32, 0, 0, 64 - map: goal
+# 32, 0, 0, 128 - map: location
 
 # 65, 0, 1, 0 - blaster
 # 65, 0, 2, 0 - rifle + detonator

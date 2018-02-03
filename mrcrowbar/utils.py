@@ -144,7 +144,7 @@ def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_l
                     continue
                 line.append( colour_wrap( '{:02x} '.format( source[suboffset] ), source[suboffset] ) )
             line.append( ' ' )
-        line.append( '│ {}'.format( to_string( source[offset:offset+major_len*minor_len] ) ) )
+        line.append( '│ {}'.format( to_string( source[offset:min( offset+major_len*minor_len, end )] ) ) )
         lines.append( ''.join( line ) )
     lines.append( '' )
     return '\n'.join(lines)

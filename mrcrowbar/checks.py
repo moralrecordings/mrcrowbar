@@ -1,9 +1,12 @@
 from mrcrowbar.fields import Field
 from mrcrowbar import utils
 
+class CheckException( Exception ):
+    pass
+
 class Check( object ):
-    def __init__( self ):
-        pass
+    def __init__( self, raise_exception=False ):
+        self.raise_exception = raise_exception
 
     def check_buffer( self, buffer, parent=None ):
         pass
@@ -33,15 +36,19 @@ class Check( object ):
 
 
 class Const( Check ):
-    def __init__( self, field, value ):
+    def __init__( self, field, value, *args, **kwargs ):
         assert isinstance( field, Field )
+        super().__init__( *args, **kwargs )
         self.field = field
         self.value = value
 
     def check_buffer( self, buffer, parent=None ):
         test = self.field.get_from_buffer( buffer, parent )
         if test != self.value:
-            print( 'Warning: {}:{}, found {}!'.format( parent, self, self.value, test ) )
+            mismatch = '{}:{}, found {}!'.format( self, self.value, test )
+            if self.raise_exception:
+                raise CheckException( mismatch )
+            print( 'Warning: {}'.format( mismatch ) )
         
     def update_buffer( self, buffer, parent=None ):
         self.field.update_buffer_with_value( self.value, buffer, parent )

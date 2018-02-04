@@ -627,21 +627,31 @@ class ValueField( Field ):
 
 class Int8( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '<b', 1, int, range( -1<<7, 1<<7 ), *args, **kwargs )
+        super().__init__( '<b', 1, int, range( -1<<7, 1<<7 ), *args, **kwargs )
 
 
 class UInt8( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '>B', 1, int, range( 0, 1<<8 ), *args, **kwargs )
+        super().__init__( '>B', 1, int, range( 0, 1<<8 ), *args, **kwargs )
 
 
-class Bits( UInt8 ):
-    def __init__( self, offset, bits, default=0, *args, **kwargs ):
-        super().__init__( offset, default=default, *args, **kwargs )
+class Bits( ValueField ):
+    def __init__( self, offset, bits, default=0, size=1, *args, **kwargs ):
+        SIZES = {
+            1: ('>B', 1, int, range( 0, 1<<8 )),
+            2: ('>H', 2, int, range( 0, 1<<16 )),
+            4: ('>I', 4, int, range( 0, 1<<32 )),
+            8: ('>Q', 8, int, range( 0, 1<<64 )),
+        }
+        assert size in SIZES
         assert type( bits ) == int
+        assert (bits >= 0)
+        assert (bits < 1<<(8*size))
+
         self.mask_bits = bin( bits ).split( 'b', 1 )[1]
         self.bits = [(1<<i) for i, x in enumerate( reversed( self.mask_bits ) ) if x == '1']
-        self.format_range = range( 0, 1<<len( self.bits ) )
+        self.check_range = range( 0, 1<<len( self.bits ) )
+        super().__init__( *SIZES[size], offset, default=default, *args, **kwargs )
 
     def get_from_buffer( self, buffer, parent=None ):
         result = super().get_from_buffer( buffer, parent )
@@ -651,12 +661,13 @@ class Bits( UInt8 ):
         return value
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
-        offset = property_get( self.offset, parent )
-
+        assert value in self.check_range
+        packed = 0
         for i, x in enumerate( self.bits ):
-            buffer[offset] &= 0xff ^ x
             if (value & (1 << i)):
-                buffer[offset] |= x
+                packed |= x
+
+        super().update_buffer_with_value( packed, buffer, parent )
         return
     
     @property
@@ -669,81 +680,81 @@ class Bits( UInt8 ):
 
 class UInt16_LE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '<H', 2, int, range( 0, 1<<16 ), *args, **kwargs )
+        super().__init__( '<H', 2, int, range( 0, 1<<16 ), *args, **kwargs )
 
 
 class UInt32_LE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '<I', 4, int, range( 0, 1<<32 ), *args, **kwargs )
+        super().__init__( '<I', 4, int, range( 0, 1<<32 ), *args, **kwargs )
 
 
 class UInt64_LE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '<Q', 8, int, range( 0, 1<<64 ), *args, **kwargs )
+        super().__init__( '<Q', 8, int, range( 0, 1<<64 ), *args, **kwargs )
 
 
 class Int16_LE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '<h', 2, int, range( -1<<15, 1<<15 ), *args, **kwargs )
+        super().__init__( '<h', 2, int, range( -1<<15, 1<<15 ), *args, **kwargs )
 
 
 class Int32_LE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '<i', 4, int, range( -1<<31, 1<<31 ), *args, **kwargs )
+        super().__init__( '<i', 4, int, range( -1<<31, 1<<31 ), *args, **kwargs )
 
 
 class Int64_LE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '<q', 8, int, range( -1<<63, 1<<63 ), *args, **kwargs )
+        super().__init__( '<q', 8, int, range( -1<<63, 1<<63 ), *args, **kwargs )
 
 
 class Float_LE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '<f', 4, float, None, *args, **kwargs )
+        super().__init__( '<f', 4, float, None, *args, **kwargs )
 
 
 class Double_LE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '<d', 8, float, None, *args, **kwargs )
+        super().__init__( '<d', 8, float, None, *args, **kwargs )
 
 
 class UInt16_BE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '>H', 2, int, range( 0, 1<<16 ), *args, **kwargs )
+        super().__init__( '>H', 2, int, range( 0, 1<<16 ), *args, **kwargs )
 
 
 class UInt32_BE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '>I', 4, int, range( 0, 1<<32 ), *args, **kwargs )
+        super().__init__( '>I', 4, int, range( 0, 1<<32 ), *args, **kwargs )
 
 
 class UInt64_BE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '>Q', 8, int, range( 0, 1<<64 ), *args, **kwargs )
+        super().__init__( '>Q', 8, int, range( 0, 1<<64 ), *args, **kwargs )
 
 
 class Int16_BE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '>h', 2, int, range( -1<<15, 1<<15 ), *args, **kwargs )
+        super().__init__( '>h', 2, int, range( -1<<15, 1<<15 ), *args, **kwargs )
 
 
 class Int32_BE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '>i', 4, int, range( -1<<31, 1<<31 ), *args, **kwargs )
+        super().__init__( '>i', 4, int, range( -1<<31, 1<<31 ), *args, **kwargs )
 
 
 class Int64_BE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '>q', 8, int, range( -1<<63, 1<<63 ), *args, **kwargs )
+        super().__init__( '>q', 8, int, range( -1<<63, 1<<63 ), *args, **kwargs )
 
 
 class Float_BE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '>f', 4, float, None, *args, **kwargs )
+        super().__init__( '>f', 4, float, None, *args, **kwargs )
 
 
 class Double_BE( ValueField ):
     def __init__( self, *args, **kwargs ):
-        ValueField.__init__( self, '>d', 8, float, None, *args, **kwargs )
+        super().__init__( '>d', 8, float, None, *args, **kwargs )
 
 

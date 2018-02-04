@@ -76,6 +76,15 @@ class BlockMeta( type ):
         refs = OrderedDict()
         checks = OrderedDict()
 
+        # add base class attributes to structs
+        for base in bases:
+            if hasattr( base, '_fields' ):
+                fields.update( base._fields )
+            if hasattr( base, '_refs' ):
+                refs.update( base._refs )
+            if hasattr( base, '_checks' ):
+                checks.update( base._checks )
+
         # Parse this class's attributes into meta structures
         for key, value in attrs.items():
             if isinstance( value, Field ):

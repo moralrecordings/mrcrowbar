@@ -108,6 +108,35 @@ class TileData( mrc.Block ):
                         palette=YODA_PALETTE,
                     )
 
+# ENDF
+# ACTN
+# HTSP
+# ZAX3
+# ZAX2
+# ZAUX
+# VERS
+# PUZ2
+# CAUX
+# CHWP
+# CHAR
+# TNAM
+# STUP
+
+class StupData( mrc.Block ):
+    data =      mrc.Bytes( 0x00, length=0x120 )
+
+class STUP( mrc.Block ):
+    size =      mrc.UInt32_LE( 0x00 )   # should be 0x14000
+    data =      mrc.BlockField( StupData, 0x04, length=0x120 )
+
+# SNDS
+class SNDS( mrc.Block ):
+    size =      mrc.UInt32_LE( 0x00 )
+    
+
+
+# TILE
+# ZONE
 
 class TILE( mrc.Block ):
     tiles =     mrc.BlockStream( TileData, 0x00 )
@@ -122,7 +151,7 @@ class DAWFile( mrc.Block ):
 
 
 class IndyLoader( mrc.Loader ):
-    """Loader for the game Indiana Jones and His Desktop Adventures (Win32, 1996)."""
+    """Loader for the game Indiana Jones and His Desktop Adventures (Win16, 1996)."""
     _SEP = mrc.Loader._SEP
 
     _INDY_FILE_CLASS_MAP = {

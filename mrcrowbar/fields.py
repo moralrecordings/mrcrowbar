@@ -10,6 +10,9 @@ from mrcrowbar import utils
 _next_position_hint = itertools.count()
 
 
+class ParseError( Exception ):
+    pass
+
 class FieldValidationError( Exception ):
     pass
 
@@ -179,6 +182,80 @@ class BlockStream( Field ):
     def get_start_offset( self, value, parent=None ):
         offset = property_get( self.offset, parent )
         return offset
+
+
+class ChunkStream( Field ):
+    def __init__( self, offset, chunk_map, length=None, default_chunk=None, chunk_id_size=None, length_field=None, alignment=1, **kwargs ):
+        super().__init__( **kwargs )
+        self.offset = offset
+        self.chunk_map = chunk_map
+        self.length = length
+        self.alignment = alignment
+        if length_field:
+            assert issubclass( length_field, ValueField )
+            self.length_field = length_field( 0x00 )
+        else:
+            self.length_field = None
+        self.default_chunk = default_chunk
+        
+        self.chunk_id_size=chunk_id_size
+        for chunk_id, chunk in self.chunk_map:
+            assert utils.is_bytes( chunk_id )
+            if self.chunk_id_size:
+                assert len( chunk_id ) == self.chunk_id_size
+
+        
+    def get_from_buffer( self, buffer, parent=None ):
+        assert utils.is_bytes( buffer )
+        offset = property_get( self.offset, parent )
+        length = property_get( self.length, parent )
+        data = buffer[offset:]
+        if length:
+            data = data[:length]
+            
+        result = []
+        pointer = 0
+        while pointer < len( data ):
+            start_offset = pointer
+            chunk_id = None
+            if self.chunk_id_size:
+                chunk_id = data[pointer:pointer+self.chunk_id_size]
+            else:
+                for test_id in self.chunk_map:
+                    if data[pointer:].startswith( test_id ):
+                        chunk_id = test_id
+                        break
+                if not chunk_id:
+                    raise ParseError( 'Could not find matching chunk at offset {}'.format( pointer ) )
+            if chunk_id in self.chunk_map:
+                chunk_klass = self.chunk_map[chunk_id]
+            elif self.default_chunk:
+                chunk_klass = self.default_chunk
+            else:
+                raise ParseError( 'No chunk class match for ID {}'.format( chunk_id ) )
+
+            pointer += len( chunk_id )
+            if self.length_field:
+                size = self.length_field.get_from_buffer( data[pointer:] )
+                pointer += self.length_field.field_size
+                chunk = chunk_klass( data[pointer:pointer+size] )
+                result.append( (chunk_id, chunk) )
+                pointer += size
+            else:
+                chunk = chunk_klass( data[pointer:] )
+                result.append( (chunk_id, chunk) )
+                pointer += chunk.get_size()
+            if self.alignment:
+                width = (pointer-start_offset) % self.alignment
+                if width:
+                    pointer += self.alignment - width
+
+        return result
+            
+    def get_start_offset( self, value, parent=None ):
+        offset = property_get( self.offset, parent )
+        return offset
+
 
 
 class BlockField( Field ):

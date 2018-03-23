@@ -199,14 +199,15 @@ class ChunkStream( Field ):
         self.default_chunk = default_chunk
         
         self.chunk_id_size=chunk_id_size
-        for chunk_id, chunk in self.chunk_map:
-            assert utils.is_bytes( chunk_id )
-            if self.chunk_id_size:
-                assert len( chunk_id ) == self.chunk_id_size
+        #for chunk_id, chunk in self.chunk_map:
+        #    assert utils.is_bytes( chunk_id )
+        #    if self.chunk_id_size:
+        #        assert len( chunk_id ) == self.chunk_id_size
 
         
     def get_from_buffer( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
+        chunk_map = property_get( self.chunk_map, parent )
         offset = property_get( self.offset, parent )
         length = property_get( self.length, parent )
         data = buffer[offset:]
@@ -221,14 +222,14 @@ class ChunkStream( Field ):
             if self.chunk_id_size:
                 chunk_id = data[pointer:pointer+self.chunk_id_size]
             else:
-                for test_id in self.chunk_map:
+                for test_id in chunk_map:
                     if data[pointer:].startswith( test_id ):
                         chunk_id = test_id
                         break
                 if not chunk_id:
                     raise ParseError( 'Could not find matching chunk at offset {}'.format( pointer ) )
-            if chunk_id in self.chunk_map:
-                chunk_klass = self.chunk_map[chunk_id]
+            if chunk_id in chunk_map:
+                chunk_klass = chunk_map[chunk_id]
             elif self.default_chunk:
                 chunk_klass = self.default_chunk
             else:

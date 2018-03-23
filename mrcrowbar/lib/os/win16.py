@@ -6,18 +6,18 @@ from mrcrowbar import models as mrc, utils
 
 
 class Segment( mrc.Block ):
-    offset =        mrc.UInt16_LE( 0x00 )
+    offset_sect =   mrc.UInt16_LE( 0x00 )
     size =          mrc.UInt16_LE( 0x02 )
     flags =         mrc.UInt16_LE( 0x04 )
     alloc_size =    mrc.UInt16_LE( 0x06 )
 
     @property
-    def offset_bytes( self ):
-        return self.offset << self._parent.sector_shift
+    def offset( self ):
+        return self.offset_sect << self._parent.sector_shift
 
     @property
     def repr( self ):
-        return 'offset={:04x}, size={:04x}, flags={:04x}, alloc_size={:04x}'.format( self.offset, self.size, self.flags, self.alloc_size ) 
+        return 'offset={:08x}, size={:04x}, flags={:04x}, alloc_size={:04x}'.format( self.offset, self.size, self.flags, self.alloc_size ) 
 
 
 

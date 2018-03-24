@@ -2,6 +2,7 @@
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.images import base as img
 from mrcrowbar.lib.containers import riff
+from mrcrowbar import utils
 
 DIRECTOR_PALETTE_RAW =  '000000111111222222444444555555777777888888aaaaaa'\
                         'bbbbbbddddddeeeeee000011000022000044000055000077'\
@@ -40,10 +41,10 @@ DIRECTOR_PALETTE = img.from_palette_bytes( bytes.fromhex( DIRECTOR_PALETTE_RAW )
 
 
 class Rect( mrc.Block ):
-    top = mrc.Int16_LE( 0x00 )
-    left = mrc.Int16_LE( 0x02 )
-    bottom = mrc.Int16_LE( 0x04 )
-    right = mrc.Int16_LE( 0x06 )
+    top = mrc.UInt16_BE( 0x00 )
+    left = mrc.UInt16_BE( 0x02 )
+    bottom = mrc.UInt16_BE( 0x04 )
+    right = mrc.UInt16_BE( 0x06 )
 
     @property
     def width( self ):
@@ -61,21 +62,38 @@ class Rect( mrc.Block ):
 
 class BitmapCastV4( mrc.Block ):
     unk1 = mrc.UInt8( 0x00 )
-    unk2 = mrc.UInt8( 0x01 )
-    unk3 = mrc.UInt16_LE( 0x02 )
-    initial_rect = mrc.BlockField( Rect, 0x04 )
-    bounding_rect = mrc.BlockField( Rect, 0x0c )
-    reg_x = mrc.UInt16_LE( 0x14 )
-    reg_y = mrc.UInt16_LE( 0x16 )
-    bpp = mrc.UInt16_LE( 0x18 )
-    unk4 = mrc.Bytes( 0x18, length=0x26 )
+    unk2 = mrc.Bits( 0x01, 0xf0 )
+    pitch = mrc.Bits( 0x01, 0x0fff, size=2 )
+    initial_rect = mrc.BlockField( Rect, 0x03 )
+    bounding_rect = mrc.BlockField( Rect, 0x0b )
+    reg_x = mrc.UInt16_BE( 0x13 )
+    reg_y = mrc.UInt16_BE( 0x15 )
+    bpp = mrc.UInt16_BE( 0x17 )
+    unk4 = mrc.Bytes( 0x1a, length=0x24 )
     name = mrc.Bytes( 0x3e )
 
 
+class BitmapCompressor( mrc.Transform ):
+    def import_data( self, buffer ):
+        result = bytearray()
+        pointer = 0
+        while (pointer < len( buffer )):
+            test = buffer[pointer]
+            pointer += 1
+            length = test + 1
+            if test & 0x80:
+                length = ((test ^ 0xff) & 0xff) + 2
+                result.extend( (buffer[pointer] for i in range( length )) )
+                pointer += 1
+            else:
+                result.extend( buffer[pointer:pointer+length] )
+                pointer += length
+        return {'payload': result}
+        
 
-class CASt( mrc.Block ):
-   
-    size = mrc.UInt8( 0x05 )
+class CastV4( mrc.Block ):
+    size1 = mrc.UInt16_BE( 0x00 )
+    size2 = mrc.UInt32_BE( 0x02 )
     cast_type = mrc.UInt8( 0x06 )
 
 
@@ -84,4 +102,15 @@ class DIR( riff.RIFX ):
     CHUNK_MAP = {
       #  b'CASt': 
     }
+
+
+class Sord( mrc.Block ):
+    unk1 = mrc.Bytes( 0x00, size=0xc )
+    count = mrc.UInt32_BE( 0x0c )
+    unk2 = mrc.UInt16_BE( 0x10 )
+    unk3 = mrc.UInt16_BE( 0x12 )
+    index = mrc.UInt16_BE( 0x14, count=mrc.Ref( 'count' ) )
+
+    
+
 

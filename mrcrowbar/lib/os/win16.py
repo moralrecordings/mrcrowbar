@@ -17,7 +17,7 @@ class Segment( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'offset={:08x}, size={:04x}, flags={:04x}, alloc_size={:04x}'.format( self.offset, self.size, self.flags, self.alloc_size ) 
+        return 'offset_sect={:04x}, size={:04x}, flags={:04x}, alloc_size={:04x}'.format( self.offset_sect, self.size, self.flags, self.alloc_size )
 
 
 

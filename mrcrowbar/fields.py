@@ -491,7 +491,7 @@ class CStringN( Field ):
 
     def get_size( self, value, parent=None ):
         length = property_get( self.length, parent )
-        return len( length )
+        return length
 
 
 class CStringNStream( Field ):

@@ -148,9 +148,11 @@ def mix( col_a, col_b, alpha ):
 
     return Colour().set_rgb( r, g, b ).set_a( a )
 
+
 def gradient_to_palette( points ):
     count = len( points ) - 1
     return [mix( points[(i*count//256)], points[(i*count//256)+1], math.fmod( (i*count/256), 1 ) ) for i in range( 256 )]
+
 
 TEST_PALETTE_POINTS = [
     Colour().set_rgb( 0x00, 0x00, 0x00 ),
@@ -163,6 +165,67 @@ TEST_PALETTE_POINTS = [
 TEST_PALETTE = gradient_to_palette( TEST_PALETTE_POINTS )
 
 
+class CodecImage( Image ):
+    """Class for viewing image data encoded in a standard image file format."""
+
+    def __init__( self, parent, source, width=None, height=None, frame_count=1, format=None, mode=None ):
+        super().__init__( parent, source, width, height, frame_count )
+        self._format = format
+        self._mode = mode
+
+    format = mrc.view_property( '_format' )
+    mode = mrc.view_property( '_mode' )
+
+    def get_image( self ):
+        if not PILImage:
+            raise ImportError( 'Pillow must be installed for image manipulation support (see http://pillow.readthedocs.io/en/latest/installation.html)' )
+        src = io.BytesIO( self.source )
+        image = PILImage.open( src )
+        if self.width is not None and image.size[0] != self.width:
+            print( 'Warning: image has width {}, was expecting {}'.format( image.size[0], self.width ) )
+        if self.height is not None and image.size[1] != self.height:
+            print( 'Warning: image has height {}, was expecting {}'.format( image.size[1], self.height ) )
+        if self.format is not None and image.format != self.format:
+            print( 'Warning: image is in {} format, was expecting {} format'.format( image.format, self.format ) )
+        if self.mode is not None and image.mode != self.mode:
+            print( 'Warning: image is mode {}, was expecting mode {}'.format( image.mode, self.mode ) )
+        image.load()
+        return image
+
+    def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0, columns=1 ):
+        image = self.get_image()
+        frames = []
+        frame_count = 1 if not hasattr( image, 'n_frames' ) else image.n_frames
+        if isinstance( frame, int ):
+            assert frame in range( 0, frame_count )
+            frames = [frame]
+        else:
+            frames = [f for f in frame if f in range( 0, frame_count )]
+
+        if not width:
+            width = image.size[0]-x_start
+        if not height:
+            height = image.size[1]-y_start
+
+        if image.mode == 'P':
+            palette = from_palette_bytes( image.getpalette() )
+
+            def data_fetch( x, y, fr ):
+                if fr not in range( 0, frame_count ):
+                    return Transparent()
+                if not ((0 <= x < image.size[0]) and (0 <= y < image.size[1])):
+                    return Transparent()
+                image.seek( fr )
+                return palette[image.getpixel( (x, y) )]
+
+            return utils.ansi_format_image( data_fetch, x_start, y_start, width, height, frames, columns )
+
+        pass
+
+    def print( self, *args, **kwargs ):
+        print( self.ansi_format( *args, **kwargs ) )
+
+
 class IndexedImage( Image ):
     """Class for viewing indexed (palette-based) chunky image data."""
 
@@ -173,7 +236,6 @@ class IndexedImage( Image ):
 
     palette = mrc.view_property( '_palette' )
     mask = mrc.view_property( '_mask' )
-    
 
     def get_image( self ):
         if not PILImage:
@@ -210,6 +272,27 @@ class IndexedImage( Image ):
         self.source = image.tobytes()
 
     def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0, columns=1 ):
+        """Return the ANSI escape sequence to render the image.
+
+        x_start
+            Offset from the left of the image data to render from. Defaults to 0.
+
+        y_start
+            Offset from the top of the image data to render from. Defaults to 0.
+
+        width
+            Width of the image data to render. Defaults to the image width.
+
+        height
+            Height of the image data to render. Defaults to the image height.
+
+        frame
+            Single frame number, or a list of frame numbers to render in sequence. Defaults to frame 0.
+
+        columns
+            Number of frames to render per line (useful for printing tilemaps!). Defaults to 1.
+        """
+
         assert x_start in range( 0, self.width )
         assert y_start in range( 0, self.height )
         frames = []
@@ -223,34 +306,21 @@ class IndexedImage( Image ):
             width = self.width-x_start
         if not height:
             height = self.height-y_start
-        result = io.StringIO()
 
-        palette_cache = {}
-        def get_pal( p1, p2 ):
-            if ( p1, p2 ) not in palette_cache:
-                c1 = self.palette[p1] if p1 is not None else Transparent()
-                c2 = self.palette[p2] if p2 is not None else Transparent()
-                palette_cache[(p1, p2)] = utils.ansi_format_pixels( c1, c2 )
-            return palette_cache[(p1, p2)]
+        stride = width*height
 
-        rows = math.ceil( len( frames )/columns )
-        for r in range( rows ):
-            for y in range( 0, height, 2 ):
-                for c in range( min( (len( frames )-r*columns), columns ) ):
-                    for x in range( 0, width ):
-                        fr = frames[r*columns + c]
-                        stride = width*height
-                        i1 = self.width*(y_start+y) + (x_start+x)
-                        i2 = self.width*(y_start+y+1) + (x_start+x)
-                        if self.mask:
-                            p1 = self.source[stride*fr+i1] if self.mask[stride*fr+i1] else None
-                            p2 = self.source[stride*fr+i2] if ((i2) < (self.width*self.height) and self.mask[stride*fr+i2]) else None
-                        else:
-                            p1 = self.source[stride*fr+i1]
-                            p2 = self.source[stride*fr+i2] if (i2) < (self.width*self.height) else None
-                        result.write( get_pal( p1, p2 ) )
-                result.write( '\n' )
-        return result.getvalue()
+        def data_fetch( x, y, fr ):
+            if fr not in range( 0, self.frame_count ):
+                return Transparent()
+            if not ((0 <= x < self.width) and (0 <= y < self.height)):
+                return Transparent()
+            index = self.width*y + x
+            p = self.source[stride*fr+index]
+            if self.mask:
+                p = p if self.mask[stride*fr+index] else None
+            return self.palette[p] if p is not None else Transparent()
+
+        return utils.ansi_format_image( data_fetch, x_start, y_start, width, height, frames, columns )
     
     def print( self, *args, **kwargs ):
         print( self.ansi_format( *args, **kwargs ) )

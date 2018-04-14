@@ -2,6 +2,7 @@
 
 import array
 import math
+import io
 import struct
 import difflib
 import mmap
@@ -345,6 +346,60 @@ def ansi_format_string( string, foreground, background ):
         background.r_8, background.g_8, background.b_8
     )
     return '{}{}{}'.format( fmt, string, ANSI_FORMAT_RESET )
+
+
+def ansi_format_image( data_fetch, x_start=0, y_start=0, width=32, height=32, frame=0, columns=1 ):
+    """Return the ANSI escape sequence to render a bitmap image.
+
+    data_fetch
+        Function that takes three arguments (x position, y position, and frame number) and returns
+        a Colour corresponding to the pixel stored there, or Transparent if the requested pixel is 
+        out of bounds.
+
+    x_start
+        Offset from the left of the image data to render from. Defaults to 0.
+
+    y_start
+        Offset from the top of the image data to render from. Defaults to 0.
+
+    width
+        Width of the image data to render. Defaults to 32.
+
+    height
+        Height of the image data to render. Defaults to 32.
+
+    frame
+        Single frame number, or a list of frame numbers to render in sequence. Defaults to frame 0.
+
+    columns
+        Number of frames to render per line (useful for printing tilemaps!). Defaults to 1.
+    """
+    frames = []
+    if isinstance( frame, int ):
+        frames = [frame]
+    else:
+        frames = [f for f in frame]
+
+    result = io.StringIO()
+
+    palette_cache = {}
+    def get_pixels( c1, c2 ):
+        slug = (c1.repr, c2.repr)
+        if slug not in palette_cache:
+            palette_cache[slug] = ansi_format_pixels( c1, c2 )
+        return palette_cache[slug]
+
+    rows = math.ceil( len( frames )/columns )
+    for r in range( rows ):
+        for y in range( 0, height, 2 ):
+            for c in range( min( (len( frames )-r*columns), columns ) ):
+                for x in range( 0, width ):
+                    fr = frames[r*columns + c]
+                    c1 = data_fetch( x_start+x, y_start+y, fr )
+                    c2 = data_fetch( x_start+x, y_start+y+1, fr )
+                    result.write( get_pixels( c1, c2 ) )
+            result.write( '\n' )
+    return result.getvalue()
 
 
 class BitReader( object ):

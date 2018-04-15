@@ -348,7 +348,7 @@ def ansi_format_string( string, foreground, background ):
     return '{}{}{}'.format( fmt, string, ANSI_FORMAT_RESET )
 
 
-def ansi_format_image( data_fetch, x_start=0, y_start=0, width=32, height=32, frame=0, columns=1 ):
+def ansi_format_image( data_fetch, x_start=0, y_start=0, width=32, height=32, frame=0, columns=1, downsample=1 ):
     """Return the ANSI escape sequence to render a bitmap image.
 
     data_fetch
@@ -373,6 +373,9 @@ def ansi_format_image( data_fetch, x_start=0, y_start=0, width=32, height=32, fr
 
     columns
         Number of frames to render per line (useful for printing tilemaps!). Defaults to 1.
+
+    downsample
+        Shrink larger images by printing every nth pixel only. Defaults to 1.
     """
     frames = []
     if isinstance( frame, int ):
@@ -391,12 +394,12 @@ def ansi_format_image( data_fetch, x_start=0, y_start=0, width=32, height=32, fr
 
     rows = math.ceil( len( frames )/columns )
     for r in range( rows ):
-        for y in range( 0, height, 2 ):
+        for y in range( 0, height, 2*downsample ):
             for c in range( min( (len( frames )-r*columns), columns ) ):
-                for x in range( 0, width ):
+                for x in range( 0, width, downsample ):
                     fr = frames[r*columns + c]
                     c1 = data_fetch( x_start+x, y_start+y, fr )
-                    c2 = data_fetch( x_start+x, y_start+y+1, fr )
+                    c2 = data_fetch( x_start+x, y_start+y+downsample, fr )
                     result.write( get_pixels( c1, c2 ) )
             result.write( '\n' )
     return result.getvalue()

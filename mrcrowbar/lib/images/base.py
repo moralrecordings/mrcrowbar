@@ -192,7 +192,31 @@ class CodecImage( Image ):
         image.load()
         return image
 
-    def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0, columns=1 ):
+    def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0, columns=1, downsample=1 ):
+        """Return the ANSI escape sequence to render the image.
+
+        x_start
+            Offset from the left of the image data to render from. Defaults to 0.
+
+        y_start
+            Offset from the top of the image data to render from. Defaults to 0.
+
+        width
+            Width of the image data to render. Defaults to the image width.
+
+        height
+            Height of the image data to render. Defaults to the image height.
+
+        frame
+            Single frame number, or a list of frame numbers to render in sequence. Defaults to frame 0.
+
+        columns
+            Number of frames to render per line (useful for printing tilemaps!). Defaults to 1.
+
+        downsample
+            Shrink larger images by printing every nth pixel only. Defaults to 1.
+        """
+
         image = self.get_image()
         frames = []
         frame_count = 1 if not hasattr( image, 'n_frames' ) else image.n_frames
@@ -218,7 +242,7 @@ class CodecImage( Image ):
                 image.seek( fr )
                 return palette[image.getpixel( (x, y) )]
 
-            return utils.ansi_format_image( data_fetch, x_start, y_start, width, height, frames, columns )
+            return utils.ansi_format_image( data_fetch, x_start, y_start, width, height, frames, columns, downsample )
 
         pass
 
@@ -271,7 +295,7 @@ class IndexedImage( Image ):
                 print( "Warning: Palette of new image is different!" )
         self.source = image.tobytes()
 
-    def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0, columns=1 ):
+    def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0, columns=1, downsample=1 ):
         """Return the ANSI escape sequence to render the image.
 
         x_start
@@ -291,6 +315,9 @@ class IndexedImage( Image ):
 
         columns
             Number of frames to render per line (useful for printing tilemaps!). Defaults to 1.
+
+        downsample
+            Shrink larger images by printing every nth pixel only. Defaults to 1.
         """
 
         assert x_start in range( 0, self.width )
@@ -320,7 +347,7 @@ class IndexedImage( Image ):
                 p = p if self.mask[stride*fr+index] else None
             return self.palette[p] if p is not None else Transparent()
 
-        return utils.ansi_format_image( data_fetch, x_start, y_start, width, height, frames, columns )
+        return utils.ansi_format_image( data_fetch, x_start, y_start, width, height, frames, columns, downsample )
     
     def print( self, *args, **kwargs ):
         print( self.ansi_format( *args, **kwargs ) )

@@ -61,9 +61,9 @@ class EXE( mrc.Block ):
     dos_header =    mrc.Bytes( 0x02, length=0x3a )
     ne_offset =     mrc.UInt16_LE( 0x3c )
     # FIXME: size of the DOS stub should be dynamic based on ne_offset
-    dos_stub =      mrc.Bytes( 0x3e, length=0x72 )
+    #dos_stub =      mrc.Bytes( 0x3e, length=0x72 )
 
-    ne_header =    mrc.BlockField( NEHeader, 0xb0 )
+    ne_header =    mrc.BlockField( NEHeader, mrc.Ref( 'ne_offset' ) )
 
 
     

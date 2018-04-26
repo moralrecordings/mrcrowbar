@@ -714,7 +714,7 @@ class UInt8( ValueField ):
 
 
 class Bits( ValueField ):
-    def __init__( self, offset, bits, default=0, size=1, *args, **kwargs ):
+    def __init__( self, offset, bits, default=0, size=1, enum=None, *args, **kwargs ):
         SIZES = {
             1: ('>B', 1, int, range( 0, 1<<8 )),
             2: ('>H', 2, int, range( 0, 1<<16 )),
@@ -729,6 +729,7 @@ class Bits( ValueField ):
         self.mask_bits = bin( bits ).split( 'b', 1 )[1]
         self.bits = [(1<<i) for i, x in enumerate( reversed( self.mask_bits ) ) if x == '1']
         self.check_range = range( 0, 1<<len( self.bits ) )
+        self.enum_t = enum
         super().__init__( *SIZES[size], offset, default=default, *args, **kwargs )
 
     def get_from_buffer( self, buffer, parent=None ):
@@ -736,10 +737,18 @@ class Bits( ValueField ):
         value = 0
         for i, x in enumerate( self.bits ):
             value += (1 << i) if (result & x) else 0
+        if self.enum_t:
+            if (value not in [x.value for x in self.enum_t]):
+                print( 'Warning: value {} not castable to {}'.format( value, self.enum_t ) )
+            else:
+                # cast to enum because why not
+                value = self.enum_t( value )
         return value
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
         assert value in self.check_range
+        if self.enum_t:
+            value = self.enum_t( value ).value
         packed = 0
         for i, x in enumerate( self.bits ):
             if (value & (1 << i)):

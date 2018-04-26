@@ -3,6 +3,52 @@
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.images import base as img
 
+# source: https://en.wikipedia.org/wiki/Segment_descriptor
+# https://pdos.csail.mit.edu/6.828/2005/readings/i386/s05_01.htm
+
+class SegmentDescriptor( mrc.Block ):
+    limit_low =     mrc.UInt16_LE( 0x00 )
+    base_low =      mrc.UInt16_LE( 0x02 )
+    base_middle =   mrc.UInt8( 0x04 )
+    accessed =          mrc.Bits( 0x05, 0b00000001 )
+    readable =          mrc.Bits( 0x05, 0b00000010 )
+    conforming =        mrc.Bits( 0x05, 0b00000100 )
+    code_seg =          mrc.Bits( 0x05, 0b00001000 )
+    non_system =        mrc.Bits( 0x05, 0b00010000 )
+    privilege_level =   mrc.Bits( 0x05, 0b01100000 )
+    present =           mrc.Bits( 0x05, 0b10000000 )
+    limit_high =    mrc.Bits( 0x06, 0b00001111 )
+    available =     mrc.Bits( 0x06, 0b00010000 )
+    op_size_64 =    mrc.Bits( 0x06, 0b00100000 )
+    op_size_32 =    mrc.Bits( 0x06, 0b01000000 )
+    granularity =   mrc.Bits( 0x06, 0b10000000 )
+    base_high =     mrc.UInt8( 0x07 )
+
+    @property
+    def limit( self ):
+        return self.limit_low + (self.limit_high << 16)
+
+    @limit.setter
+    def limit( self, value ):
+        value &= 0xfff
+        self.limit_high = (value & 0xf00) >> 16
+        self.limit_low = (value & 0xff)
+
+    @property
+    def base( self ):
+        return self.base_low + (self.base_middle << 16) + (self.base_high << 24)
+
+    @base.setter
+    def base( self, value ):
+        value &= 0xffffffff
+        self.base_high = (value & 0xff000000) >> 24
+        self.base_middle = (value & 0xff0000) >> 16
+        self.base_low = (value & 0xffff)
+
+    @property
+    def repr( self ):
+        return 'present={}, code_seg={}, base={:08x}, limit={:05x}'.format( self.present, self.code_seg, self.base, self.limit )
+
 
 class EGAColour( img.Colour ):
     r_high =        mrc.Bits( 0x00, 0b00000100 )

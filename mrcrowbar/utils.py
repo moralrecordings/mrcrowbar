@@ -58,22 +58,23 @@ BYTE_TYPES = {
     'double_be':    ('>d', 8),
 }
 
-BYTE_REVERSE =  b'\x00\x80@\xc0 \xa0`\xe0\x10\x90P\xd00\xb0p\xf0' \
-                b'\x08\x88H\xc8(\xa8h\xe8\x18\x98X\xd88\xb8x\xf8' \
-                b'\x04\x84D\xc4$\xa4d\xe4\x14\x94T\xd44\xb4t\xf4' \
-                b'\x0c\x8cL\xcc,\xacl\xec\x1c\x9c\\\xdc<\xbc|\xfc' \
-                b'\x02\x82B\xc2"\xa2b\xe2\x12\x92R\xd22\xb2r\xf2' \
-                b'\n\x8aJ\xca*\xaaj\xea\x1a\x9aZ\xda:\xbaz\xfa' \
-                b'\x06\x86F\xc6&\xa6f\xe6\x16\x96V\xd66\xb6v\xf6' \
-                b'\x0e\x8eN\xce.\xaen\xee\x1e\x9e^\xde>\xbe~\xfe' \
-                b'\x01\x81A\xc1!\xa1a\xe1\x11\x91Q\xd11\xb1q\xf1' \
-                b'\t\x89I\xc9)\xa9i\xe9\x19\x99Y\xd99\xb9y\xf9' \
-                b'\x05\x85E\xc5%\xa5e\xe5\x15\x95U\xd55\xb5u\xf5' \
-                b'\r\x8dM\xcd-\xadm\xed\x1d\x9d]\xdd=\xbd}\xfd' \
-                b'\x03\x83C\xc3#\xa3c\xe3\x13\x93S\xd33\xb3s\xf3' \
-                b'\x0b\x8bK\xcb+\xabk\xeb\x1b\x9b[\xdb;\xbb{\xfb' \
-                b"\x07\x87G\xc7'\xa7g\xe7\x17\x97W\xd77\xb7w\xf7" \
-                b'\x0f\x8fO\xcf/\xafo\xef\x1f\x9f_\xdf?\xbf\x7f\xff'
+BYTE_REVERSE = bytes.fromhex( '008040c020a060e0109050d030b070f0'\
+                              '088848c828a868e8189858d838b878f8'\
+                              '048444c424a464e4149454d434b474f4'\
+                              '0c8c4ccc2cac6cec1c9c5cdc3cbc7cfc'\
+                              '028242c222a262e2129252d232b272f2'\
+                              '0a8a4aca2aaa6aea1a9a5ada3aba7afa'\
+                              '068646c626a666e6169656d636b676f6'\
+                              '0e8e4ece2eae6eee1e9e5ede3ebe7efe'\
+                              '018141c121a161e1119151d131b171f1'\
+                              '098949c929a969e9199959d939b979f9'\
+                              '058545c525a565e5159555d535b575f5'\
+                              '0d8d4dcd2dad6ded1d9d5ddd3dbd7dfd'\
+                              '038343c323a363e3139353d333b373f3'\
+                              '0b8b4bcb2bab6beb1b9b5bdb3bbb7bfb'\
+                              '078747c727a767e7179757d737b777f7'\
+                              '0f8f4fcf2faf6fef1f9f5fdf3fbf7fff' )
+
 
 BYTE_GLYPH_MAP = """ ☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼ !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ """
 
@@ -86,6 +87,54 @@ def _load_byte_types():
         globals()['to_{}'.format(byte_type)] = _to_byte_type( type_code, type_size )
 
 _load_byte_types()
+
+
+def find_all_iter( source, substring, start=None, end=None, overlap=False ):
+    """Iterate through every location a substring can be found in a source string.
+
+    source
+        The source string to search.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    overlap
+        Whether to return overlapping matches (default: false)
+    """
+    data = source
+    if end is not None:
+        data = data[:end]
+    if start is not None:
+        data = data[start:]
+    pointer = 0
+    increment = 1 if overlap else (len( substring ) or 1)
+    while True:
+        pointer = data.find( substring, pointer )
+        if pointer == -1:
+            return
+        yield pointer
+        pointer += increment
+
+
+def find_all( source, substring, start=None, end=None, overlap=False ):
+    """Return every location a substring can be found in a source string.
+
+    source
+        The source string to search.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    overlap
+        Whether to return overlapping matches (default: false)
+    """
+    return [x for x in find_all_iter( source, substring, start, end, overlap )]
 
 
 def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True ):

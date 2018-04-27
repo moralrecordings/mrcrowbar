@@ -730,7 +730,8 @@ class Bits( ValueField ):
         self.bits = [(1<<i) for i, x in enumerate( reversed( self.mask_bits ) ) if x == '1']
         self.check_range = range( 0, 1<<len( self.bits ) )
         self.enum_t = enum
-        super().__init__( *SIZES[size], offset, default=default, *args, **kwargs )
+        bitmask = struct.pack( SIZES[size][0], bits )
+        super().__init__( *SIZES[size], offset, default=default, bitmask=bitmask, *args, **kwargs )
 
     def get_from_buffer( self, buffer, parent=None ):
         result = super().get_from_buffer( buffer, parent )

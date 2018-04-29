@@ -50,6 +50,10 @@ class SegmentDescriptor( mrc.Block ):
         return 'present={}, code_seg={}, base={:08x}, limit={:05x}'.format( self.present, self.code_seg, self.base, self.limit )
 
 
+class SegmentDescriptorTable( mrc.Block ):
+    seglist = mrc.BlockStream( SegmentDescriptor, 0x00 )
+
+
 class EGAColour( img.Colour ):
     r_high =        mrc.Bits( 0x00, 0b00000100 )
     g_high =        mrc.Bits( 0x00, 0b00000010 )

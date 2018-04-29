@@ -7,6 +7,7 @@ from mrcrowbar import models as mrc, utils
 # source: http://benoit.papillault.free.fr/c/disc2/exefmt.txt
 # http://geos.icc.ru:8080/scripts/WWWBinV.dll/ShowR?NE.rfi
 
+
 class Segment( mrc.Block ):
     offset_sect =       mrc.UInt16_LE( 0x00 )
     size =              mrc.UInt16_LE( 0x02 )
@@ -31,7 +32,7 @@ class Segment( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'offset_sect={:04x}, size={:04x}, data_seg={}, alloc_size={:04x}'.format( self.offset_sect, self.size, self.data_seg, self.alloc_size )
+        return 'offset_sect={:04x}, size={:04x}, data_seg={}, relocations={}, alloc_size={:04x}'.format( self.offset_sect, self.size, self.data_seg, self.relocations, self.alloc_size )
 
 
 class ModuleSegment( Segment ):
@@ -41,6 +42,17 @@ class ModuleSegment( Segment ):
     def repr( self ):
         return 'offset_sect=0x{:04x}, size=0x{:04x}, data_seg={}, alloc_size=0x{:04x}, selector={:04x}'.format( self.offset_sect, self.size, self.data_seg, self.alloc_size, self.selector )
 
+
+class Resource( mrc.Block ):
+    offset =        mrc.UInt16_LE( 0x00 )
+    size =          mrc.UInt16_LE( 0x02 )
+    preload =       mrc.Bits( 0x04, 0b01000000 )
+    sharable =      mrc.Bits( 0x04, 0b00100000 )
+    movable =       mrc.Bits( 0x04, 0b00010000 )
+
+
+class ResourceTable( mrc.Block ):
+    align_shift =   mrc.UInt8( 0x00 )
 
 
 class RelocationInternalRef( mrc.Block ):
@@ -80,7 +92,7 @@ class RelocationOSFixup( mrc.Block ):
         return 'fixup=0x{:04x}'.format( self.fixup )
 
 
-class RelocationFlags( IntEnum ):
+class RelocationDetail( IntEnum ):
     INTERNAL_REF =      0x00
     IMPORT_ORDINAL =    0x01
     IMPORT_NAME =       0x02
@@ -97,15 +109,22 @@ class RelocationAddressType( IntEnum ):
 
 
 class Relocation( mrc.Block ):
+    DETAIL_TYPES = {
+        RelocationDetail.INTERNAL_REF: RelocationInternalRef,
+        RelocationDetail.IMPORT_ORDINAL: RelocationImportOrdinal,
+        RelocationDetail.IMPORT_NAME: RelocationImportName,
+        RelocationDetail.OS_FIXUP: RelocationOSFixup
+    }
+
     address_type =      mrc.UInt8( 0x00, enum=RelocationAddressType )
-    flags =             mrc.Bits( 0x01, 0b00000011, enum=RelocationFlags )
+    detail_type =       mrc.Bits( 0x01, 0b00000011, enum=RelocationDetail )
     additive =          mrc.Bits( 0x01, 0b00000100 )
     offset =            mrc.UInt16_LE( 0x02 )
-    data =              mrc.Bytes( 0x04, length=0x04 )
+    detail =            mrc.BlockField( DETAIL_TYPES, 0x04, block_type=mrc.Ref( 'detail_type' ) )
 
     @property
     def repr( self ):
-        return 'address_type={}, flags={}, offset=0x{:04x}, data={}'.format( str( self.address_type ), str( self.flags ), self.offset, self.data.hex() )
+        return 'address_type={}, detail_type={}, offset=0x{:04x}, detail={}'.format( str( self.address_type ), str( self.detail_type ), self.offset, self.detail )
 
 
 class RelocationTable( mrc.Block ):
@@ -124,10 +143,10 @@ class NEBase( mrc.Block ):
 
     heap_size =     mrc.UInt16_LE( 0x10 )
     stack_size =    mrc.UInt16_LE( 0x12 )
-    cs_id =         mrc.UInt16_LE( 0x14 )
-    ip_offset =     mrc.UInt16_LE( 0x16 )
-    ss_id =         mrc.UInt16_LE( 0x18 )
-    sp_offset =     mrc.UInt16_LE( 0x1a )
+    ip_offset =     mrc.UInt16_LE( 0x14 )
+    cs_id =         mrc.UInt16_LE( 0x16 )
+    sp_offset =     mrc.UInt16_LE( 0x18 )
+    ss_id =         mrc.UInt16_LE( 0x1a )
     segtable_count =        mrc.UInt16_LE( 0x1c )
     modref_count =          mrc.UInt16_LE( 0x1e )
     nonresnames_size =      mrc.UInt16_LE( 0x20 )
@@ -143,7 +162,7 @@ class NEBase( mrc.Block ):
     exe_type =      mrc.UInt8( 0x36 )
 
 
-class ModuleTable( NEBase ):
+class NEModule( NEBase ):
     usage_count =       mrc.UInt16_LE( 0x02 )
 
     next_table =        mrc.UInt16_LE( 0x06 )
@@ -169,6 +188,11 @@ class NEHeader( NEBase ):
     padding =       mrc.Bytes( 0x37, length=9 )
 
     segtable =      mrc.BlockField( Segment, mrc.Ref( 'segtable_offset' ), count=mrc.Ref( 'segtable_count' ) )
+    restable =      mrc.BlockField( ResourceTable, mrc.Ref( 'restable_offset' ) )
+
+
+class ModuleTable( mrc.Block ):
+    ne_header =     mrc.BlockField( NEModule, 0x00 )
 
 
 class EXE( mrc.Block ):
@@ -178,5 +202,4 @@ class EXE( mrc.Block ):
     # FIXME: size of the DOS stub should be dynamic based on ne_offset
     #dos_stub =      mrc.Bytes( 0x3e, length=0x72 )
 
-    ne_header =    mrc.BlockField( NEHeader, mrc.Ref( 'ne_offset' ) )
-
+    ne_header =     mrc.BlockField( NEHeader, mrc.Ref( 'ne_offset' ) )

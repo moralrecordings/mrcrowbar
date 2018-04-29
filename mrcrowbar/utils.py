@@ -4,7 +4,6 @@ import array
 import math
 import io
 import struct
-import difflib
 import mmap
 
 def is_bytes( obj ):
@@ -80,6 +79,7 @@ BYTE_GLYPH_MAP = """ ☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶
 
 BYTE_COLOUR_MAP = (12,) + (14,)*32 + (11,)*94 + (14,)*128 + (12,)
 
+HIGHLIGHT_COLOUR_MAP = (9, 10)
 
 def _load_byte_types():
     for byte_type, (type_code, type_size) in BYTE_TYPES.items():
@@ -139,6 +139,80 @@ def find_all( source, substring, start=None, end=None, overlap=False ):
     return [x for x in find_all_iter( source, substring, start, end, overlap )]
 
 
+def basic_diff( source1, source2, start=None, end=None ):
+    """Perform a basic diff between two equal-sized binary strings and
+    return a list of (offset, size) tuples denoting the differences.
+
+    source1
+        The first byte string source.
+
+    source2
+        The second byte string source.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+    """
+    start = start if start is not None else 0
+    end = end if end is not None else min( len( source1 ), len( source2 ) )
+    end_point = min( end, len( source1 ), len( source2 ) )
+
+    pointer = start
+    diff_start = None
+    results = []
+    while pointer < end_point:
+        if source1[pointer] != source2[pointer]:
+            if diff_start is None:
+                diff_start = pointer
+        else:
+            if diff_start is not None:
+                results.append( (diff_start, pointer-diff_start) )
+                diff_start = None
+        pointer += 1
+    if diff_start is not None:
+        results.append( (diff_start, pointer-diff_start) )
+        diff_start = None
+
+    return results
+
+
+def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, colour=True, prefix='', highlight_addr=None, highlight_map=None ):
+    def get_colour( index ):
+        if highlight_map:
+            if index in highlight_map:
+                return highlight_map[index]
+        return BYTE_COLOUR_MAP[source[index]]
+
+    def colour_wrap( s, col ):
+        if not col:
+            return s
+        return '{}{}{}'.format(
+            ANSI_FORMAT_FOREGROUND_XTERM.format( col ),
+            s, ANSI_FORMAT_RESET
+        )
+
+    def get_ascii():
+        b = source[offset:min( offset+major_len*minor_len, end )]
+        letters = []
+        for i in range( offset, min( offset+major_len*minor_len, end ) ):
+            letters.append( colour_wrap( BYTE_GLYPH_MAP[source[i]], get_colour( i ) ) )
+        return ''.join( letters )
+
+    line = [colour_wrap( '{}{:08x}'.format( prefix, offset ), highlight_addr ), ' │  ']
+    for major in range( major_len ):
+        for minor in range( minor_len ):
+            suboffset = offset+major*minor_len+minor
+            if suboffset >= end:
+                line.append( '   ' )
+                continue
+            line.append( colour_wrap( '{:02x} '.format( source[suboffset] ), get_colour( suboffset ) ) )
+        line.append( ' ' )
+    line.append( '│ {}'.format( get_ascii() ) )
+    return ''.join( line )
+
+
 def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True ):
     """Return the contents of a byte string in tabular hexadecimal/ASCII format.
     
@@ -166,11 +240,6 @@ def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_l
     Raises ValueError if both end and length are defined.
     """
     assert is_bytes( source )
-    colour_wrap = lambda s, index: s if not colour else '{}{}{}'.format(
-        ANSI_FORMAT_FOREGROUND_XTERM.format( BYTE_COLOUR_MAP[index] ),
-        s, ANSI_FORMAT_RESET
-    )
-    to_string = lambda b: ''.join( map( lambda x: colour_wrap( BYTE_GLYPH_MAP[x], x ), b ) )
 
     start = 0 if (start is None) else start
     if (end is not None) and (length is not None):
@@ -187,17 +256,7 @@ def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_l
 
     lines = []
     for offset in range( start, end, minor_len*major_len ):
-        line = ['{:08x} │  '.format( offset )]
-        for major in range( major_len ):
-            for minor in range( minor_len ):
-                suboffset = offset+major*minor_len+minor
-                if suboffset >= end:
-                    line.append( '   ' )
-                    continue
-                line.append( colour_wrap( '{:02x} '.format( source[suboffset] ), source[suboffset] ) )
-            line.append( ' ' )
-        line.append( '│ {}'.format( to_string( source[offset:min( offset+major_len*minor_len, end )] ) ) )
-        lines.append( ''.join( line ) )
+        lines.append( ansi_format_hexdump_line( source, offset, end, major_len, minor_len, colour ) )
     lines.append( '' )
     return '\n'.join(lines)
 
@@ -231,7 +290,7 @@ def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4
     print( hexdump_str( source, start, end, length, major_len, minor_len ) )
 
 
-def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4 ):
+def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2 ):
     """Print the differences between two byte strings in tabular hexadecimal/ASCII format.
     
     source1
@@ -255,13 +314,59 @@ def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len
     minor_len
         Number of bytes per hexadecimal group
 
+    colour
+        Add ANSI colour formatting to output (default: true)
+
+    before
+        Number of lines of context preceeding a match to show
+
+    after
+        Number of lines of context following a match to show
+
     Raises ValueError if both end and length are defined.
     """
-    hex1 = hexdump_str( source1, start, end, length, major_len, minor_len, colour=False ).splitlines( 1 )
-    hex2 = hexdump_str( source2, start, end, length, major_len, minor_len, colour=False ).splitlines( 1 )
-    diff = difflib.Differ()
-    print( ''.join( diff.compare( hex1, hex2 ) ) )
+    stride = minor_len*major_len
+    start = start if start is not None else 0
+    end = end if end is not None else max( len( source1 ), len( source2 ) )
 
+    diff_lines = []
+    for offset in range( start, end, stride ):
+        if source1[offset:offset+stride] != source2[offset:offset+stride]:
+            diff_lines.append( offset )
+    show_lines = {x: (2 if x in diff_lines else 0) for x in range( start, end, stride )}
+    for index in diff_lines:
+        for b in [index-(x+1)*stride for x in range( before )]:
+            if b in show_lines and show_lines[b] == 0:
+                show_lines[b] = 1
+        for a in [index+(x+1)*stride for x in range( after )]:
+            if a in show_lines and show_lines[a] == 0:
+                show_lines[a] = 1
+
+    lines = []
+    skip = False
+    for offset in sorted( show_lines.keys() ):
+        if skip == True and show_lines[offset] != 0:
+            lines.append( '...' )
+            skip = False
+        if show_lines[offset] == 2:
+            check = basic_diff( source1, source2, start=offset, end=offset+stride )
+            highlights = {}
+            for (o, l) in check:
+                for i in range( o, o+l ):
+                    highlights[i] = HIGHLIGHT_COLOUR_MAP[0]
+            lines.append( ansi_format_hexdump_line( source1, offset, end, major_len, minor_len, colour, prefix='-', highlight_addr=HIGHLIGHT_COLOUR_MAP[0], highlight_map=highlights ) )
+            highlights = {k: HIGHLIGHT_COLOUR_MAP[1] for k in highlights.keys()}
+            lines.append( ansi_format_hexdump_line( source2, offset, end, major_len, minor_len, colour, prefix='+' , highlight_addr=HIGHLIGHT_COLOUR_MAP[1], highlight_map=highlights ) )
+        elif show_lines[offset] == 1:
+            lines.append( ansi_format_hexdump_line( source1, offset, end, major_len, minor_len, colour, prefix=' ' ) )
+        elif show_lines[offset] == 0:
+            skip = True
+
+    if skip == True:
+        lines.append( '...' )
+        skip = False
+
+    print( '\n'.join( lines ) )
 
 
 #: Unicode representation of a vertical bar graph.

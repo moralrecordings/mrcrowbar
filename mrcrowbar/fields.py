@@ -62,7 +62,7 @@ class Field( object ):
             evaluating Refs.
         """
         assert utils.is_bytes( buffer )
-        self.validate( value )
+        self.validate( value, parent )
         return
     
     def get_start_offset( self, value, parent=None ):
@@ -260,11 +260,34 @@ class ChunkStream( Field ):
 
 
 class BlockField( Field ):
-    def __init__( self, block_klass, offset, block_kwargs=None, count=None, fill=None, **kwargs ):
+    def __init__( self, block_klass, offset, block_kwargs=None, count=None, fill=None, block_type=None, **kwargs ):
+        """Field for inserting another Block into the parent class.
+
+        block_klass
+            Block class to use, or a dict mapping between type and block class.
+
+        offset
+            Position of data, relative to the start of the parent block.
+
+        block_kwargs
+            Arguments to be passed to the constructor of the block class.
+
+        count
+            Interpret data as an array of this size. None implies a single value, non-negative
+            numbers will return a Python list.
+
+        fill
+            Byte pattern to apply to denote an empty entry in a list.
+
+        block_type
+            Key to use with the block_klass mapping. (Usually a Ref for a property on the parent block)
+
+        """
         super().__init__( **kwargs )
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
-        self.stride = self.block_klass( **self.block_kwargs ).get_size()
+        self.block_type = block_type
+        # TODO: support different args if using a switch
         self.offset = offset
         self.count = count
         if fill:
@@ -283,16 +306,18 @@ class BlockField( Field ):
         is_array = count is not None
         count = count if is_array else 1
         assert count >= 0  
+        klass = self.get_klass( parent )
+        stride = klass( **self.block_kwargs ).get_size()
 
         result = []
-        fill_pattern = self._get_fill_pattern( self.stride ) if self.fill else None
+        fill_pattern = self._get_fill_pattern( stride ) if self.fill else None
         for i in range( count ):
-            sub_buffer = buffer[offset + i*self.stride:]
+            sub_buffer = buffer[offset + i*stride:]
             # if data matches the fill pattern, leave a None in the list
-            if fill_pattern and sub_buffer[:self.stride] == fill_pattern:
+            if fill_pattern and sub_buffer[:stride] == fill_pattern:
                 result.append( None )
             else:
-                block = self.block_klass( source_data=sub_buffer, parent=parent, **self.block_kwargs )
+                block = klass( source_data=sub_buffer, parent=parent, **self.block_kwargs )
                 result.append( block )
                
         if not is_array:
@@ -303,14 +328,25 @@ class BlockField( Field ):
         super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
+        klass = self.get_klass( parent )
+        stride = klass( **self.block_kwargs ).get_size()
+
+        if count:
+            try:
+                it = iter( value )
+            except TypeError:
+                raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
+            assert len( value ) <= count
+        else:
+            value = [value]
 
         block_data = bytearray()
         for b in value:
             if b is None:
                 if self.fill:
-                    block_data += bytes(( self.fill[j % len(self.fill)] for j in range(self.stride) ))
+                    block_data += bytes(( self.fill[j % len(self.fill)] for j in range( stride ) ))
                 else:
-                    block_data += b'\x00'*self.stride
+                    block_data += b'\x00'*stride
             else:
                 block_data += b.export_data()
         if len( buffer ) < offset+len( block_data ):
@@ -321,15 +357,18 @@ class BlockField( Field ):
     def validate( self, value, parent=None ):
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
+        klass = self.get_klass( parent )
 
-        try:
-            it = iter( value )
-        except TypeError:
-            raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
         if count:
+            try:
+                it = iter( value )
+            except TypeError:
+                raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
             assert len( value ) <= count
+        else:
+            value = [value]
         for b in value:
-            if (b is not None) and (not isinstance( b, self.block_klass )):
+            if (b is not None) and (not isinstance( b, klass )):
                  raise FieldValidationError( 'Expecting block class {}, not {}'.format( self.block_klass, type( b ) ) )
 
     def get_start_offset( self, value, parent=None ):
@@ -337,10 +376,20 @@ class BlockField( Field ):
         return offset
 
     def get_size( self, value, parent=None ):
+        # TODO: current design assumes blocks are fixed size, maybe change this to introspection?
         count = property_get( self.count, parent )
+        klass = self.get_klass( parent )
+        stride = klass( **self.block_kwargs ).get_size()
         if count:
-            return self.stride*count
-        return self.stride
+            return stride*count
+        return stride
+
+    def get_klass( self, parent=None ):
+        if isinstance( self.block_klass, dict ):
+            block_type = property_get( self.block_type, parent )
+            return self.block_klass[block_type]
+        return self.block_klass
+
 
 
 class Bytes( Field ):
@@ -757,7 +806,14 @@ class Bits( ValueField ):
 
         super().update_buffer_with_value( packed, buffer, parent )
         return
-    
+
+    def validate( self, value, parent=None ):
+        if self.enum_t:
+            if (value not in [x.value for x in self.enum_t]):
+                raise FieldValidationError( 'Value {} not castable to {}'.format( value, self.enum ) )
+            value = self.enum_t(value).value
+        super().validate( value, parent )
+
     @property
     def repr( self ):
         details = 'offset={}, bits=0b{}'.format( hex( self.offset ), self.mask_bits )

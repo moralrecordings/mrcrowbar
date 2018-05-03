@@ -131,23 +131,32 @@ class Field( object ):
 
 
 class BlockStream( Field ):
-    def __init__( self, block_klass, offset, block_kwargs=None, transform=None, stop_check=None, **kwargs ):
+    def __init__( self, block_klass, offset, block_kwargs=None, transform=None, stop_check=None, length=None, stream_end=None, **kwargs ):
         super().__init__( **kwargs )
         self.block_klass = block_klass
         self.offset = offset
         self.block_kwargs = block_kwargs if block_kwargs else {}
         self.transform = transform
         self.stop_check = stop_check
+        self.length = length
+        if stream_end is not None:
+            assert utils.is_bytes( stream_end )
+        self.stream_end = stream_end
 
     def get_from_buffer( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
         offset = property_get( self.offset, parent )
+        length = property_get( self.length, parent )
+        if length is not None:
+            buffer = buffer[:offset+length]
 
         pointer = offset
         result = []
         while pointer < len( buffer ):
             # run the stop check (if exists): if it returns true, we've hit the end of the stream
             if self.stop_check and (self.stop_check( buffer, pointer )):
+                break
+            if self.stream_end is not None and buffer[pointer:pointer+len( self.stream_end )] == self.stream_end:
                 break
             if self.transform:
                 data = self.transform.import_data( buffer[pointer:], parent=parent )
@@ -174,6 +183,9 @@ class BlockStream( Field ):
                 data = self.transform.export_data( data, parent=parent )['payload']
             block_data += data
         
+        if self.stream_end is not None:
+            block_data += self.stream_end
+
         if len( buffer ) < offset+len( block_data ):
             buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )
         buffer[offset:offset+len( block_data )] = block_data
@@ -307,7 +319,7 @@ class BlockField( Field ):
         count = count if is_array else 1
         assert count >= 0  
         klass = self.get_klass( parent )
-        stride = klass( **self.block_kwargs ).get_size()
+        stride = klass( parent=parent, **self.block_kwargs ).get_size()
 
         result = []
         fill_pattern = self._get_fill_pattern( stride ) if self.fill else None
@@ -329,9 +341,10 @@ class BlockField( Field ):
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
         klass = self.get_klass( parent )
-        stride = klass( **self.block_kwargs ).get_size()
+        stride = klass( parent=parent, **self.block_kwargs ).get_size()
+        is_array = count is not None
 
-        if count:
+        if is_array:
             try:
                 it = iter( value )
             except TypeError:
@@ -358,8 +371,9 @@ class BlockField( Field ):
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
         klass = self.get_klass( parent )
+        is_array = count is not None
 
-        if count:
+        if is_array:
             try:
                 it = iter( value )
             except TypeError:
@@ -379,7 +393,7 @@ class BlockField( Field ):
         # TODO: current design assumes blocks are fixed size, maybe change this to introspection?
         count = property_get( self.count, parent )
         klass = self.get_klass( parent )
-        stride = klass( **self.block_kwargs ).get_size()
+        stride = klass( parent=parent, **self.block_kwargs ).get_size()
         if count:
             return stride*count
         return stride
@@ -718,16 +732,23 @@ class ValueField( Field ):
         return
 
     def validate( self, value, parent=None ):
-        if self.enum:
-            if (value not in [x.value for x in self.enum]):
-                raise FieldValidationError( 'Value {} not castable to {}'.format( value, self.enum ) )
-            value = self.enum(value).value
-        if (type( value ) != self.format_type):
-            raise FieldValidationError( 'Expecting type {}, not {}'.format( self.format_type, type( value ) ) )
-        if self.format_range and (value not in self.format_range):
-            raise FieldValidationError( 'Value {} not in format range ({})'.format( value, self.format_range ) )
-        if self.range and (value not in self.range):
-            raise FieldValidationError( 'Value {} not in range ({})'.format( value, self.range ) )
+        count = property_get( self.count, parent )
+        is_array = count is not None
+        count = count if is_array else 1
+        if not is_array:
+            value = [value]
+
+        for i in range( len( value ) ):
+            if self.enum:
+                if (value[i] not in [x.value for x in self.enum]):
+                    raise FieldValidationError( 'Value {} not castable to {}'.format( value, self.enum ) )
+                value[i] = self.enum(value).value
+            if (type( value[i] ) != self.format_type):
+                raise FieldValidationError( 'Expecting type {}, not {}'.format( self.format_type, type( value[i] ) ) )
+            if self.format_range and (value[i] not in self.format_range):
+                raise FieldValidationError( 'Value {} not in format range ({})'.format( value[i], self.format_range ) )
+            if self.range and (value[i] not in self.range):
+                raise FieldValidationError( 'Value {} not in range ({})'.format( value[i], self.range ) )
         return
 
     @property

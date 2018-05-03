@@ -49,10 +49,83 @@ class Resource( mrc.Block ):
     preload =       mrc.Bits( 0x04, 0b01000000 )
     sharable =      mrc.Bits( 0x04, 0b00100000 )
     movable =       mrc.Bits( 0x04, 0b00010000 )
+    unk1 =          mrc.UInt8( 0x05 )
+    resource_id_low =   mrc.UInt8( 0x06 )
+    int_id =            mrc.Bits( 0x07, 0b10000000 )
+    resource_id_high =  mrc.Bits( 0x07, 0b01111111 )
+    reserved =      mrc.Bytes( 0x08, length=0x04 )
+
+    @property
+    def resource_id( self ):
+        return (self.resource_id_high << 8) + self.resource_id_low
+
+    @resource_id.setter
+    def resource_id( self, value ):
+        self.resouce_id_high = (value >> 8) & 0b01111111
+        self.resource_id_low = value & 0b11111111
+
+    @property
+    def repr( self ):
+        return 'offset=0x{:04x}, size=0x{:04x}, resource_id=0x{:04x}, int_id={}'.format( self.offset, self.size, self.resource_id, self.int_id )
+
+
+class ResourceInfo( mrc.Block ):
+    type_id_low =   mrc.UInt8( 0x00 )
+    type_id_high =  mrc.Bits( 0x01, 0b01111111 )
+    int_id =        mrc.Bits( 0x01, 0b10000000 )
+    count =         mrc.UInt16_LE( 0x02 )
+    reserved =      mrc.Bytes( 0x04, length=0x04 )
+    resources =     mrc.BlockField( Resource, 0x08, count=mrc.Ref( 'count' ) )
+
+    @property
+    def type_id( self ):
+        return (self.type_id_high << 8) + self.type_id_low
+
+    @type_id.setter
+    def type_id( self, value ):
+        self.type_id_high = (value >> 8) & 0b01111111
+        self.type_id_low = value & 0b11111111
+
+    @property
+    def repr( self ):
+        return 'type_id={}, int_id={}, count={}'.format( self.type_id, self.int_id, self.count )
 
 
 class ResourceTable( mrc.Block ):
-    align_shift =   mrc.UInt8( 0x00 )
+    align_shift =   mrc.UInt16_LE( 0x00 )
+    resourceinfo =  mrc.BlockStream( ResourceInfo, 0x02, stream_end=b'\x00\x00' )
+    name_data =     mrc.Bytes( mrc.EndOffset( 'resourceinfo' ), length=0x100 )
+
+
+class ResidentName( mrc.Block ):
+    size =          mrc.UInt8( 0x00 )
+    name =          mrc.Bytes( 0x01, length=mrc.Ref( 'size' ) )
+    index =         mrc.UInt8( mrc.EndOffset( 'name' ) )
+
+    @property
+    def repr( self ):
+        return 'index=0x{:02x}, name={}'.format( self.index, self.name )
+
+
+class ResidentNameTable( mrc.Block ):
+    module_name_size =  mrc.UInt8( 0x00 )
+    module_name =       mrc.Bytes( 0x01, length=mrc.Ref( 'module_name_size' ) )
+    resnames =          mrc.BlockStream( ResidentName, mrc.EndOffset( 'module_name' ), stream_end=b'\x00\x00' )
+
+
+class ImportedName( mrc.Block ):
+    size =          mrc.UInt8( 0x00 )
+    name =          mrc.Bytes( 0x01, length=mrc.Ref( 'size' ) )
+
+    @property
+    def repr( self ):
+        return 'name={}'.format( self.name )
+
+
+class ImportedNameTable( mrc.Block ):
+    unk =           mrc.UInt8( 0x00 )
+    impnames =      mrc.BlockStream( ImportedName, 0x01, stream_end=b'\x00' )
+
 
 
 class RelocationInternalRef( mrc.Block ):
@@ -155,11 +228,12 @@ class NEBase( mrc.Block ):
     resnames_offset =       mrc.UInt16_LE( 0x26 )
     modref_offset =         mrc.UInt16_LE( 0x28 )
     impnames_offset =       mrc.UInt16_LE( 0x2a )
-    nonresnames_offset =    mrc.UInt32_LE( 0x2c )
+    nonresnames_rel_offset =    mrc.UInt32_LE( 0x2c )
     movable_count =         mrc.UInt16_LE( 0x30 )
     sector_shift =          mrc.UInt16_LE( 0x32 )
 
     exe_type =      mrc.UInt8( 0x36 )
+    unk1 =          mrc.Bytes( 0x37, length=9 )
 
 
 class NEModule( NEBase ):
@@ -185,10 +259,27 @@ class NEHeader( NEBase ):
 
     resource_count =        mrc.UInt16_LE( 0x34 )
 
-    padding =       mrc.Bytes( 0x37, length=9 )
 
     segtable =      mrc.BlockField( Segment, mrc.Ref( 'segtable_offset' ), count=mrc.Ref( 'segtable_count' ) )
     restable =      mrc.BlockField( ResourceTable, mrc.Ref( 'restable_offset' ) )
+    resnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'resnames_offset' ) )
+    modreftable =   mrc.UInt16_LE( mrc.Ref( 'modref_offset' ), count=mrc.Ref( 'modref_count' ) )
+    impnamedata =   mrc.Bytes( mrc.Ref( 'impnames_offset' ), length=mrc.Ref( 'impnames_size' ) )
+    entrydata =     mrc.Bytes( mrc.Ref( 'entry_offset' ), length=mrc.Ref( 'entry_size' ) )
+    nonresnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'nonresnames_offset' ) )
+
+
+    @property
+    def impnames_size( self ):
+        return self.entry_offset - self.impnames_offset
+
+    @property
+    def nonresnames_offset( self ):
+        return self.nonresnames_rel_offset -(self._parent.ne_offset if self._parent else 0)
+
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, **kwargs )
+        self.impnametable = mrc.LinearStore( self, mrc.Ref( 'impnamedata' ), ImportedName, offsets=mrc.Ref( 'modreftable' ) )
 
 
 class ModuleTable( mrc.Block ):
@@ -200,6 +291,10 @@ class EXE( mrc.Block ):
     dos_header =    mrc.Bytes( 0x02, length=0x3a )
     ne_offset =     mrc.UInt16_LE( 0x3c )
     # FIXME: size of the DOS stub should be dynamic based on ne_offset
-    #dos_stub =      mrc.Bytes( 0x3e, length=0x72 )
+    dos_stub =      mrc.Bytes( 0x3e, length=mrc.Ref( 'dos_stub_length' ) )
 
     ne_header =     mrc.BlockField( NEHeader, mrc.Ref( 'ne_offset' ) )
+
+    @property
+    def dos_stub_length( self ):
+        return self.ne_offset - 0x3e

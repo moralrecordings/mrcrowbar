@@ -74,8 +74,6 @@ class Song( mrc.Block ):
 
     num_digital =       mrc.UInt16_LE( mrc.EndOffset( 'positions' ) )
     patterns =          mrc.BlockStream( SongPattern, mrc.EndOffset( 'num_digital' ) )
-    
-    #data =      Bytes( 0x0000 )
 
 
 class MUSFile( mrc.Block ):

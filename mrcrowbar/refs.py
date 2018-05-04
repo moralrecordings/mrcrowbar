@@ -3,7 +3,7 @@
 class Ref( object ):
     """Base class for defining cross-references."""
 
-    def __init__( self, path, allow_write=False ):
+    def __init__( self, path, allow_write=True ):
         """Create a new Ref instance.
 
         path
@@ -56,6 +56,21 @@ class Ref( object ):
         return '<{}: {}>'.format( self.__class__.__name__, desc )
 
     repr = None
+
+
+class ConstRef( Ref ):
+    """Shortcut for a read-only Ref."""
+
+    def __init__( self, path ):
+        """Create a new Ref instance.
+
+        path
+            The path to traverse from the context object to reach the target.
+            Child lookups should be in property dot syntax (e.g. obj1.obj2.target).
+            For Blocks that are constructed by other Blocks, you can use the _parent property
+            to traverse up the stack.
+        """
+        super().__init__( path, allow_write=False )
 
 
 def property_get( prop, instance ):

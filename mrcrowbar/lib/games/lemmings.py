@@ -933,7 +933,7 @@ class Special( mrc.Block ):
 
     def __init__( self, *args, **kwargs ):
         super().__init__( *args, **kwargs )
-        self.image = img.IndexedImage( self, width=960, height=160, source=mrc.Ref( 'image_data', allow_write=True ), palette=mrc.Ref( 'palette_vga', allow_write=True ) )
+        self.image = img.IndexedImage( self, width=960, height=160, source=mrc.Ref( 'image_data' ), palette=mrc.Ref( 'palette_vga' ) )
 
 
 class VgaspecDAT( mrc.Block ):

@@ -354,9 +354,11 @@ def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len
             for (o, l) in check:
                 for i in range( o, o+l ):
                     highlights[i] = HIGHLIGHT_COLOUR_MAP[0]
-            lines.append( ansi_format_hexdump_line( source1, offset, end, major_len, minor_len, colour, prefix='-', highlight_addr=HIGHLIGHT_COLOUR_MAP[0], highlight_map=highlights ) )
+            if offset < len( source1 ):
+                lines.append( ansi_format_hexdump_line( source1, offset, min( end, len( source1 ) ), major_len, minor_len, colour, prefix='-', highlight_addr=HIGHLIGHT_COLOUR_MAP[0], highlight_map=highlights ) )
             highlights = {k: HIGHLIGHT_COLOUR_MAP[1] for k in highlights.keys()}
-            lines.append( ansi_format_hexdump_line( source2, offset, end, major_len, minor_len, colour, prefix='+' , highlight_addr=HIGHLIGHT_COLOUR_MAP[1], highlight_map=highlights ) )
+            if offset < len( source2 ):
+                lines.append( ansi_format_hexdump_line( source2, offset, min( end, len( source2 ) ), major_len, minor_len, colour, prefix='+' , highlight_addr=HIGHLIGHT_COLOUR_MAP[1], highlight_map=highlights ) )
         elif show_lines[offset] == 1:
             lines.append( ansi_format_hexdump_line( source1, offset, end, major_len, minor_len, colour, prefix=' ' ) )
         elif show_lines[offset] == 0:

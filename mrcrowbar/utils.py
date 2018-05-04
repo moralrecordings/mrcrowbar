@@ -333,14 +333,18 @@ def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len
     for offset in range( start, end, stride ):
         if source1[offset:offset+stride] != source2[offset:offset+stride]:
             diff_lines.append( offset )
-    show_lines = {x: (2 if x in diff_lines else 0) for x in range( start, end, stride )}
-    for index in diff_lines:
-        for b in [index-(x+1)*stride for x in range( before )]:
-            if b in show_lines and show_lines[b] == 0:
-                show_lines[b] = 1
-        for a in [index+(x+1)*stride for x in range( after )]:
-            if a in show_lines and show_lines[a] == 0:
-                show_lines[a] = 1
+    show_all = before is None or after is None
+    if show_all:
+        show_lines = {x: (2 if x in diff_lines else 1) for x in range( start, end, stride )}
+    else:
+        show_lines = {x: (2 if x in diff_lines else 0) for x in range( start, end, stride )}
+        for index in diff_lines:
+            for b in [index-(x+1)*stride for x in range( before )]:
+                if b in show_lines and show_lines[b] == 0:
+                    show_lines[b] = 1
+            for a in [index+(x+1)*stride for x in range( after )]:
+                if a in show_lines and show_lines[a] == 0:
+                    show_lines[a] = 1
 
     lines = []
     skip = False

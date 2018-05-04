@@ -703,7 +703,9 @@ class ValueField( Field ):
 
         if not is_array:
             value = [value]
-        assert count == len( value )
+        if not count == len( value ):
+            property_set( self.count, parent, len( value ) )
+            count = len( value )
 
         if (len( buffer ) < offset+self.field_size*count):
             buffer.extend( b'\x00'*(offset+self.field_size*count-len( buffer )) )

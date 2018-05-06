@@ -159,6 +159,10 @@ class Block( object, metaclass=BlockMeta ):
         else:
             self.import_data( source_data )
 
+        # cache all refs
+        for key, ref in self._refs.items():
+            ref.cache( self )
+
     def __repr__( self ):
         desc = '0x{:016x}'.format( id( self ) )
         if hasattr( self, 'repr' ) and isinstance( self.repr, str ):

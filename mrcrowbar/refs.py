@@ -19,6 +19,12 @@ class Ref( object ):
         self.path = path.split( '.' )
         self.allow_write = allow_write
 
+    def cache( self, instance, name ):
+        """Signal to the source to pre-load information.
+
+        Called by the parent Block constructor."""
+        pass
+
     def get( self, instance ):
         """Return an attribute from an object using the Ref path.
 
@@ -55,7 +61,9 @@ class Ref( object ):
             desc = self.repr
         return '<{}: {}>'.format( self.__class__.__name__, desc )
 
-    repr = None
+    @property
+    def repr( self ):
+        return '.'.join( self.path )
 
 
 class ConstRef( Ref ):

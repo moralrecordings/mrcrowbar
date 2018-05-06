@@ -18,23 +18,62 @@ class Store( View ):
         self._base_offset = base_offset
         self.fill = fill
         self.refs = OrderedDict()
+        self.items = OrderedDict()
 
     source = view_property( '_source' )
     base_offset = view_property( '_base_offset' )
 
-    def get_object( self, instance, offset, size, block_klass, block_kwargs=None ):
+    def cache_object( self, instance, offset, size, block_klass, block_kwargs=None ):
         # key is the combination of:
-        # instance, offset ref, size ref, block_klass
-        # this means even if 
-        key = (instance, offset, size, block_klass)
+        # instance, offset ref, size ref
+        key = (instance, offset, size)
+        self.refs[key] = {
+            'instance': instance,
+            'offset': offset,
+            'size': size,
+            'block_klass': block_klass,
+            'block_kwargs': block_kwargs if block_kwargs else {}
+        }
+
+    def get_object( self, instance, offset, size ):
+        if self.refs and not self.items:
+            self.cache()
+        key = (instance, offset, size)
+
+        return self.items[key]
         offset = property_get( offset, instance )
         size = property_get( size, instance )
-        block_kwargs = block_kwargs if block_kwargs else {}
+        block_kwargs = self.refs[key]['block_klass']
 
         if key not in self.refs:
-            self.refs[key] = block_klass( source_data=self.source[self.base_offset+offset:][:size], parent=instance, **block_kwargs )
+            self.items[key] = block_klass( source_data=self.source[self.base_offset+offset:][:size], parent=instance, **block_kwargs )
         return self.refs[key]
 
+    def set_object( self, instance, offset, size, value ):
+        key = (instance, offset, size)
+        self.items[key] = value
+
+    def cache( self ):
+        for key, data in self.refs.items():
+            if key not in self.items:
+                instance = data['instance']
+                block_klass = data['block_klass']
+                block_kwargs = data['block_kwargs']
+                offset = property_get( data['offset'], instance )
+                size = property_get( data['size'], instance )
+                self.items[key] = block_klass( source_data=self.source[self.base_offset+offset:][:size], parent=instance, **block_kwargs )
+
+    def save( self ):
+        pointer = 0
+        result = bytearray()
+        for key, block in self.items.items():
+            instance, offset, size = key
+            data = block.export_data()
+            property_set( offset, instance, pointer-self.base_offset )
+            property_set( size, instance, len( data ) )
+            pointer += len( data )
+            result += data
+        self.source = bytes( result )
 
 class LinearStore( View ):
     def __init__( self, parent, source, block_klass, offsets=None, sizes=None, base_offset=0, fill=b'\x00', **kwargs ):
@@ -44,12 +83,22 @@ class LinearStore( View ):
         self._sizes = sizes
         self._base_offset = base_offset
         self.block_klass = block_klass
-        self.refs = None
+        self._items = None
 
     source = view_property( '_source' )
     offsets = view_property( '_offsets' )
     sizes = view_property( '_sizes' )
     base_offset = view_property( '_base_offset' )
+
+    @property
+    def items( self ):
+        if self._items is None:
+            self.cache()
+        return self._items
+
+    @items.setter
+    def items( self, value ):
+        self._items = value
 
     def validate( self ):
         offsets = self.offsets
@@ -72,20 +121,30 @@ class LinearStore( View ):
             sizes.append( len( self.source ) - offsets[-1] )
         elif not offsets:
             offsets = [sum( sizes[:i] ) for i in range( len( sizes ) )]
-        self.refs = [self.block_klass( self.source[self.base_offset+offsets[i]:][:sizes[i]] ) for i in range( len( sizes ) )]
+        self._items = [self.block_klass( self.source[self.base_offset+offsets[i]:][:sizes[i]], parent=self.parent ) for i in range( len( sizes ) )]
 
-    def __getitem__( self, key ):
-        if self.refs is None:
+    def save( self ):
+        self.validate()
+        if self._items is None:
             self.cache()
-        return self.refs[key]
 
-    def __setitem__( self, key, value ):
-        if self.refs is None:
-            self.cache()
-        self.refs[key] = value
+        result = bytearray()
+        pointer = 0
 
-    def __len__( self ):
-        return len( self.refs )
+        offsets = []
+        sizes = []
+
+        for item in self.items:
+            entry = item.export_data()
+            offsets.append( pointer - self.base_offset )
+            sizes.append( len( entry ) )
+            result += entry
+            pointer += len( entry )
+        self.source = bytes(result)
+        if self.offsets and self.offsets != offsets:
+            self.offsets = offsets
+        if self.sizes and self.sizes != sizes:
+            self.sizes = sizes
 
 
 # Loading a Store is a tricky business.
@@ -126,12 +185,16 @@ class StoreRef( Ref ):
         self.size = size
         self.count = count 
         self.block_kwargs = block_kwargs
-   
+
+    def cache( self, instance ):
+        store = property_get( self.store, instance )
+        store.cache_object( instance, self.offset, self.size, self.block_klass, self.block_kwargs )
+
     def get( self, instance ):
         store = property_get( self.store, instance )
-        
-        return store.get_object( instance, self.offset, self.size, self.block_klass, self.block_kwargs )
+        return store.get_object( instance, self.offset, self.size )
 
-    def set( self, instance ):
-        raise AttributeError( "can't set StoreRef directly" )
-
+    def set( self, instance, value ):
+        store = property_get( self.store, instance )
+        assert isinstance( value, self.block_klass )
+        return store.set_object( instance, self.offset, self.size, value )

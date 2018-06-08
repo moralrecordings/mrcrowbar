@@ -390,6 +390,7 @@ class Stats( object ):
         #: Byte histogram for the source data.
         self.histo = array.array( 'I', [0]*256 )
         # do histogram expensively for now, to avoid pulling in e.g numpy
+        self.samples = len( buffer )
         for byte in buffer:
             self.histo[byte] += 1
 
@@ -426,7 +427,8 @@ class Stats( object ):
             result.append( '\n' )
 
         result.append( '╘'+('═'*width)+'╛\n' )
-        result.append( 'entropy: {}'.format( self.entropy ) )
+        result.append( 'entropy: {}\n'.format( self.entropy ) )
+        result.append( 'samples: {}'.format( self.samples ) )
         return ''.join(result)
 
     def print( self, *args, **kwargs ):

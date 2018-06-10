@@ -9,7 +9,7 @@ from mrcrowbar import models as mrc, utils
 class ResidentName( mrc.Block ):
     size =          mrc.UInt8( 0x00 )
     name =          mrc.Bytes( 0x01, length=mrc.Ref( 'size' ) )
-    index =         mrc.UInt8( mrc.EndOffset( 'name' ) )
+    index =         mrc.UInt16_LE( mrc.EndOffset( 'name' ) )
 
     @property
     def repr( self ):
@@ -19,7 +19,8 @@ class ResidentName( mrc.Block ):
 class ResidentNameTable( mrc.Block ):
     module_name_size =  mrc.UInt8( 0x00 )
     module_name =       mrc.Bytes( 0x01, length=mrc.Ref( 'module_name_size' ) )
-    resnames =          mrc.BlockStream( ResidentName, mrc.EndOffset( 'module_name' ), stream_end=b'\x00\x00' )
+    padding =           mrc.UInt16_LE( mrc.EndOffset( 'module_name' ) )
+    resnames =          mrc.BlockStream( ResidentName, mrc.EndOffset( 'padding' ), stream_end=b'\x00' )
 
 
 class ImportedName( mrc.Block ):
@@ -116,10 +117,6 @@ class NullRelocationTable( mrc.Block ):
 class RelocationTable( mrc.Block ):
     count = mrc.UInt16_LE( 0x00 )
     reltable = mrc.BlockField( Relocation, 0x02, count=mrc.Ref( 'count' ) )
-
-#    def __init__( self, *args, **kwargs ):
-#        import pdb; pdb.set_trace()
-#        super().__init__( *args, **kwargs )
 
 
 class Segment( mrc.Block ):

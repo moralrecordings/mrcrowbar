@@ -408,7 +408,7 @@ class BlockField( Field ):
         count = property_get( self.count, parent )
         klass = self.get_klass( parent )
         stride = klass( parent=parent, **self.block_kwargs ).get_size()
-        if count:
+        if count is not None:
             return stride*count
         return stride
 
@@ -417,7 +417,6 @@ class BlockField( Field ):
             block_type = property_get( self.block_type, parent )
             return self.block_klass[block_type]
         return self.block_klass
-
 
 
 class Bytes( Field ):
@@ -758,7 +757,7 @@ class ValueField( Field ):
             if self.enum:
                 if (value[i] not in [x.value for x in self.enum]):
                     raise FieldValidationError( 'Value {} not castable to {}'.format( value, self.enum ) )
-                value[i] = self.enum(value).value
+                value[i] = self.enum( value[i] ).value
             if (type( value[i] ) != self.format_type):
                 raise FieldValidationError( 'Expecting type {}, not {}'.format( self.format_type, type( value[i] ) ) )
             if self.format_range and (value[i] not in self.format_range):

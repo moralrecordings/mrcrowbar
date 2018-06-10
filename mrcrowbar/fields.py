@@ -195,6 +195,20 @@ class BlockStream( Field ):
         offset = property_get( self.offset, parent )
         return offset
 
+    def get_size( self, value, parent=None ):
+        size = 0
+        value = value if value else []
+        for b in value:
+            if self.transform:
+                data = self.transform.export_data( b.export_data(), parent=parent )['payload']
+                size += len( data )
+            else:
+                size += b.get_size()
+
+        if self.stream_end is not None:
+            size += len( self.stream_end )
+        return size
+
 
 class ChunkStream( Field ):
     def __init__( self, offset, chunk_map, length=None, default_chunk=None, chunk_id_size=None, length_field=None, alignment=1, **kwargs ):

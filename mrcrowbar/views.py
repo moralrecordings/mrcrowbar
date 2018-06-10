@@ -46,7 +46,12 @@ class Store( View ):
         block_kwargs = self.refs[key]['block_klass']
 
         if key not in self.refs:
-            self.items[key] = block_klass( source_data=self.source[self.base_offset+offset:][:size], parent=instance, **block_kwargs )
+            source_data = self.source[self.base_offset+offset:]
+            if size is not None:
+                source_data = source_data[:size]
+            else:
+                print( 'WARNING: loading from StoreRef without a size!' )
+            self.items[key] = block_klass( source_data=source_data, parent=instance, **block_kwargs )
         return self.refs[key]
 
     def set_object( self, instance, offset, size, value ):

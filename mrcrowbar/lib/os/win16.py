@@ -6,97 +6,6 @@ from mrcrowbar import models as mrc, utils
 
 # source: http://benoit.papillault.free.fr/c/disc2/exefmt.txt
 # http://geos.icc.ru:8080/scripts/WWWBinV.dll/ShowR?NE.rfi
-
-
-class Segment( mrc.Block ):
-    offset_sect =       mrc.UInt16_LE( 0x00 )
-    size =              mrc.UInt16_LE( 0x02 )
-    data_seg =          mrc.Bits( 0x04, 0b00000001 )
-    iterated =          mrc.Bits( 0x04, 0b00001000 )
-    movable =           mrc.Bits( 0x04, 0b00010000 )
-    shared =            mrc.Bits( 0x04, 0b00100000 )
-    preload =           mrc.Bits( 0x04, 0b01000000 )
-    exec_ro =           mrc.Bits( 0x04, 0b10000000 )
-    relocations =       mrc.Bits( 0x05, 0b00000001 )
-    conforming =        mrc.Bits( 0x05, 0b00000010 )
-    privilege_level =   mrc.Bits( 0x05, 0b00001100 )
-    discardable =       mrc.Bits( 0x05, 0b00010000 )
-    op_size_32 =        mrc.Bits( 0x05, 0b00100000 )
-    granularity =       mrc.Bits( 0x05, 0b01000000 )
-
-    alloc_size =        mrc.UInt16_LE( 0x06 )
-
-    @property
-    def offset( self ):
-        return self.offset_sect << self._parent.sector_shift
-
-    @property
-    def repr( self ):
-        return 'offset_sect={:04x}, size={:04x}, data_seg={}, relocations={}, alloc_size={:04x}'.format( self.offset_sect, self.size, self.data_seg, self.relocations, self.alloc_size )
-
-
-class ModuleSegment( Segment ):
-    selector =          mrc.UInt16_LE( 0x08 )
-
-    @property
-    def repr( self ):
-        return 'offset_sect=0x{:04x}, size=0x{:04x}, data_seg={}, alloc_size=0x{:04x}, selector={:04x}'.format( self.offset_sect, self.size, self.data_seg, self.alloc_size, self.selector )
-
-
-class Resource( mrc.Block ):
-    offset =        mrc.UInt16_LE( 0x00 )
-    size =          mrc.UInt16_LE( 0x02 )
-    preload =       mrc.Bits( 0x04, 0b01000000 )
-    sharable =      mrc.Bits( 0x04, 0b00100000 )
-    movable =       mrc.Bits( 0x04, 0b00010000 )
-    unk1 =          mrc.UInt8( 0x05 )
-    resource_id_low =   mrc.UInt8( 0x06 )
-    int_id =            mrc.Bits( 0x07, 0b10000000 )
-    resource_id_high =  mrc.Bits( 0x07, 0b01111111 )
-    reserved =      mrc.Bytes( 0x08, length=0x04 )
-
-    @property
-    def resource_id( self ):
-        return (self.resource_id_high << 8) + self.resource_id_low
-
-    @resource_id.setter
-    def resource_id( self, value ):
-        self.resouce_id_high = (value >> 8) & 0b01111111
-        self.resource_id_low = value & 0b11111111
-
-    @property
-    def repr( self ):
-        return 'offset=0x{:04x}, size=0x{:04x}, resource_id=0x{:04x}, int_id={}'.format( self.offset, self.size, self.resource_id, self.int_id )
-
-
-class ResourceInfo( mrc.Block ):
-    type_id_low =   mrc.UInt8( 0x00 )
-    type_id_high =  mrc.Bits( 0x01, 0b01111111 )
-    int_id =        mrc.Bits( 0x01, 0b10000000 )
-    count =         mrc.UInt16_LE( 0x02 )
-    reserved =      mrc.Bytes( 0x04, length=0x04 )
-    resources =     mrc.BlockField( Resource, 0x08, count=mrc.Ref( 'count' ) )
-
-    @property
-    def type_id( self ):
-        return (self.type_id_high << 8) + self.type_id_low
-
-    @type_id.setter
-    def type_id( self, value ):
-        self.type_id_high = (value >> 8) & 0b01111111
-        self.type_id_low = value & 0b11111111
-
-    @property
-    def repr( self ):
-        return 'type_id={}, int_id={}, count={}'.format( self.type_id, self.int_id, self.count )
-
-
-class ResourceTable( mrc.Block ):
-    align_shift =   mrc.UInt16_LE( 0x00 )
-    resourceinfo =  mrc.BlockStream( ResourceInfo, 0x02, stream_end=b'\x00\x00' )
-    name_data =     mrc.Bytes( mrc.EndOffset( 'resourceinfo' ), length=0x100 )
-
-
 class ResidentName( mrc.Block ):
     size =          mrc.UInt8( 0x00 )
     name =          mrc.Bytes( 0x01, length=mrc.Ref( 'size' ) )
@@ -127,7 +36,6 @@ class ImportedNameTable( mrc.Block ):
     impnames =      mrc.BlockStream( ImportedName, 0x01, stream_end=b'\x00' )
 
 
-
 class RelocationInternalRef( mrc.Block ):
     index =         mrc.UInt8( 0x00 )
     check =         mrc.Const( mrc.UInt8( 0x01 ), 0 )
@@ -139,8 +47,9 @@ class RelocationInternalRef( mrc.Block ):
 
 
 class RelocationImportName( mrc.Block ):
-    index =         mrc.UInt16_LE( 0x00 )
-    offset =        mrc.UInt16_LE( 0x02 )
+    index =          mrc.UInt16_LE( 0x00 )
+    name_offset =    mrc.UInt16_LE( 0x02 )
+    name = mrc.StoreRef( ImportedName, mrc.Ref( '_parent._parent._parent.impnamestore' ), mrc.Ref( 'name_offset' ), size=32 )
 
     @property
     def repr( self ):
@@ -200,9 +109,172 @@ class Relocation( mrc.Block ):
         return 'address_type={}, detail_type={}, offset=0x{:04x}, detail={}'.format( str( self.address_type ), str( self.detail_type ), self.offset, self.detail )
 
 
+class NullRelocationTable( mrc.Block ):
+    pass
+
+
 class RelocationTable( mrc.Block ):
     count = mrc.UInt16_LE( 0x00 )
     reltable = mrc.BlockField( Relocation, 0x02, count=mrc.Ref( 'count' ) )
+
+#    def __init__( self, *args, **kwargs ):
+#        import pdb; pdb.set_trace()
+#        super().__init__( *args, **kwargs )
+
+
+class Segment( mrc.Block ):
+    RELOCATION_TYPES = {
+        1: RelocationTable,
+        0: NullRelocationTable
+    }
+
+    data =  mrc.Bytes( 0x00, length=mrc.Ref( '_parent.size' ) )
+    relocations = mrc.BlockField( RELOCATION_TYPES, mrc.EndOffset( 'data' ), block_type=mrc.Ref( '_parent.relocations' ) )
+
+
+class SegmentHeader( mrc.Block ):
+    offset_sect =       mrc.UInt16_LE( 0x00 )
+    size =              mrc.UInt16_LE( 0x02 )
+    data_seg =          mrc.Bits( 0x04, 0b00000001 )
+    unk1 =              mrc.Bits( 0x04, 0b00000010 )
+    unk2 =              mrc.Bits( 0x04, 0b00000100 )
+    iterated =          mrc.Bits( 0x04, 0b00001000 )
+    movable =           mrc.Bits( 0x04, 0b00010000 )
+    shared =            mrc.Bits( 0x04, 0b00100000 )
+    preload =           mrc.Bits( 0x04, 0b01000000 )
+    exec_ro =           mrc.Bits( 0x04, 0b10000000 )
+    relocations =       mrc.Bits( 0x05, 0b00000001 )
+    conforming =        mrc.Bits( 0x05, 0b00000010 )
+    privilege_level =   mrc.Bits( 0x05, 0b00001100 )
+    discardable =       mrc.Bits( 0x05, 0b00010000 )
+    op_size_32 =        mrc.Bits( 0x05, 0b00100000 )
+    granularity =       mrc.Bits( 0x05, 0b01000000 )
+    unk3 =              mrc.Bits( 0x05, 0b10000000 )
+
+    alloc_size =        mrc.UInt16_LE( 0x06 )
+
+    segment =           mrc.StoreRef( Segment, mrc.Ref( '_parent._parent.segdatastore' ), offset=mrc.Ref( 'offset' ), size=None ) 
+
+    @property
+    def offset( self ):
+        return self.offset_sect << self._parent.sector_shift
+
+    @property
+    def repr( self ):
+        return 'offset_sect={:04x}, size={:04x}, data_seg={}, relocations={}, alloc_size={:04x}'.format( self.offset_sect, self.size, self.data_seg, self.relocations, self.alloc_size )
+
+
+class ModuleSegmentHeader( SegmentHeader ):
+    selector =          mrc.UInt16_LE( 0x08 )
+
+    @property
+    def repr( self ):
+        return 'offset_sect=0x{:04x}, size=0x{:04x}, data_seg={}, alloc_size=0x{:04x}, selector={:04x}'.format( self.offset_sect, self.size, self.data_seg, self.alloc_size, self.selector )
+
+
+class Resource( mrc.Block ):
+    offset =        mrc.UInt16_LE( 0x00 )
+    size =          mrc.UInt16_LE( 0x02 )
+    preload =       mrc.Bits( 0x04, 0b01000000 )
+    sharable =      mrc.Bits( 0x04, 0b00100000 )
+    movable =       mrc.Bits( 0x04, 0b00010000 )
+    unk1 =          mrc.UInt8( 0x05 )
+    resource_id_low =   mrc.UInt8( 0x06 )
+    int_id =            mrc.Bits( 0x07, 0b10000000 )
+    resource_id_high =  mrc.Bits( 0x07, 0b01111111 )
+    reserved =      mrc.Bytes( 0x08, length=0x04 )
+
+    @property
+    def resource_id( self ):
+        return (self.resource_id_high << 8) + self.resource_id_low
+
+    @resource_id.setter
+    def resource_id( self, value ):
+        self.resouce_id_high = (value >> 8) & 0b01111111
+        self.resource_id_low = value & 0b11111111
+
+    @property
+    def repr( self ):
+        return 'offset=0x{:04x}, size=0x{:04x}, resource_id=0x{:04x}, int_id={}'.format( self.offset, self.size, self.resource_id, self.int_id )
+
+
+class ResourceInfo( mrc.Block ):
+    type_id_low =   mrc.UInt8( 0x00 )
+    type_id_high =  mrc.Bits( 0x01, 0b01111111 )
+    int_id =        mrc.Bits( 0x01, 0b10000000 )
+    count =         mrc.UInt16_LE( 0x02 )
+    reserved =      mrc.Bytes( 0x04, length=0x04 )
+    resources =     mrc.BlockField( Resource, 0x08, count=mrc.Ref( 'count' ) )
+
+    @property
+    def type_id( self ):
+        return (self.type_id_high << 8) + self.type_id_low
+
+    @type_id.setter
+    def type_id( self, value ):
+        self.type_id_high = (value >> 8) & 0b01111111
+        self.type_id_low = value & 0b11111111
+
+    @property
+    def repr( self ):
+        return 'type_id={}, int_id={}, count={}'.format( self.type_id, self.int_id, self.count )
+
+
+class ResourceTable( mrc.Block ):
+    align_shift =   mrc.UInt16_LE( 0x00 )
+    resourceinfo =  mrc.BlockStream( ResourceInfo, 0x02, stream_end=b'\x00\x00' )
+    name_data =     mrc.Bytes( mrc.EndOffset( 'resourceinfo' ), length=0x107 )
+
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, **kwargs )
+        self.store = mrc.Store( self, mrc.Ref( 'name_data' ) )
+
+
+class EmptySegmentIndicator( mrc.Block ):
+    pass
+
+
+class MovableSegmentIndicator( mrc.Block ):
+    exported =  mrc.Bits( 0x00, 0b00000001 )
+    shared =    mrc.Bits( 0x00, 0b00000010 )
+    seg_id =    mrc.UInt8( 0x01 )
+    offset =    mrc.UInt16_LE( 0x02 )
+    unk =       mrc.Bytes( 0x04, length=2 )
+
+    @property
+    def repr( self ):
+        return 'seg_id={}, offset=0x{:04x}, exported={}, shared={}'.format( self.seg_id, self.offset, self.exported, self.shared )
+
+
+class FixedSegmentIndicator( mrc.Block ):
+    exported =  mrc.Bits( 0x00, 0b00000001 )
+    shared =    mrc.Bits( 0x00, 0b00000010 )
+    offset =    mrc.UInt16_LE( 0x01 )
+
+    @property
+    def repr( self ):
+        return 'offset=0x{:04x}, exported={}, shared={}'.format( self.offset, self.exported, self.shared )
+
+
+class EntryBundle( mrc.Block ):
+    # awful hack for validating blockfield
+    INDICATOR_MAP = {k: FixedSegmentIndicator for k in range(1, 255)}
+    INDICATOR_MAP[0] = EmptySegmentIndicator
+    INDICATOR_MAP[255] = MovableSegmentIndicator
+
+    count = mrc.UInt8( 0x00 )
+    indicator = mrc.UInt8( 0x01 )
+    indicators = mrc.BlockField( INDICATOR_MAP, 0x02, count=mrc.Ref( 'count' ), block_type=mrc.Ref( 'indicator' ) )
+
+    @property
+    def repr( self ):
+        return 'count={}, indicator={}'.format( self.count, self.indicator )
+
+
+class ModuleReference( mrc.Block ):
+    name_offset = mrc.UInt16_LE( 0x00 )
+
+    name = mrc.StoreRef( ImportedName, mrc.Ref( '_parent.impnamestore' ), mrc.Ref( 'name_offset' ), size=32 )
 
 
 # source: Matt Pietrek, "Windows Internals", 1993
@@ -243,9 +315,9 @@ class NEModule( NEBase ):
     dgroup_offset =     mrc.UInt16_LE( 0x08 )
     fileinfo_offset =   mrc.UInt16_LE( 0x0a )
 
-    dgroup_offset =     mrc.UInt16_LE( 0x0e )
+    dgroup_segid =      mrc.UInt16_LE( 0x0e )
 
-    segtable =      mrc.BlockField( ModuleSegment, mrc.Ref( 'segtable_offset' ), count=mrc.Ref( 'segtable_count' ) )
+    segtable =      mrc.BlockField( ModuleSegmentHeader, mrc.Ref( 'segtable_offset' ), count=mrc.Ref( 'segtable_count' ) )
 
 
 class NEHeader( NEBase ):
@@ -260,11 +332,12 @@ class NEHeader( NEBase ):
     resource_count =        mrc.UInt16_LE( 0x34 )
 
 
-    segtable =      mrc.BlockField( Segment, mrc.Ref( 'segtable_offset' ), count=mrc.Ref( 'segtable_count' ) )
+    segtable =      mrc.BlockField( SegmentHeader, mrc.Ref( 'segtable_offset' ), count=mrc.Ref( 'segtable_count' ) )
     restable =      mrc.BlockField( ResourceTable, mrc.Ref( 'restable_offset' ) )
     resnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'resnames_offset' ) )
-    modreftable =   mrc.UInt16_LE( mrc.Ref( 'modref_offset' ), count=mrc.Ref( 'modref_count' ) )
+    modreftable =   mrc.BlockField( ModuleReference, mrc.Ref( 'modref_offset' ), count=mrc.Ref( 'modref_count' ) )
     impnamedata =   mrc.Bytes( mrc.Ref( 'impnames_offset' ), length=mrc.Ref( 'impnames_size' ) )
+    #entrydata =     mrc.BlockStream( EntryBundle, mrc.Ref( 'entry_offset' ), length=mrc.Ref( 'entry_size' ) )
     entrydata =     mrc.Bytes( mrc.Ref( 'entry_offset' ), length=mrc.Ref( 'entry_size' ) )
     nonresnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'nonresnames_offset' ) )
 
@@ -278,23 +351,44 @@ class NEHeader( NEBase ):
         return self.nonresnames_rel_offset -(self._parent.ne_offset if self._parent else 0)
 
     def __init__( self, *args, **kwargs ):
+        self.impnamestore = mrc.Store( self, mrc.Ref( 'impnamedata' ) )
         super().__init__( *args, **kwargs )
-        self.impnametable = mrc.LinearStore( self, mrc.Ref( 'impnamedata' ), ImportedName, offsets=mrc.Ref( 'modreftable' ) )
 
 
 class ModuleTable( mrc.Block ):
     ne_header =     mrc.BlockField( NEModule, 0x00 )
+
+    segdata =       mrc.Bytes( 0x900 )
+
+    @property
+    def segdata_offset( self ):
+        # FIXME: make autodetection work
+        return 0x900
+
+    def __init__( self, *args, **kwargs ):
+        self.segdatastore = mrc.Store( self, mrc.Ref( 'segdata' ), base_offset=-self.segdata_offset )
+        super().__init__( *args, **kwargs )
 
 
 class EXE( mrc.Block ):
     dos_magic =     mrc.Const( mrc.Bytes( 0x00, length=2 ), b'MZ' )
     dos_header =    mrc.Bytes( 0x02, length=0x3a )
     ne_offset =     mrc.UInt16_LE( 0x3c )
-    # FIXME: size of the DOS stub should be dynamic based on ne_offset
     dos_stub =      mrc.Bytes( 0x3e, length=mrc.Ref( 'dos_stub_length' ) )
 
     ne_header =     mrc.BlockField( NEHeader, mrc.Ref( 'ne_offset' ) )
 
+    segdata =       mrc.Bytes( 0x900 )
+
+    @property
+    def segdata_offset( self ):
+        # FIXME: make autodetection work
+        return 0x900
+
     @property
     def dos_stub_length( self ):
         return self.ne_offset - 0x3e
+
+    def __init__( self, *args, **kwargs ):
+        self.segdatastore = mrc.Store( self, mrc.Ref( 'segdata' ), base_offset=-self.segdata_offset )
+        super().__init__( *args, **kwargs )

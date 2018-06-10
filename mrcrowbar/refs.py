@@ -135,7 +135,7 @@ def view_property( prop ):
 
 class EndOffset( Ref ):
     """Cross-reference for getting the offset of the end of a Field. Used for chaining variable length Fields."""
-    def __init__( self, path, neg=False ):
+    def __init__( self, path, neg=False, align=1 ):
         """Create a new EndOffset instance.
 
         path
@@ -148,15 +148,20 @@ class EndOffset( Ref ):
             Whether to return the end offset as a negative value. Useful for
             e.g. globally offsetting Stores which use an index relative to the
             very start of the file, even if the first chunk contains headers.
+
+        align
+            Round up the result to the nearest multiple of this value.
         """
         super().__init__( path )
         self.neg = neg
+        self.align = align
 
     def get( self, instance ):
         target = instance
         for attr in self.path[:-1]:
             target = getattr( target, attr )
         target = target.get_field_end_offset( self.path[-1] )
+        target -= (target % -self.align)
         if self.neg:
             target *= -1
         return target

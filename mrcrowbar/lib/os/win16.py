@@ -175,7 +175,8 @@ class Resource( mrc.Block ):
     preload =       mrc.Bits( 0x04, 0b01000000 )
     sharable =      mrc.Bits( 0x04, 0b00100000 )
     movable =       mrc.Bits( 0x04, 0b00010000 )
-    unk1 =          mrc.UInt8( 0x05 )
+    in_memory =     mrc.Bits( 0x04, 0b00000100 )
+    discardable =   mrc.Bits( 0x05, 0b00010000 )
     resource_id_low =   mrc.UInt8( 0x06 )
     int_id =            mrc.Bits( 0x07, 0b10000000 )
     resource_id_high =  mrc.Bits( 0x07, 0b01111111 )
@@ -304,6 +305,10 @@ class NEBase( mrc.Block ):
     exe_type =      mrc.UInt8( 0x36 )
     unk1 =          mrc.Bytes( 0x37, length=9 )
 
+    @property
+    def impnames_size( self ):
+        return self.entry_offset - self.impnames_offset
+
 
 class NEModule( NEBase ):
     usage_count =       mrc.UInt16_LE( 0x02 )
@@ -315,6 +320,16 @@ class NEModule( NEBase ):
     dgroup_segid =      mrc.UInt16_LE( 0x0e )
 
     segtable =      mrc.BlockField( ModuleSegmentHeader, mrc.Ref( 'segtable_offset' ), count=mrc.Ref( 'segtable_count' ) )
+    restable =      mrc.BlockField( ResourceTable, mrc.Ref( 'restable_offset' ) )
+    resnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'resnames_offset' ) )
+    modreftable =   mrc.BlockField( ModuleReference, mrc.Ref( 'modref_offset' ), count=mrc.Ref( 'modref_count' ) )
+    impnamedata =   mrc.Bytes( mrc.Ref( 'impnames_offset' ), length=mrc.Ref( 'impnames_size' ) )
+    #entrydata =     mrc.BlockStream( EntryBundle, mrc.Ref( 'entry_offset' ), length=mrc.Ref( 'entry_size' ) )
+    #nonresnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'nonresnames_rel_offset' ) )
+
+    def __init__( self, *args, **kwargs ):
+        self.impnamestore = mrc.Store( self, mrc.Ref( 'impnamedata' ) )
+        super().__init__( *args, **kwargs )
 
 
 class NEHeader( NEBase ):
@@ -334,14 +349,8 @@ class NEHeader( NEBase ):
     resnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'resnames_offset' ) )
     modreftable =   mrc.BlockField( ModuleReference, mrc.Ref( 'modref_offset' ), count=mrc.Ref( 'modref_count' ) )
     impnamedata =   mrc.Bytes( mrc.Ref( 'impnames_offset' ), length=mrc.Ref( 'impnames_size' ) )
-    #entrydata =     mrc.BlockStream( EntryBundle, mrc.Ref( 'entry_offset' ), length=mrc.Ref( 'entry_size' ) )
-    entrydata =     mrc.Bytes( mrc.Ref( 'entry_offset' ), length=mrc.Ref( 'entry_size' ) )
+    entrydata =     mrc.BlockStream( EntryBundle, mrc.Ref( 'entry_offset' ), length=mrc.Ref( 'entry_size' ) )
     nonresnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'nonresnames_offset' ) )
-
-
-    @property
-    def impnames_size( self ):
-        return self.entry_offset - self.impnames_offset
 
     @property
     def nonresnames_offset( self ):

@@ -1,5 +1,7 @@
 from mrcrowbar.fields import Field
+from mrcrowbar.refs import Ref, property_get, property_set
 from mrcrowbar import utils
+
 
 class CheckException( Exception ):
     pass
@@ -62,3 +64,20 @@ class Const( Check ):
     @property
     def repr( self ):
         return '{} == {}'.format( self.field, self.value )
+
+
+class Updater( Check ):
+    def __init__( self, source, target, *args, **kwargs ):
+        assert isinstance( source, Ref )
+        assert isinstance( target, Ref )
+        super().__init__( *args, **kwargs )
+        self.source = source
+        self.target = target
+
+    def update_buffer( self, buffer, parent=None ):
+        value = property_get( self.source, parent )
+        self.property_set( self.target, parent, value )
+
+    @property
+    def repr( self ):
+        return '{} = {}'.format( self.target, self.source )

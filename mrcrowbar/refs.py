@@ -16,6 +16,8 @@ class Ref( object ):
             Allow modification of the target with the set() method.
         """
         # very simple path syntax for now: walk down the chain of properties
+        if not type( path ) == str:
+            raise TypeError( 'path argument to Ref() should be a string' )
         self.path = path.split( '.' )
         self.allow_write = allow_write
 

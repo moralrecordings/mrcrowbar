@@ -420,7 +420,24 @@ class BlockField( Field ):
 
 
 class Bytes( Field ):
-    def __init__( self, offset, length=None, default=None, transform=None, **kwargs ):
+    def __init__( self, offset, length=None, default=None, transform=None, stream_end=None, **kwargs ):
+        """Field class for raw byte data.
+
+        offset
+            Position of data, relative to the start of the parent block.
+
+        length
+            Maximum size of the data in bytes.
+
+        default
+            Default byte data. Used for creating an empty block.
+
+        transform
+            A Transform to process the data before import/export.
+
+        stream_end
+            Byte string to indicate the end of the data.
+        """
         if default is not None:
             assert utils.is_bytes( default )
         else:
@@ -429,6 +446,9 @@ class Bytes( Field ):
         self.offset = offset
         self.length = length
         self.transform = transform
+        if stream_end is not None:
+            assert utils.is_bytes( stream_end )
+        self.stream_end = stream_end
 
     def get_from_buffer( self, buffer, parent=None, **kwargs ):
         assert utils.is_bytes( buffer )
@@ -436,8 +456,12 @@ class Bytes( Field ):
         length = property_get( self.length, parent )
 
         data = buffer[offset:]
+        if self.stream_end is not None:
+            end = data.find( self.stream_end )
+            if end != -1:
+                data = data[:end]
         if length is not None:
-            data = buffer[offset:offset+length]
+            data = data[:length]
 
         if self.transform:
             data = self.transform.import_data( data, parent=parent )['payload']
@@ -448,14 +472,21 @@ class Bytes( Field ):
         super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
         length = property_get( self.length, parent )
-        
+
         data = value
         if self.transform:
             data = self.transform.export_data( data, parent=parent )['payload']
 
-        if len( buffer ) < offset+len( data ):
-            buffer.extend( b'\x00'*(offset+len( data )-len( buffer )) )    
+        new_size = offset+len( data )
+        if self.stream_end is not None:
+            new_size += len( self.stream_end )
+
+        if len( buffer ) < new_size:
+            buffer.extend( b'\x00'*(new_size-len( buffer )) )
+
         buffer[offset:offset+len( data )] = data
+        if self.stream_end is not None:
+            buffer[offset+len( data ):new_size] = self.stream_end
         return
 
     def validate( self, value, parent=None ):

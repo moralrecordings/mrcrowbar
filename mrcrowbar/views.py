@@ -2,7 +2,7 @@ from collections import OrderedDict
 import logging
 logger = logging.getLogger( __name__ )
 
-from mrcrowbar.refs import *
+from mrcrowbar.refs import Ref, property_get, property_set, view_property
 
 class View( object ):
     def __init__( self, parent, *args, **kwargs ):

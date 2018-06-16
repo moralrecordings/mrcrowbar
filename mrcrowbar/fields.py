@@ -6,7 +6,7 @@ import math
 import logging
 logger = logging.getLogger( __name__ )
 
-from mrcrowbar.refs import *
+from mrcrowbar.refs import Ref, property_get, property_set
 from mrcrowbar import utils
 
 _next_position_hint = itertools.count()

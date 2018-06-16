@@ -236,8 +236,8 @@ class EGATileStore( mrc.Block ):
     tile32 = mrc.StoreRef( EGATile32, mrc.Ref( 'store' ), mrc.Ref( 'tile32_offset' ), mrc.Ref( 'tile32_size' ) )
 
     def __init__( self, *args, **kwargs ):
-        super().__init__( *args, **kwargs )
         self.store = mrc.Store( self, mrc.Ref( 'data' ) )
+        super().__init__( *args, **kwargs )
         
     @property
     def tile8_offset( self ):

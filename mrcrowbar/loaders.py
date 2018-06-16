@@ -1,6 +1,9 @@
 import os, re
 from collections import OrderedDict, Counter, defaultdict
 from mmap import mmap
+import logging
+logger = logging.getLogger( __name__ )
+
 
 class Loader( object ):
     _SEP = re.escape( os.path.sep )

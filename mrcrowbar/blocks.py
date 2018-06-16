@@ -4,9 +4,9 @@ from collections import OrderedDict
 import logging
 logger = logging.getLogger( __name__ )
 
-from mrcrowbar.fields import *
-from mrcrowbar.refs import *
-from mrcrowbar.checks import *
+from mrcrowbar.fields import Field, Bytes
+from mrcrowbar.refs import Ref
+from mrcrowbar.checks import Check
 from mrcrowbar import utils
 
 
@@ -212,16 +212,17 @@ class Block( object, metaclass=BlockMeta ):
             # if we have debug logging on, check the roundtrip works
             if logger.isEnabledFor( logging.INFO ):
                 test = self.export_data()
-                logger.debug( 'Stats for {}:'.format( self ) )
-                logger.debug( 'Import buffer size: {}'.format( len( raw_buffer ) ) )
-                logger.debug( 'Export size: {}'.format( len( test ) ) )
-                if test == raw_buffer[:len( test )]:
-                    logger.debug( 'Content: exact match!' )
-                else:
-                    if logger.getEffectiveLevel() == logging.DEBUG:
-                        logger.debug( 'Content: different!\n{}'.format( utils.hexdump_diff_str( raw_buffer[:len( test )], test, before=16, after=16 ) ) )
+                if logger.getEffectiveLevel() <= logging.DEBUG:
+                    logger.debug( 'Stats for {}:'.format( self ) )
+                    logger.debug( 'Import buffer size: {}'.format( len( raw_buffer ) ) )
+                    logger.debug( 'Export size: {}'.format( len( test ) ) )
+                    if test == raw_buffer[:len( test )]:
+                        logger.debug( 'Content: exact match!' )
                     else:
-                        logger.info( '{} produced different failed the roundtrip\n{}'.format( self, utils.hexdump_diff_str( raw_buffer[:len( test )], test ) ) )
+                        logger.debug( 'Content: different!\n{}'.format( utils.hexdump_diff_str( raw_buffer[:len( test )], test ) ) )
+                elif test != raw_buffer[:len( test )]:
+                    logger.info( '{} export produced changed output from import'.format( self ) )
+
         return
 
 

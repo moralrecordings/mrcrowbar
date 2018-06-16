@@ -5,6 +5,25 @@ import math
 import io
 import struct
 import mmap
+import logging
+logger = logging.getLogger( __name__ )
+
+
+def enable_logging( level='WARNING' ):
+    """Enable sending logs to stderr. Useful for shell sessions.
+
+    level
+        Logging threshold, as defined in the logging module of the Python
+        standard library. Defaults to 'WARNING'.
+    """
+    log = logging.getLogger( 'mrcrowbar' )
+    log.setLevel( level )
+    out = logging.StreamHandler()
+    out.setLevel( level )
+    form = logging.Formatter( '[%(levelname)s] %(name)s - %(message)s' )
+    out.setFormatter( form )
+    log.addHandler( out )
+
 
 def is_bytes( obj ):
     """Returns whether obj is an acceptable Python byte string."""
@@ -290,12 +309,12 @@ def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4
     print( hexdump_str( source, start, end, length, major_len, minor_len ) )
 
 
-def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2 ):
-    """Print the differences between two byte strings in tabular hexadecimal/ASCII format.
-    
+def hexdump_diff_str( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2 ):
+    """Returns the differences between two byte strings in tabular hexadecimal/ASCII format.
+
     source1
         The first byte string source.
-        
+
     source2
         The second byte string source.
 
@@ -372,7 +391,45 @@ def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len
         lines.append( '...' )
         skip = False
 
-    print( '\n'.join( lines ) )
+    return '\n'.join( lines )
+
+
+def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2 ):
+    """Returns the differences between two byte strings in tabular hexadecimal/ASCII format.
+
+    source1
+        The first byte string source.
+
+    source2
+        The second byte string source.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    major_len
+        Number of hexadecimal groups per line
+
+    minor_len
+        Number of bytes per hexadecimal group
+
+    colour
+        Add ANSI colour formatting to output (default: true)
+
+    before
+        Number of lines of context preceeding a match to show
+
+    after
+        Number of lines of context following a match to show
+
+    Raises ValueError if both end and length are defined.
+    """
+    print( hexdump_diff_str( source1, source2, start, end, length, major_len, minor_len, colour, before, after ) )
 
 
 #: Unicode representation of a vertical bar graph.

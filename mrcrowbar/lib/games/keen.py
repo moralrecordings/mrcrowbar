@@ -21,6 +21,8 @@ http://www.shikadi.net/moddingwiki/Commander_Keen_1-3_Level_format
 """
 
 import itertools
+import logging
+logger = logging.getLogger( __name__ )
 
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
@@ -91,21 +93,21 @@ class LZWCompressor( mrc.Transform ):
 
         def add_to_lookup( state, entry ):
             if len( lookup ) < (1 << max_bits):
-                #print('lookup[{}] = {}'.format( len( lookup ), entry ) )
+                logger.debug( 'lookup[{}] = {}'.format( len( lookup ), entry ) )
                 lookup.append( entry )
                 if len( lookup ) == (1 << state['usebits'])-1:
                     state['usebits'] = min( state['usebits']+1, max_bits )
-                    #print('usebits = {}'.format(state['usebits']))
+                    logger.debug( 'usebits = {}'.format(state['usebits']) )
             return
                     
 
         fcode = bs.get_bits( state['usebits'] )
         match = lookup[fcode]
-        #print( 'fcode={},match={}'.format( fcode, match ) )
+        logger.debug( 'fcode={},match={}'.format( fcode, match ) )
         output.extend( match )
         while True:
             ncode = bs.get_bits( state['usebits'] )
-            #print( 'ncode={}'.format( ncode ) )
+            logger.debug( 'ncode={}'.format( ncode ) )
             if ncode == 257:
                 # end of data
                 break
@@ -116,8 +118,8 @@ class LZWCompressor( mrc.Transform ):
                 nmatch = lookup[ncode]
             else:
                 nmatch = match+match[0:1]
-            #print( 'match={}'.format(match) )
-            #print( 'nmatch={}'.format(nmatch) )
+            logger.debug( 'match={}'.format(match) )
+            logger.debug( 'nmatch={}'.format(nmatch) )
             output.extend( nmatch )
 
             # add code to lookup 
@@ -125,7 +127,7 @@ class LZWCompressor( mrc.Transform ):
             match = nmatch
 
         if len( output ) != decomp_size:
-            print( 'Warning: was expecting data of size {}, got data of size {} instead'.format( decomp_size, len( output ) ) )
+            logger.warning( '{}: was expecting data of size {}, got data of size {} instead'.format( self, decomp_size, len( output ) ) )
 
         result = {
             'payload': bytes( output ),
@@ -383,5 +385,5 @@ class Loader( mrc.Loader ):
     def __init__( self ):
         super().__init__( self._KEEN_FILE_CLASS_MAP, self._KEEN_DEPS )
 
-    def post_load( self, verbose=False ): 
+    def post_load( self ): 
         pass

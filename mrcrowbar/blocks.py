@@ -1,11 +1,15 @@
 """Definition classes for data blocks."""
 
 from collections import OrderedDict
+import logging
+logger = logging.getLogger( __name__ )
 
 from mrcrowbar.fields import *
 from mrcrowbar.refs import *
 from mrcrowbar.checks import *
 from mrcrowbar import utils
+
+
 
 class FieldDescriptor( object ):
     def __init__( self, name ):
@@ -205,16 +209,21 @@ class Block( object, metaclass=BlockMeta ):
             for name, check in klass._checks.items():
                 check.check_buffer( raw_buffer, parent=self )
 
-            # debug stuff
-            #test = self.export_data()
-            #print( 'Stats for {}:'.format( self ) )
-            #print( 'Length: {} => {}'.format( len( raw_buffer ), len( test ) ) )
-            #if test == raw_buffer[:len( test )]:
-            #    print( 'Content: exact match!' )
-            #else:
-            #    print( 'Content:' )
-            #    print( utils.hexdump_diff( raw_buffer[:len( test )], test ) )
+            # if we have debug logging on, check the roundtrip works
+            if logger.isEnabledFor( logging.INFO ):
+                test = self.export_data()
+                logger.debug( 'Stats for {}:'.format( self ) )
+                logger.debug( 'Import buffer size: {}'.format( len( raw_buffer ) ) )
+                logger.debug( 'Export size: {}'.format( len( test ) ) )
+                if test == raw_buffer[:len( test )]:
+                    logger.debug( 'Content: exact match!' )
+                else:
+                    if logger.getEffectiveLevel() == logging.DEBUG:
+                        logger.debug( 'Content: different!\n{}'.format( utils.hexdump_diff_str( raw_buffer[:len( test )], test, before=16, after=16 ) ) )
+                    else:
+                        logger.info( '{} produced different failed the roundtrip\n{}'.format( self, utils.hexdump_diff_str( raw_buffer[:len( test )], test ) ) )
         return
+
 
     def export_data( self ):
         """Export data to a byte array."""

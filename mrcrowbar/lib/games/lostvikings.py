@@ -1,5 +1,7 @@
 """File format classes for the games The Lost Vikings (1992) and Blackthorne (1994).
 """
+import logging
+logger = logging.getLogger( __name__ )
 
 from mrcrowbar import models as mrc
 from mrcrowbar import utils
@@ -93,7 +95,7 @@ class LZSS( mrc.Transform ):
         while True:
             cx >>= 1
             if cx < 0x100:
-                #print('@ new pattern: {:08b}'.format( buffer[data_p] ) )
+                logger.debug( '@ new pattern: {:08b}'.format( buffer[data_p] ) )
                 cx = buffer[data_p] + 0xff00
                 data_p += 1
             
@@ -103,8 +105,8 @@ class LZSS( mrc.Transform ):
                 data_p += 2
                 work_p = info & 0xfff
                 count = (info >> 12) + 3
-                #print('# work_ram[0x{:04x}:0x{:04x}] = work_ram[0x{:04x}:0x{:04x}]'.format( bx, bx+count, rel_p, rel_p+count ) ) 
-                #print('! output[0x{:04x}:0x{:04x}] = work_ram[0x{:04x}:0x{:04x}]'.format( len( output ), len( output )+count, rel_p, rel_p+count ) ) 
+                logger.debug( '# work_ram[0x{:04x}:0x{:04x}] = work_ram[0x{:04x}:0x{:04x}]'.format( bx, bx+count, rel_p, rel_p+count ) ) 
+                logger.debug( '! output[0x{:04x}:0x{:04x}] = work_ram[0x{:04x}:0x{:04x}]'.format( len( output ), len( output )+count, rel_p, rel_p+count ) )
                 for i in range( count ):
                     # loc_103C4
                     dat = work_ram[work_p]
@@ -123,8 +125,8 @@ class LZSS( mrc.Transform ):
                     break
         
             else:
-                #print('# work_ram[0x{:04x}] = buffer[0x{:04x}]'.format( bx, data_p ) ) 
-                #print('! output[0x{:04x}] = buffer[0x{:04x}]'.format( len( output ), data_p ) ) 
+                logger.debug( '# work_ram[0x{:04x}] = buffer[0x{:04x}]'.format( bx, data_p ) ) 
+                logger.debug( '! output[0x{:04x}] = buffer[0x{:04x}]'.format( len( output ), data_p ) ) 
                 dat = buffer[data_p]
                 work_ram[bx] = dat
                 data_p += 1
@@ -135,7 +137,7 @@ class LZSS( mrc.Transform ):
                 if edx == 0:
                     break
 
-        print( 'output_size: {:08x}, output_end: {:08x}, input_size: {:08x}, input_end: {:08x}'.format( output_size, len( output ), len( buffer ), data_p ) )
+        logger.info( '{} - output_size: {:08x}, output_end: {:08x}, input_size: {:08x}, input_end: {:08x}'.format( self, output_size, len( output ), len( buffer ), data_p ) )
 
         return {
             'payload': bytes( output ), 'end_offset': data_p

@@ -12,6 +12,8 @@ import collections
 import math
 import sys
 import io
+import logging
+logger = logging.getLogger( __name__ )
 
 
 class Colour( mrc.Block ):
@@ -75,9 +77,6 @@ class Colour( mrc.Block ):
 
     def print( self, *args, **kwargs ):
         print( self.ansi_format( *args, **kwargs ) )
-
-    def __str__( self ):
-        return self.ansi_format()
 
     def __eq__( self, other ):
         return (self.r_8 == other.r_8) and (self.g_8 == other.g_8) and (self.b_8 == other.b_8) and (self.a_8 == other.a_8)
@@ -182,13 +181,13 @@ class CodecImage( Image ):
         src = io.BytesIO( self.source )
         image = PILImage.open( src )
         if self.width is not None and image.size[0] != self.width:
-            print( 'Warning: image has width {}, was expecting {}'.format( image.size[0], self.width ) )
+            logger.warning( 'Image {} has width {}, was expecting {}'.format( self, image.size[0], self.width ) )
         if self.height is not None and image.size[1] != self.height:
-            print( 'Warning: image has height {}, was expecting {}'.format( image.size[1], self.height ) )
+            logger.warning( 'Image {} has height {}, was expecting {}'.format( self, image.size[1], self.height ) )
         if self.format is not None and image.format != self.format:
-            print( 'Warning: image is in {} format, was expecting {} format'.format( image.format, self.format ) )
+            logger.warning( 'Image {} is in {} format, was expecting {} format'.format( self, image.format, self.format ) )
         if self.mode is not None and image.mode != self.mode:
-            print( 'Warning: image is mode {}, was expecting mode {}'.format( image.mode, self.mode ) )
+            logger.warning( 'Image {} is mode {}, was expecting mode {}'.format( self, image.mode, self.mode ) )
         image.load()
         return image
 
@@ -273,18 +272,19 @@ class IndexedImage( Image ):
         if not PILImage:
             raise ImportError( 'Pillow must be installed for image manipulation support (see http://pillow.readthedocs.io/en/latest/installation.html)' )
         if not isinstance( image, PILImage.Image ):
-            raise TypeError( 'image must be a PILImage object!' )
+            raise TypeError( 'Image must be a PILImage object' )
         if image.mode != 'P':
-            raise AttributeError( 'image must be indexed (mode P)' )
+            raise AttributeError( 'Image must be indexed (mode P)' )
         if change_dims:
             if self.width != image.width:
-                print( "Changing width from {} to {}".format( self.width, image.width ) )
+                logger.warning( "Changing width from {} to {}".format( self.width, image.width ) )
                 self.width = image.width
             if self.height != image.height:
-                print( "Changing height from {} to {}".format( self.height, image.height ) )
+                logger.warning( "Changing height from {} to {}".format( self.height, image.height ) )
                 self.height = image.height
         else:
-            assert (self.width == image.width) and (self.height == image.height)
+            if not (self.width == image.width) and (self.height == image.height):
+                raise AttributeError( 'Image is a different size, please enable change_dims if you want to resize the image' )
 
         old_pal = to_palette_bytes( self.palette )
         new_pal = image.palette.palette
@@ -292,7 +292,7 @@ class IndexedImage( Image ):
             if change_palette:
                 self.palette = from_palette_bytes( new_pal )
             else:
-                print( "Warning: Palette of new image is different!" )
+                logger.warning( 'Image was provided with a different palette, please enable change_palette if you want to set the palette' )
         self.source = image.tobytes()
 
     def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0, columns=1, downsample=1 ):
@@ -352,10 +352,8 @@ class IndexedImage( Image ):
     def print( self, *args, **kwargs ):
         print( self.ansi_format( *args, **kwargs ) )
 
-    def __str__( self ):
-        return self.ansi_format()
-
-    def __repr__( self ):
+    @property
+    def repr( self ):
         return '<{}: {} bytes, {}x{}>'.format( self.__class__.__name__, self.width*self.height, self.width, self.height )
 
 

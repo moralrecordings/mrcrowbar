@@ -3,6 +3,8 @@
 import struct
 import itertools 
 import math
+import logging
+logger = logging.getLogger( __name__ )
 
 from mrcrowbar.refs import *
 from mrcrowbar import utils
@@ -721,12 +723,12 @@ class ValueField( Field ):
             value = struct.unpack( self.format, data )[0]
             # friendly warnings if the imported data fails the range check
             if self.range and (value not in self.range):
-                print( 'Warning: value {} outside of range {}'.format( value, self.range ) )
+                logger.warning( '{}: value {} outside of range {}'.format( self, value, self.range ) )
 
             # friendly warning if the imported data fails the enum check
             if self.enum:
                 if (value not in [x.value for x in self.enum]):
-                    print( 'Warning: value {} not castable to {}'.format( value, self.enum ) )
+                    logger.warning( '{}: value {} not castable to {}'.format( self, value, self.enum ) )
                 else:
                     # cast to enum because why not
                     value = self.enum( value )
@@ -856,7 +858,7 @@ class Bits( ValueField ):
             value += (1 << i) if (result & x) else 0
         if self.enum_t:
             if (value not in [x.value for x in self.enum_t]):
-                print( 'Warning: value {} not castable to {}'.format( value, self.enum_t ) )
+                logger.warning( '{}: value {} not castable to {}'.format( self, value, self.enum_t ) )
             else:
                 # cast to enum because why not
                 value = self.enum_t( value )

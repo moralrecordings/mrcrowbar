@@ -1,4 +1,6 @@
 from collections import OrderedDict
+import logging
+logger = logging.getLogger( __name__ )
 
 from mrcrowbar.refs import *
 
@@ -50,7 +52,7 @@ class Store( View ):
             if size is not None:
                 source_data = source_data[:size]
             else:
-                print( 'WARNING: loading from StoreRef without a size!' )
+                logger.warning( '{}: loading from StoreRef without a size!'.format( self ) )
             self.items[key] = block_klass( source_data=source_data, parent=instance, **block_kwargs )
         return self.refs[key]
 

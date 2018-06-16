@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger( __name__ )
+
 from mrcrowbar.fields import Field
 from mrcrowbar.refs import Ref, property_get, property_set
 from mrcrowbar import utils
@@ -50,7 +53,7 @@ class Const( Check ):
             mismatch = '{}:{}, found {}!'.format( self, self.value, test )
             if self.raise_exception:
                 raise CheckException( mismatch )
-            print( 'Warning: {}'.format( mismatch ) )
+            logger.warning( mismatch )
         
     def update_buffer( self, buffer, parent=None ):
         self.field.update_buffer_with_value( self.value, buffer, parent )

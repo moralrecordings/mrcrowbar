@@ -151,7 +151,7 @@ class Loader( mrc.Loader ):
     def __init__( self ):
         super().__init__( self._SAM_FILE_CLASS_MAP )
 
-    def post_load( self, verbose=False ):
+    def post_load( self ):
 
         #for key, obj in file_map.items():
         #    pass

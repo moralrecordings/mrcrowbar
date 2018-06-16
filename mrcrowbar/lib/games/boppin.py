@@ -2,6 +2,8 @@
 
 import array
 import itertools
+import logging
+logger = logging.getLogger( __name__ )
 
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
@@ -188,13 +190,14 @@ class BoppinCompressor( mrc.Transform ):
         size_comp = utils.from_uint32_le( buffer )
 
         if size_comp != len( buffer ):
-            print( 'File not compressed!' )
+            logger.info( '{}: File not compressed'.format( self ) )
             return {'payload': buffer, 'end_offset': len( buffer )}
         
         size_raw = utils.from_uint32_le( buffer[4:] )
         result = lc.import_data( buffer[8:][:size_comp] )
         if len( result['payload'] ) != size_raw:
-            print( 'Was expecting a decompressed size of {}, got {}!'.format( size_raw, len( result['payload'] ) ) )
+            logger.warning( '{}: Was expecting a decompressed size of {}, got {}!'.format( self, size_raw, len( result['payload'] ) ) )
+
         return result
 
 

@@ -14,7 +14,7 @@ class Loader( object ):
         self.file_re_map = { key: re.compile( key, flags=self.re_flags ) for key, klass in file_class_map.items() if klass } 
         self._files = OrderedDict()
 
-    def load( self, target_path, verbose=False ):
+    def load( self, target_path ):
         #target_path = os.path.abspath( target_path )
         for root, subFolders, files in os.walk( target_path ):
             for f in files:
@@ -112,12 +112,12 @@ class Loader( object ):
         load_order += [x for x in self._files.keys() if x not in load_order]
 
         # load files in based on dependency sorted list order
+        logger.info( '{}: loading files'.format( self ) )
         for path in load_order:
             info = self._files[path]
             with open( path, 'r+b' ) as f:
                 data = mmap( f.fileno(), 0 )
-                if verbose:
-                    print( '{} => {}'.format( path, info['klass'] ) )
+                logger.info( '{} => {}'.format( path, info['klass'] ) )
 
                 deps = {attr: self._files[dest]['obj'] for dest, attr in dependency_map[path]}
 
@@ -125,13 +125,13 @@ class Loader( object ):
                 data.close()
 
 
-        self.post_load( verbose )
+        self.post_load()
         return
 
-    def post_load( self, verbose=False ):
+    def post_load( self ):
         pass
         
-    def save_file( self, target, verbose=False ):
+    def save_file( self, target ):
         assert target in self._files
         export = self._files[target]['obj'].export_data()
         with open( target, 'wb' ) as out:

@@ -21,6 +21,8 @@ Extra special thanks to ccexplore and Mindless
 
 import itertools
 from enum import IntEnum
+import logging
+logger = logging.getLogger( __name__ )
 
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
@@ -55,7 +57,7 @@ class DATCompressor( mrc.Transform ):
         
         compressed_data = buffer[pointer:pointer+compressed_size]
         if checksum != self._xor_checksum( compressed_data ):
-            print( 'Warning: checksum doesn\'t match header' )  
+            logger.warning( '{}: Checksum doesn\'t match header'.format( self ) )  
         
         pointer += compressed_size
         total_num_bytes -= compressed_size
@@ -100,8 +102,6 @@ class DATCompressor( mrc.Transform ):
                     copy_prev_data( 2, 8, state )
             if not (state['dptr'] > 0): 
                 break
-        
-        #print( 'Done!' )
         
         result = {
             'payload': bytes( state['ddata'] ),
@@ -257,7 +257,7 @@ class SpecialCompressor( mrc.Transform ):
             elif buffer[i] == 0x80:
                 product = b''.join( buf_out )
                 if len( product ) != self.DECOMPRESSED_SIZE:
-                    print( 'Warning: was expecting {} bytes of data, got {}'.format( self.DECOMPRESSED_SIZE, len( product ) ) )
+                    logger.warning( '{}: was expecting {} bytes of data, got {}'.format( self, self.DECOMPRESSED_SIZE, len( product ) ) )
                 result.append( product )
                 buf_out = []
                 i += 1
@@ -268,7 +268,7 @@ class SpecialCompressor( mrc.Transform ):
                 i += 2
 
         if buf_out:
-            print( 'Warning: EOF reached before last RLE block closed' )
+            logger.warning( '{}: EOF reached before last RLE block closed'.format( self ) )
             result.append( b''.join( buf_out ) )
 
         # result is a 960x160 3bpp image, divided into 4x 40 scanline segments
@@ -969,7 +969,7 @@ class Loader( mrc.Loader ):
     def __init__( self ):
         super().__init__( self._LEMMINGS_FILE_CLASS_MAP, dependency_list=self._LEMMINGS_DEPS )
 
-    def post_load( self, verbose=False ):
+    def post_load( self ):
 
         # TODO: wire up inter-file class relations here
         return

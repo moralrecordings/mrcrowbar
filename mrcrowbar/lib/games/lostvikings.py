@@ -47,12 +47,12 @@ class TileMap( mrc.Block ):
     tiles = mrc.BlockStream( Tile, 0x00 )
 
 
-class Quad( mrc.Block ):
+class TileQuad( mrc.Block ):
     data = mrc.UInt16_LE( 0x00 )
 
     @property
     def index( self ):
-        return (self.data % 0x40) // 0x40
+        return (self.data >> 6)
 
     @property
     def flip_h( self ):
@@ -68,10 +68,10 @@ class Quad( mrc.Block ):
 
 
 class MetaTile( mrc.Block ):
-    top_left = mrc.BlockField( Quad, 0x00 )
-    top_righ = mrc.BlockField( Quad, 0x02 )
-    bottom_left = mrc.BlockField( Quad, 0x04 )
-    bottom_right = mrc.BlockField( Quad, 0x06 )
+    top_left = mrc.BlockField( TileQuad, 0x00 )
+    top_right = mrc.BlockField( TileQuad, 0x02 )
+    bottom_left = mrc.BlockField( TileQuad, 0x04 )
+    bottom_right = mrc.BlockField( TileQuad, 0x06 )
 
     @property
     def repr( self ):
@@ -105,8 +105,8 @@ class LZSS( mrc.Transform ):
                 data_p += 2
                 work_p = info & 0xfff
                 count = (info >> 12) + 3
-                logger.debug( '# work_ram[0x{:04x}:0x{:04x}] = work_ram[0x{:04x}:0x{:04x}]'.format( bx, bx+count, rel_p, rel_p+count ) ) 
-                logger.debug( '! output[0x{:04x}:0x{:04x}] = work_ram[0x{:04x}:0x{:04x}]'.format( len( output ), len( output )+count, rel_p, rel_p+count ) )
+                logger.debug( '# work_ram[0x{:04x}:0x{:04x}] = work_ram[0x{:04x}:0x{:04x}]'.format( bx, (bx+count) & 0xfff, work_p, (work_p+count) & 0xfff ) )
+                logger.debug( '! output[0x{:04x}:0x{:04x}] = work_ram[0x{:04x}:0x{:04x}]'.format( len( output ), len( output )+count, work_p, (work_p+count) & 0xfff ) )
                 for i in range( count ):
                     # loc_103C4
                     dat = work_ram[work_p]

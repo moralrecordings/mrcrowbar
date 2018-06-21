@@ -479,6 +479,9 @@ class Bytes( Field ):
         if self.transform:
             data = self.transform.export_data( data, parent=parent )['payload']
 
+        if length is not None and (len( value ) != length):
+            property_set( self.length, parent, len( value ) )
+
         new_size = offset+len( data )
         if self.stream_end is not None:
             new_size += len( self.stream_end )
@@ -497,8 +500,6 @@ class Bytes( Field ):
 
         if type( value ) != bytes:
             raise FieldValidationError( 'Expecting type {}, not {}'.format( bytes, type( value ) ) )
-        if (length is not None) and (len( value ) != length):
-            raise FieldValidationError( 'Expecting length of {}, not {}'.format( length, len( value ) ) )
         return
 
     @property

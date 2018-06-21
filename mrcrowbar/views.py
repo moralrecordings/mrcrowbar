@@ -14,16 +14,18 @@ class View( object ):
 
 
 class Store( View ):
-    def __init__( self, parent, source, fill=b'\x00', base_offset=0, **kwargs ):
+    def __init__( self, parent, source, fill=b'\x00', base_offset=0, align=1, **kwargs ):
         super().__init__( parent, **kwargs )
         self._source = source
         self._base_offset = base_offset
+        self._align = align
         self.fill = fill
         self.refs = OrderedDict()
         self.items = OrderedDict()
 
     source = view_property( '_source' )
     base_offset = view_property( '_base_offset' )
+    align = view_property( '_align' )
 
     def cache_object( self, instance, offset, size, block_klass, block_kwargs=None ):
         # key is the combination of:
@@ -77,10 +79,16 @@ class Store( View ):
             instance, offset, size = key
             data = block.export_data()
             property_set( offset, instance, pointer-self.base_offset )
-            property_set( size, instance, len( data ) )
+            if size is not None:
+                property_set( size, instance, len( data ) )
             pointer += len( data )
             result += data
+            fill_size = -pointer % self.align
+            pointer += fill_size
+            result += bytes(( self.fill[j % len( self.fill )] for j in range( fill_size ) ))
+
         self.source = bytes( result )
+
 
 class LinearStore( View ):
     def __init__( self, parent, source, block_klass, offsets=None, sizes=None, base_offset=0, fill=b'\x00', **kwargs ):
@@ -183,6 +191,18 @@ class LinearStore( View ):
 # - push the bytes to the data ref
 # - push the resulting offsets and sizes into the respective refs
 # - 
+
+# saving seems like a hack?
+# main issue is; you can only be sure that an object was removed from the store when you evaluate what objects are left.
+# so on export you'd need to do something like:
+# - tree walk the block model to find instances
+# - keep tabs on each of these instances and the associated store
+# - at the very end of the walk, empty the store and refill it with instances
+#   - or maybe flag all records as stale and freshen them when they're found
+#   - ditch the remaining stale records
+# - save, which converts the store to bytes + updates any associated size/offset fields
+# - continue on with the export
+
 
 class StoreRef( Ref ):
     def __init__( self, block_klass, store, offset, size, count=None, block_kwargs=None ):

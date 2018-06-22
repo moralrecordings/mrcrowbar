@@ -2,12 +2,13 @@ from os import path
 from setuptools import setup, find_packages
 
 # Get the long description from the README file
-here = path.abspath(path.dirname(__file__))
-with open(path.join(here, 'DESCRIPTION.rst'), encoding='utf-8') as f:
+here = path.abspath( path.dirname( __file__ ) )
+with open( path.join( here, 'DESCRIPTION.rst' ), encoding='utf-8' ) as f:
     long_description = f.read()
 
-setup(name='mrcrowbar',
-    version='0.4.2',
+setup( 
+    name='mrcrowbar',
+    version='0.5.0',
     description=('A library and model framework for '
                 'reverse engineering binary file formats'),
     long_description=long_description,
@@ -33,4 +34,5 @@ setup(name='mrcrowbar',
         'images': ['Pillow >= 2.8.1'],
         'audio': ['pyaudio >= 0.2.9'],
     },
-    packages=find_packages(exclude=['doc']))
+    packages=find_packages( exclude=['doc'] )
+)

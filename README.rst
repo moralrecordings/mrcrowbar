@@ -134,7 +134,7 @@ Here's some code to edit a Lemmings level. (This will modify your game, so be su
     # now that the block has changed, the bytes will be different
     bytes_new = level.export_data()
     print( 'Changes:' )
-    utils.hexdump_diff( bytes_new )
+    utils.hexdump_diff( bytes_orig, bytes_new )
 
     # finally, get the loader to save our changes back to the original file
     ll.save_file( '/path/to/copy/of/lemmings/Level000.dat' )

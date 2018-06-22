@@ -107,20 +107,37 @@ As blocks are Python classes, it is trivial to extend them with custom code; her
 That wasn't an example, that was a snoozefest! Just tell me how to hack already 
 ===============================================================================
 
-Here's some code to edit a Lemmings level.
+Here's some code to edit a Lemmings level. (This will modify your game, so be sure to do this on a copy!)
 
 .. code:: python
 
     from mrcrowbar.lib.games import lemmings
+    from mrcrowbar import utils
 
+    # auto-load all the files
     ll = lemmings.Loader()
     ll.load( '/path/to/copy/of/lemmings' )
 
+    # pick the first level of Tricky
     level = ll['/path/to/copy/of/lemmings/Level000.dat'].levels[0]   # <Level: This should be a doddle!>
+
+    # Level is a block type, which means we can peek at the bytes representation at any time
+    bytes_orig = level.export_data()
+    print( 'Original level data:' )
+    utils.hexdump( bytes_orig )
+
+    # change some stuff around!
     level.release_rate = 99
     level.num_to_save = 1
     level.name = b'  oh hey I just hacked a level  '
-    ll.save_file('/path/to/copy/of/lemmings/Level000.dat')
+
+    # now that the block has changed, the bytes will be different
+    bytes_new = level.export_data()
+    print( 'Changes:' )
+    utils.hexdump_diff( bytes_new )
+
+    # finally, get the loader to save our changes back to the original file
+    ll.save_file( '/path/to/copy/of/lemmings/Level000.dat' )
 
 Open up Lemmings and change the difficulty to "Tricky". 
 
@@ -132,7 +149,7 @@ How about that? You master hacker you.
 Okay I'm slightly intrigued, but what about image and audio data?
 =================================================================
 
-We're working on base classes and views for those. As a bonus, you don't even have to leave the terminal to preview stuff:
+We're working on base classes and views for those. As a bonus, you don't even have to leave the Python shell to view hex or preview stuff:
 
 .. image:: doc/source/_static/image_print.png
 

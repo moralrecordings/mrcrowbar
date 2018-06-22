@@ -93,20 +93,37 @@ Finally, there is the option to load other ``Block`` classes from inside a paren
 
 As blocks are Python classes, it is trivial to extend them with custom code; here we've created a ``camera_x`` property which provides a transformed view of ``camera_x_raw`` taking into account the limitations of the game engine. This is useful for e.g. bitpacked values that need mathematical transformation to get the useful real-world equivalent.
 
-The above code is enough to create a two-way binding model for a Lemmings level. With some additional models and a Loader, it becomes possible to edit and write back parts of the game data:
+The above code is enough to create a two-way binding model for a Lemmings level. With some additional models and a Loader, it becomes possible to edit and write back parts of the game data. Here's an example for Lemmings; this will modify your game, so be sure to do this on a copy!
 
 .. code:: python
 
     from mrcrowbar.lib.games import lemmings
+    from mrcrowbar import utils
 
+    # auto-load all the files
     ll = lemmings.Loader()
     ll.load( '/path/to/copy/of/lemmings' )
 
+    # pick the first level of Tricky
     level = ll['/path/to/copy/of/lemmings/Level000.dat'].levels[0]   # <Level: This should be a doddle!>
+
+    # Level is a block type, which means we can peek at the bytes representation at any time
+    bytes_orig = level.export_data()
+    print( 'Original level data:' )
+    utils.hexdump( bytes_orig )
+
+    # change some stuff around!
     level.release_rate = 99
     level.num_to_save = 1
     level.name = b'  oh hey I just hacked a level  '
-    ll.save_file('/path/to/copy/of/lemmings/Level000.dat')
+
+    # now that the block has changed, the bytes will be different
+    bytes_new = level.export_data()
+    print( 'Changes:' )
+    utils.hexdump_diff( bytes_orig, bytes_new )
+
+    # finally, get the loader to save our changes back to the original file
+    ll.save_file( '/path/to/copy/of/lemmings/Level000.dat' )
 
 When we open up Lemmings and change the difficulty to "Tricky", we can see the changes. 
 

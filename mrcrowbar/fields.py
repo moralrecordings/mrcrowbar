@@ -479,7 +479,7 @@ class Bytes( Field ):
         if self.transform:
             data = self.transform.export_data( data, parent=parent )['payload']
 
-        if length is not None and (len( value ) != length):
+        if length is not None and length != len( value ):
             property_set( self.length, parent, len( value ) )
 
         new_size = offset+len( data )
@@ -497,6 +497,9 @@ class Bytes( Field ):
     def validate( self, value, parent=None ):
         offset = property_get( self.offset, parent )
         length = property_get( self.length, parent )
+
+        if length is not None and (not isinstance( self.length, Ref )) and (len( value ) != length):
+            raise FieldValidationError( 'Length defined as a constant, was expecting {} bytes but got {}!'.format( length, len( value ) ) )
 
         if type( value ) != bytes:
             raise FieldValidationError( 'Expecting type {}, not {}'.format( bytes, type( value ) ) )
@@ -520,9 +523,10 @@ class Bytes( Field ):
     def get_size( self, value, parent=None ):
         length = property_get( self.length, parent )
         if length is None:
-            return 0
-            # breaks with transforms :(
-            #return len( value )
+            if self.transform:
+                data = self.transform.export_data( value, parent=parent )['payload']
+                return len( data )
+            return len( value )
         return length
     
 

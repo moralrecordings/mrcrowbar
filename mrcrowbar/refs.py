@@ -50,7 +50,7 @@ class Ref( object ):
         Throws AttributeError if allow_write is False.
         """
         if not self.allow_write:
-            raise AttributeError( "can't set Ref directly" )
+            raise AttributeError( "can't set Ref directly, allow_write is disabled" )
         target = instance
         for attr in self.path[:-1]:
             target = getattr( target, attr )
@@ -114,7 +114,7 @@ def property_set( prop, instance, value ):
 
     if isinstance( prop, Ref ):
         return prop.set( instance, value )
-    raise AttributeError( "property was declared as a constant" )
+    raise AttributeError( "can't change value of constant {} (context: {})".format( prop, instance ) )
 
 
 def view_property( prop ):

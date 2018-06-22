@@ -156,6 +156,11 @@ class SegmentHeader( mrc.Block ):
     def offset( self ):
         return self.offset_sect << self._parent.sector_shift
 
+    @offset.setter
+    def offset( self, value ):
+        assert value % (1 << self._parent.sector_shift) == 0
+        self.offset_sect = value >> self._parent.sector_shift
+
     @property
     def repr( self ):
         return 'offset_sect={:04x}, size={:04x}, data_seg={}, relocations={}, alloc_size={:04x}'.format( self.offset_sect, self.size, self.data_seg, self.relocations, self.alloc_size )
@@ -392,9 +397,15 @@ class EXE( mrc.Block ):
         return 0x900
 
     @property
+    def sector_align( self ):
+        if self.ne_header:
+            return 1 << self.ne_header.sector_shift
+        return 32
+
+    @property
     def dos_stub_length( self ):
         return self.ne_offset - 0x3e
 
     def __init__( self, *args, **kwargs ):
-        self.segdatastore = mrc.Store( self, mrc.Ref( 'segdata' ), base_offset=-self.segdata_offset )
+        self.segdatastore = mrc.Store( self, mrc.Ref( 'segdata' ), base_offset=-self.segdata_offset, align=mrc.Ref( 'sector_align' ) )
         super().__init__( *args, **kwargs )

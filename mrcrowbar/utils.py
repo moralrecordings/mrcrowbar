@@ -205,7 +205,7 @@ def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4
         return BYTE_COLOUR_MAP[source[index]]
 
     def colour_wrap( s, col ):
-        if not col:
+        if not col or not colour:
             return s
         return '{}{}{}'.format(
             ANSI_FORMAT_FOREGROUND_XTERM.format( col ),
@@ -232,7 +232,7 @@ def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4
     return ''.join( line )
 
 
-def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True ):
+def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True ):
     """Return the contents of a byte string in tabular hexadecimal/ASCII format.
     
     source
@@ -273,11 +273,9 @@ def hexdump_str( source, start=None, end=None, length=None, major_len=8, minor_l
     if len( source ) == 0 or (start == end == 0):
         return
 
-    lines = []
     for offset in range( start, end, minor_len*major_len ):
-        lines.append( ansi_format_hexdump_line( source, offset, end, major_len, minor_len, colour ) )
-    lines.append( '' )
-    return '\n'.join(lines)
+        yield ansi_format_hexdump_line( source, offset, end, major_len, minor_len, colour )
+    return
 
 
 def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True ):
@@ -306,10 +304,11 @@ def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4
 
     Raises ValueError if both end and length are defined.
     """
-    print( hexdump_str( source, start, end, length, major_len, minor_len ) )
+    for line in hexdump_iter( source, start, end, length, major_len, minor_len, colour ):
+        print( line )
 
 
-def hexdump_diff_str( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2 ):
+def hexdump_diff_iter( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2 ):
     """Returns the differences between two byte strings in tabular hexadecimal/ASCII format.
 
     source1
@@ -365,11 +364,10 @@ def hexdump_diff_str( source1, source2, start=None, end=None, length=None, major
                 if a in show_lines and show_lines[a] == 0:
                     show_lines[a] = 1
 
-    lines = []
     skip = False
     for offset in sorted( show_lines.keys() ):
         if skip == True and show_lines[offset] != 0:
-            lines.append( '...' )
+            yield '...'
             skip = False
         if show_lines[offset] == 2:
             check = basic_diff( source1, source2, start=offset, end=offset+stride )
@@ -378,20 +376,20 @@ def hexdump_diff_str( source1, source2, start=None, end=None, length=None, major
                 for i in range( o, o+l ):
                     highlights[i] = HIGHLIGHT_COLOUR_MAP[0]
             if offset < len( source1 ):
-                lines.append( ansi_format_hexdump_line( source1, offset, min( end, len( source1 ) ), major_len, minor_len, colour, prefix='-', highlight_addr=HIGHLIGHT_COLOUR_MAP[0], highlight_map=highlights ) )
+                yield ansi_format_hexdump_line( source1, offset, min( end, len( source1 ) ), major_len, minor_len, colour, prefix='-', highlight_addr=HIGHLIGHT_COLOUR_MAP[0], highlight_map=highlights )
             highlights = {k: HIGHLIGHT_COLOUR_MAP[1] for k in highlights.keys()}
             if offset < len( source2 ):
-                lines.append( ansi_format_hexdump_line( source2, offset, min( end, len( source2 ) ), major_len, minor_len, colour, prefix='+' , highlight_addr=HIGHLIGHT_COLOUR_MAP[1], highlight_map=highlights ) )
+                yield ansi_format_hexdump_line( source2, offset, min( end, len( source2 ) ), major_len, minor_len, colour, prefix='+' , highlight_addr=HIGHLIGHT_COLOUR_MAP[1], highlight_map=highlights )
         elif show_lines[offset] == 1:
-            lines.append( ansi_format_hexdump_line( source1, offset, end, major_len, minor_len, colour, prefix=' ' ) )
+            yield ansi_format_hexdump_line( source1, offset, end, major_len, minor_len, colour, prefix=' ' )
         elif show_lines[offset] == 0:
             skip = True
 
     if skip == True:
-        lines.append( '...' )
+        yield '...'
         skip = False
 
-    return '\n'.join( lines )
+    return
 
 
 def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2 ):
@@ -429,7 +427,8 @@ def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len
 
     Raises ValueError if both end and length are defined.
     """
-    print( hexdump_diff_str( source1, source2, start, end, length, major_len, minor_len, colour, before, after ) )
+    for line in hexdump_diff_iter( source1, source2, start, end, length, major_len, minor_len, colour, before, after ):
+        print( line )
 
 
 #: Unicode representation of a vertical bar graph.
@@ -494,6 +493,21 @@ class Stats( object ):
 
     def __str__( self ):
         return self.ansi_format()
+
+
+def stats( source, start=None, end=None, length=None, width=64, height=12 ):
+    start = 0 if (start is None) else start
+    if (end is not None) and (length is not None):
+        raise ValueError( 'Can\'t define both an end and a length!' )
+    elif (length is not None):
+        end = start+length
+    elif (end is not None):
+        pass
+    else:
+        end = len( source )
+
+    stat = Stats( source[start:end] )
+    stat.print( width=width, height=height )
 
 
 def unpack_bits( byte ):

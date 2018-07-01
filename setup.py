@@ -34,5 +34,11 @@ setup(
         'images': ['Pillow >= 2.8.1'],
         'audio': ['pyaudio >= 0.2.9'],
     },
-    packages=find_packages( exclude=['doc'] )
+    packages=find_packages( exclude=['doc'] ),
+    entry_points={
+        'console_scripts': [
+            'mrcdiff = mrcrowbar.cli:mrcdiff',
+            'mrcdump = mrcrowbar.cli:mrcdump',
+        ],
+    },
 )

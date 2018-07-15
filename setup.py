@@ -39,6 +39,7 @@ setup(
         'console_scripts': [
             'mrcdiff = mrcrowbar.cli:mrcdiff',
             'mrcdump = mrcrowbar.cli:mrcdump',
+            'mrchist = mrcrowbar.cli:mrchist',
         ],
     },
 )

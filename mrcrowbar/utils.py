@@ -197,6 +197,42 @@ def basic_diff( source1, source2, start=None, end=None ):
     return results
 
 
+def ansi_format_histdump_line( source, offset, length=None, end=None, width=64 ):
+    data = source[offset:]
+    if length is not None:
+        data = data[:length]
+    end = end if end else len( source )
+    digits = max( 8, math.floor( math.log( end )/math.log( 16 ) ) )
+    stat = Stats(data)
+    return ('{:0'+str( digits )+'x} │ {} | {:.10f}').format( offset, stat.ansi_format_histogram_line( width ), stat.entropy )
+
+
+def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, width=64 ):
+    assert is_bytes( source )
+
+    start = 0 if (start is None) else start
+    if (end is not None) and (length is not None):
+        raise ValueError( 'Can\'t define both an end and a length!' )
+    elif (length is not None):
+        end = start+length
+    elif (end is not None):
+        pass
+    else:
+        end = len( source )
+
+    if len( source ) == 0 or (start == end == 0):
+        return
+
+    for offset in range( start, end, samples ):
+        yield ansi_format_histdump_line( source, offset, length=samples, end=end, width=width )
+    return
+
+
+def histdump( source, start=None, end=None, length=None, samples=0x10000, width=64 ):
+    for line in histdump_iter( source, start, end, length, samples, width ):
+        print( line )
+
+
 def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, colour=True, prefix='', highlight_addr=None, highlight_map=None ):
     def get_colour( index ):
         if highlight_map:
@@ -218,6 +254,9 @@ def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4
         for i in range( offset, min( offset+major_len*minor_len, end ) ):
             letters.append( colour_wrap( BYTE_GLYPH_MAP[source[i]], get_colour( i ) ) )
         return ''.join( letters )
+
+    if end is None:
+        end = len( source )
 
     line = [colour_wrap( '{}{:08x}'.format( prefix, offset ), highlight_addr ), ' │  ']
     for major in range( major_len ):
@@ -444,7 +483,7 @@ class Stats( object ):
         assert is_bytes( buffer )
 
         #: Byte histogram for the source data.
-        self.histo = array.array( 'I', [0]*256 )
+        self.histo = array.array( 'L', [0]*256 )
         # do histogram expensively for now, to avoid pulling in e.g numpy
         self.samples = len( buffer )
         for byte in buffer:
@@ -457,6 +496,33 @@ class Stats( object ):
                 cover = count/len( buffer )
                 self.entropy += -cover * math.log2( cover )
 
+    def histogram( self, width ):
+        if (256 % width) != 0:
+            raise ValueError( 'Width of the histogram must be a divisor of 256' )
+        elif (width <= 0):
+            raise ValueError( 'Width of the histogram must be greater than zero' )
+        elif (width > 256):
+            raise ValueError( 'Width of the histogram must be less than or equal to 256' )
+        bucket = 256//width
+        return [sum( self.histo[i:i+bucket] ) for i in range( 0, 256, bucket )]
+
+    def ansi_format_histogram_line( self, width=64 ):
+        buckets = self.histogram( width )
+        total = sum( buckets )
+        floor = math.log( 1/(8*len( buckets )) )
+
+        buckets_log = [-floor + max( floor, math.log( b/total ) ) if b else None for b in buckets]
+        limit = max( [b for b in buckets_log if b is not None] )
+        buckets_norm = [round( 255*(b/limit) ) if b is not None else None for b in buckets_log]
+        result = []
+        for b in buckets_norm:
+            if b is not None:
+                result.append( '{}{}'.format( ANSI_FORMAT_FOREGROUND.format( *HEATMAP_COLOURS[b] ),'█' ) )
+            else:
+                result.append( ' ' )
+        result.append( ANSI_FORMAT_RESET )
+        return ''.join( result )
+
     def ansi_format( self, width=64, height=12 ):
         """Return a human readable ANSI-terminal printout of the stats.
 
@@ -466,8 +532,14 @@ class Stats( object ):
         height
             Custom height for the graph (in characters).
         """
-        bucket = 256//width
-        buckets = [sum( self.histo[i:i+bucket] ) for i in range( 0, 256, bucket )]
+        if (256 % width) != 0:
+            raise ValueError( 'Width of the histogram must be a divisor of 256' )
+        elif (width <= 0):
+            raise ValueError( 'Width of the histogram must be greater than zero' )
+        elif (width > 256):
+            raise ValueError( 'Width of the histogram must be less than or equal to 256' )
+
+        buckets = self.histogram( width )
         scale = height*8.0/max( buckets ) if max( buckets ) else height*8.0
         buckets_norm = [b*scale for b in buckets]
         result = []
@@ -483,7 +555,7 @@ class Stats( object ):
             result.append( '\n' )
 
         result.append( '╘'+('═'*width)+'╛\n' )
-        result.append( 'entropy: {}\n'.format( self.entropy ) )
+        result.append( 'entropy: {:.10f}\n'.format( self.entropy ) )
         result.append( 'samples: {}'.format( self.samples ) )
         return ''.join(result)
 
@@ -526,6 +598,27 @@ def pack_bits( longbits ):
     byte = (byte | (byte>>14)) & (0x0000000f0000000f)
     byte = (byte | (byte>>28)) & (0x00000000000000ff)
     return byte
+
+
+def mix( a, b, alpha ):
+    return (b-a)*alpha + a
+
+def mix_line( points, alpha ):
+    count = len( points ) - 1
+    if alpha == 1:
+        return points[-1]
+    return mix(
+        points[math.floor( alpha*count )],
+        points[math.floor( alpha*count )+1],
+        math.fmod( alpha*count, 1 )
+    )
+
+HEATMAP_LINES = (
+    (0x00, 0x70, 0xe8, 0xf0, 0xf8),
+    (0x00, 0x34, 0x6c, 0xb0, 0xec),
+    (0x00, 0x00, 0x00, 0x40, 0xa0),
+)
+HEATMAP_COLOURS = [[round( mix_line( HEATMAP_LINES[j], i/255 ) ) for j in range( 3 )] for i in range( 256 )]
 
 
 #: ANSI escape sequence for resetting the colour settings to the default.

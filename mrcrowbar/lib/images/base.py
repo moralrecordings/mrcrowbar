@@ -139,18 +139,28 @@ def from_palette_bytes( palette_bytes, stride=3, order=(0, 1, 2) ):
     return result
 
 
-def mix( col_a, col_b, alpha ):
-    r = round( (col_b.r_8 - col_a.r_8)*alpha + col_a.r_8 )
-    g = round( (col_b.g_8 - col_a.g_8)*alpha + col_a.g_8 )
-    b = round( (col_b.b_8 - col_a.b_8)*alpha + col_a.b_8 )
-    a = round( (col_b.a_8 - col_a.a_8)*alpha + col_a.a_8 )
+def mix_colour( col_a, col_b, alpha ):
+    r = round( utils.mix( col_a.r_8, col_b.r_8, alpha ) )
+    g = round( utils.mix( col_a.g_8, col_b.g_8, alpha ) )
+    b = round( utils.mix( col_a.b_8, col_b.b_8, alpha ) )
+    a = round( utils.mix( col_a.a_8, col_b.a_8, alpha ) )
 
     return Colour().set_rgb( r, g, b ).set_a( a )
 
 
-def gradient_to_palette( points ):
+def mix_colour_line( points, alpha ):
     count = len( points ) - 1
-    return [mix( points[(i*count//256)], points[(i*count//256)+1], math.fmod( (i*count/256), 1 ) ) for i in range( 256 )]
+    if alpha == 1:
+        return points[-1]
+    return mix_colour(
+        points[math.floor( alpha*count )],
+        points[math.floor( alpha*count )+1],
+        math.fmod( alpha*count, 1 )
+    )
+
+
+def gradient_to_palette( points ):
+    return [mix_colour_line( points, i/255 ) for i in range( 256 )]
 
 
 TEST_PALETTE_POINTS = [

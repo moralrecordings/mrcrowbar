@@ -220,6 +220,8 @@ def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, w
     else:
         end = len( source )
 
+    start = max( start, 0 )
+    end = min( end, len( source ) )
     if len( source ) == 0 or (start == end == 0):
         return
 
@@ -248,7 +250,7 @@ def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4
             s, ANSI_FORMAT_RESET
         )
 
-    def get_ascii():
+    def get_glyph():
         b = source[offset:min( offset+major_len*minor_len, end )]
         letters = []
         for i in range( offset, min( offset+major_len*minor_len, end ) ):
@@ -267,7 +269,7 @@ def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4
                 continue
             line.append( colour_wrap( '{:02x} '.format( source[suboffset] ), get_colour( suboffset ) ) )
         line.append( ' ' )
-    line.append( '│ {}'.format( get_ascii() ) )
+    line.append( '│ {}'.format( get_glyph() ) )
     return ''.join( line )
 
 
@@ -309,6 +311,8 @@ def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_
     else:
         end = len( source ) 
 
+    start = max( start, 0 )
+    end = min( end, len( source ) )
     if len( source ) == 0 or (start == end == 0):
         return
 
@@ -386,6 +390,8 @@ def hexdump_diff_iter( source1, source2, start=None, end=None, length=None, majo
     start = start if start is not None else 0
     end = end if end is not None else max( len( source1 ), len( source2 ) )
 
+    start = max( start, 0 )
+    end = min( end, max( len( source1 ), len( source2 ) ) )
     diff_lines = []
     for offset in range( start, end, stride ):
         if source1[offset:offset+stride] != source2[offset:offset+stride]:

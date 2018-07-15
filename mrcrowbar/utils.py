@@ -198,9 +198,10 @@ def basic_diff( source1, source2, start=None, end=None ):
 
 
 def ansi_format_histdump_line( source, offset, length=None, end=None, width=64 ):
-    data = source[offset:]
     if length is not None:
-        data = data[:length]
+        data = source[offset:offset+length]
+    else:
+        data = source[offset:]
     end = end if end else len( source )
     digits = max( 8, math.floor( math.log( end )/math.log( 16 ) ) )
     stat = Stats(data)

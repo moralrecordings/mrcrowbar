@@ -205,7 +205,7 @@ def ansi_format_histdump_line( source, offset, length=None, end=None, width=64 )
     end = end if end else len( source )
     digits = max( 8, math.floor( math.log( end )/math.log( 16 ) ) )
     stat = Stats(data)
-    return ('{:0'+str( digits )+'x} │ {} | {:.10f}').format( offset, stat.ansi_format_histogram_line( width ), stat.entropy )
+    return ('{:0'+str( digits )+'x} │ {} │ {:.10f}').format( offset, stat.ansi_format_histogram_line( width ), stat.entropy )
 
 
 def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, width=64 ):

@@ -1,4 +1,5 @@
 from mrcrowbar import utils
+from mrcrowbar.version import __version__
 
 import argparse
 import mmap
@@ -43,7 +44,11 @@ ARGS_COMMON = {
         dest='colour',
         action='store_false',
         help='Disable ANSI colour formatting'
-    )
+    ),
+    '--version': dict(
+        action='version',
+        version='%(prog)s {}'.format( __version__ )
+    ),
 }
 
 ARGS_DUMP = {
@@ -111,7 +116,7 @@ ARGS_DIFF = {
 ARGS_DIFF.update( ARGS_COMMON )
 
 ARGS_HIST = {
-    'source': dict(
+   'source': dict(
         metavar='FILE',
         type=argparse.FileType( mode='rb' ),
         help='File to inspect',
@@ -147,6 +152,10 @@ ARGS_HIST = {
         type=auto_int,
         default=64,
         help='Histogram width (default: 64)'
+    ),
+    '--version': dict(
+        action='version',
+        version='%(prog)s {}'.format( __version__ )
     ),
 }
 

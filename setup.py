@@ -1,5 +1,6 @@
 from os import path
 from setuptools import setup, find_packages
+from mrcrowbar.version import __version__
 
 # Get the long description from the README file
 here = path.abspath( path.dirname( __file__ ) )
@@ -8,7 +9,7 @@ with open( path.join( here, 'DESCRIPTION.rst' ), encoding='utf-8' ) as f:
 
 setup( 
     name='mrcrowbar',
-    version='0.5.0',
+    version=__version__,
     description=('A library and model framework for '
                 'reverse engineering binary file formats'),
     long_description=long_description,

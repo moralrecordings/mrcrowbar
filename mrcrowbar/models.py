@@ -1,5 +1,6 @@
 """Shortcut module to import all of the Mr. Crowbar primitives."""
 
+from mrcrowbar.version import __version__
 from mrcrowbar.refs import Ref, ConstRef, property_get, property_set, \
                             view_property, EndOffset
 from mrcrowbar.fields import ParseError, FieldValidationError, Field, \
@@ -15,4 +16,3 @@ from mrcrowbar.loaders import Loader
 from mrcrowbar.transforms import Transform
 from mrcrowbar.checks import CheckException, Check, Const, Updater
 from mrcrowbar.views import View, Store, LinearStore, StoreRef
-

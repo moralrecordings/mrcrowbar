@@ -252,12 +252,7 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
 
         for name in klass._fields:
-            scrubbed_data = klass._fields[name].scrub( 
-                self._field_data[name], parent=self 
-            )
-            klass._fields[name].validate( 
-                scrubbed_data, parent=self 
-            )
+            self.validate_field( name )
         return
 
     def get_size( self ):
@@ -270,17 +265,26 @@ class Block( object, metaclass=BlockMeta ):
             size = max( size, check.get_end_offset( parent=self ) )
         return size
 
-    def get_field_start_offset( self, field_name ):
+    def get_field_start_offset( self, field_name, index=None ):
         klass = self.__class__
-        return klass._fields[field_name].get_start_offset( self._field_data[field_name], parent=self )
+        return klass._fields[field_name].get_start_offset( self._field_data[field_name], parent=self, index=index )
 
-    def get_field_size( self, field_name ):
+    def get_field_size( self, field_name, index=None ):
         klass = self.__class__
-        return klass._fields[field_name].get_size( self._field_data[field_name], parent=self )
+        return klass._fields[field_name].get_size( self._field_data[field_name], parent=self, index=index )
 
-    def get_field_end_offset( self, field_name ):
+    def get_field_end_offset( self, field_name, index=None ):
         klass = self.__class__
-        return klass._fields[field_name].get_end_offset( self._field_data[field_name], parent=self )
+        return klass._fields[field_name].get_end_offset( self._field_data[field_name], parent=self, index=index )
+
+    def scrub_field( self, field_name ):
+        klass = self.__class__
+        return klass._fields[field_name].scrub( self._field_data[field_name], parent=self )
+
+    def validate_field( self, field_name ):
+        klass = self.__class__
+        scrubbed_data = self.scrub_field( field_name )
+        return klass._fields[field_name].validate( scrubbed_data, parent=self )
 
 
 class Unknown( Block ):

@@ -67,7 +67,7 @@ class Field( object ):
         self.validate( value, parent )
         return
     
-    def get_start_offset( self, value, parent=None ):
+    def get_start_offset( self, value, parent=None, index=None ):
         """Return the start offset of where the Field's data is to be stored in the Block.
 
         value
@@ -76,10 +76,15 @@ class Field( object ):
         parent
             Parent block object where this Field is defined. Used for e.g.
             evaluating Refs.
+
+        index
+            Index of the Python object to measure from. Used if the Field
+            takes a list of objects.
         """
+        assert index is None
         return 0
 
-    def get_size( self, value, parent=None ):
+    def get_size( self, value, parent=None, index=None ):
         """Return the size of the field data (in bytes).
 
         value
@@ -88,10 +93,15 @@ class Field( object ):
         parent
             Parent block object where this Field is defined. Used for e.g.
             evaluating Refs.
+
+        index
+            Index of the Python object to measure from. Used if the Field
+            takes a list of objects.
         """
+        assert index is None
         return 0
 
-    def get_end_offset( self, value, parent=None ):
+    def get_end_offset( self, value, parent=None, index=None ):
         """Return the end offset of the Field's data. Useful for chainloading.
 
         value
@@ -100,8 +110,12 @@ class Field( object ):
         parent
             Parent block object where this Field is defined. Used for e.g.
             evaluating Refs.
+
+        index
+            Index of the Python object to measure from. Used if the Field
+            takes a list of objects.
         """
-        return self.get_start_offset( value, parent ) + self.get_size( value, parent )
+        return self.get_start_offset( value, parent, index ) + self.get_size( value, parent, index )
 
     def scrub( self, value, parent=None ):
         """Return the value coerced to the correct type of the field (if necessary).
@@ -193,22 +207,30 @@ class BlockStream( Field ):
         buffer[offset:offset+len( block_data )] = block_data
         return         
 
-    def get_start_offset( self, value, parent=None ):
+    def get_start_offset( self, value, parent=None, index=None ):
         offset = property_get( self.offset, parent )
+        if index is not None:
+            offset += self._size.calc( value[:index] )
         return offset
 
-    def get_size( self, value, parent=None ):
-        size = 0
+    def get_size( self, value, parent=None, index=None ):
         value = value if value else []
+        if index is not None:
+            value = [value[index]]
+        size = self._size_calc( value, parent )
+
+        if index is None and self.stream_end is not None:
+            size += len( self.stream_end )
+        return size
+
+    def _size_calc( self, value, parent=None ):
+        size = 0
         for b in value:
             if self.transform:
                 data = self.transform.export_data( b.export_data(), parent=parent )['payload']
                 size += len( data )
             else:
                 size += b.get_size()
-
-        if self.stream_end is not None:
-            size += len( self.stream_end )
         return size
 
 
@@ -281,10 +303,36 @@ class ChunkStream( Field ):
 
         return result
             
-    def get_start_offset( self, value, parent=None ):
+    def get_start_offset( self, value, parent=None, index=None ):
         offset = property_get( self.offset, parent )
+        if index is not None:
+            offset += self._size_calc( value[:index] )
         return offset
 
+    def get_size( self, value, parent=None, index=None ):
+        value = value if value else []
+        if index is not None:
+            value = [value[index]]
+        size = self._size_calc( value, parent )
+
+        if index is None and self.stream_end is not None:
+            size += len( self.stream_end )
+        return size
+
+    def _size_calc( self, value, parent=None ):
+        size = 0
+        for key, b in value:
+            start_size = size
+            size += len( key )
+            if self.length_field:
+                size += self.length_field.field_size
+            size += b.get_size()
+            if self.alignment:
+                width = (size-start_size) % self.alignment
+                if width:
+                    size += self.alignment - width
+
+        return size
 
 
 class BlockField( Field ):
@@ -401,15 +449,30 @@ class BlockField( Field ):
             if (b is not None) and (not isinstance( b, klass )):
                  raise FieldValidationError( 'Expecting block class {}, not {}'.format( self.block_klass, type( b ) ) )
 
-    def get_start_offset( self, value, parent=None ):
+    def get_start_offset( self, value, parent=None, index=None ):
+        count = property_get( self.count, parent )
+        klass = self.get_klass( parent )
+        stride = klass( parent=parent, **self.block_kwargs ).get_size()
         offset = property_get( self.offset, parent )
+        if index is not None:
+            if count is None:
+                raise IndexError( 'can\'t use index for a non-array BlockField' )
+            elif index not in range( 0, count ):
+                raise IndexError( 'index {} is not within range( 0, {} )'.format( index, count ) )
+            offset += stride*index
         return offset
 
-    def get_size( self, value, parent=None ):
+    def get_size( self, value, parent=None, index=None ):
         # TODO: current design assumes blocks are fixed size, maybe change this to introspection?
         count = property_get( self.count, parent )
         klass = self.get_klass( parent )
         stride = klass( parent=parent, **self.block_kwargs ).get_size()
+        if index is not None:
+            if count is None:
+                raise IndexError( 'can\'t use index for a non-array BlockField' )
+            elif index not in range( 0, count ):
+                raise IndexError( 'index {} is not within range( 0, {} )'.format( index, count ) )
+            return stride
         if count is not None:
             return stride*count
         return stride
@@ -516,11 +579,13 @@ class Bytes( Field ):
             details += ', transform={}'.format( self.transform )
         return details
 
-    def get_start_offset( self, value, parent=None ):
+    def get_start_offset( self, value, parent=None, index=None ):
+        assert index is None
         offset = property_get( self.offset, parent )
         return offset
 
-    def get_size( self, value, parent=None ):
+    def get_size( self, value, parent=None, index=None ):
+        assert index is None
         length = property_get( self.length, parent )
         if length is None:
             if self.transform:
@@ -557,11 +622,13 @@ class CString( Field ):
             raise FieldValidationError( 'Expecting type {}, not {}'.format( bytes, type( value ) ) )
         return 
 
-    def get_start_offset( self, value, parent=None ):
+    def get_start_offset( self, value, parent=None, index=None ):
+        assert index is None
         offset = property_get( self.offset, parent )
         return offset
 
-    def get_size( self, value, parent=None ):
+    def get_size( self, value, parent=None, index=None ):
+        assert index is None
         return len( value )
 
 
@@ -599,11 +666,13 @@ class CStringN( Field ):
             raise FieldValidationError( 'Expecting length <= {}, not {}'.format( length, len( value ) ) )
         return
     
-    def get_start_offset( self, value, parent=None ):
+    def get_start_offset( self, value, parent=None, index=None ):
+        assert index is None
         offset = property_get( self.offset, parent )
         return offset
 
-    def get_size( self, value, parent=None ):
+    def get_size( self, value, parent=None, index=None ):
+        assert index is None
         length = property_get( self.length, parent )
         return length
 
@@ -643,11 +712,13 @@ class CStringNStream( Field ):
             buffer[pointer:pointer+len( string_data )] = string_data
             pointer += len( string_data )
 
-    def get_start_offset( self, value, parent=None ):
+    def get_start_offset( self, value, parent=None, index=None ):
+        assert index is None
         offset = property_get( self.offset, parent )
         return offset
 
-    def get_size( self, value, parent=None ):
+    def get_size( self, value, parent=None, index=None ):
+        assert index is None
         size = 0
         for x in value:
             size += self.length_field.field_size
@@ -815,11 +886,13 @@ class ValueField( Field ):
             details += ', bitmask={}'.format( self.bitmask )
         return details
 
-    def get_start_offset( self, value, parent=None ):
+    def get_start_offset( self, value, parent=None, index=None ):
+        assert index is None
         offset = property_get( self.offset, parent )
         return offset
 
-    def get_size( self, value, parent=None ):
+    def get_size( self, value, parent=None, index=None ):
+        assert index is None
         count = property_get( self.count, parent )
         if count:
             return self.field_size*count

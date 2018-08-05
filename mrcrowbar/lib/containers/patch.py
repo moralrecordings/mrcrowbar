@@ -85,11 +85,13 @@ class UIntVLV( mrc.Field ):
             remainder -= 1
         return
 
-    def get_start_offset( self, value, parent=None ):
+    def get_start_offset( self, value, parent=None, index=None ):
+        assert index is None
         offset = mrc.property_get( self.offset, parent )
         return offset
 
-    def get_size( self, value, parent=None ):
+    def get_size( self, value, parent=None, index=None ):
+        assert index is None
         test = value
         count = 1
         test >>= 7

@@ -167,12 +167,6 @@ class MMapV4( mrc.Block ):
         return 'entries_max: {}, entries_used: {}'.format( self.entries_max, self.entries_used )
 
 
-class DIR( riff.RIFX ):
-    CHUNK_MAP = {
-      #  b'CASt': 
-    }
-
-
 class Sord( mrc.Block ):
     unk1 = mrc.Bytes( 0x00, size=0xc )
     count = mrc.UInt32_BE( 0x0c )
@@ -180,6 +174,13 @@ class Sord( mrc.Block ):
     unk3 = mrc.UInt16_BE( 0x12 )
     index = mrc.UInt16_BE( 0x14, count=mrc.Ref( 'count' ) )
 
-    
+
+class DirectorV4( riff.RIFX ):
+    CHUNK_MAP = {
+        b'mmap': MMapV4,
+        b'KEY*': KeyV4,
+        b'Sord': Sord,
+    }
+
 
 

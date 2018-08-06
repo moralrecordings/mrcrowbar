@@ -114,9 +114,14 @@ class CastType( IntEnum ):
 
 
 class CastV4( mrc.Block ):
+    CAST_MAP = {
+        CastType.BITMAP: BitmapCastV4,
+    }
+
     size1 =     mrc.UInt16_BE( 0x00 )
     size2 =     mrc.UInt32_BE( 0x02 )
     cast_type = mrc.UInt8( 0x06, enum=CastType )
+    detail =    mrc.BlockField( CAST_MAP, 0x07, block_type=mrc.Ref( 'cast_type' ), default_klass=mrc.Unknown )
 
     @property
     def repr( self ):
@@ -134,11 +139,12 @@ class KeyEntry( mrc.Block ):
 
 
 class KeyV4( mrc.Block ):
-    unk1 =      mrc.UInt16_BE( 0x00 )
-    unk2 =      mrc.UInt16_BE( 0x02 )
-    unk3 =      mrc.UInt32_BE( 0x04 )
-    entry_count =  mrc.UInt32_BE( 0x08 )
+    unk1 =          mrc.UInt16_BE( 0x00 )
+    unk2 =          mrc.UInt16_BE( 0x02 )
+    unk3 =          mrc.UInt32_BE( 0x04 )
+    entry_count =   mrc.UInt32_BE( 0x08 )
     entries =       mrc.BlockField( KeyEntry, 0x0c, count=mrc.Ref( 'entry_count' ) )
+    garbage =       mrc.Bytes( mrc.EndOffset( 'entries' ) )
 
 
 class MMapEntry( mrc.Block ):
@@ -180,6 +186,7 @@ class DirectorV4( riff.RIFX ):
         b'mmap': MMapV4,
         b'KEY*': KeyV4,
         b'Sord': Sord,
+        b'CASt': CastV4,
     }
 
 

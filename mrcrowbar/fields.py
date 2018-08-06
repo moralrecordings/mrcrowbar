@@ -334,7 +334,7 @@ class ChunkStream( Field ):
 
 
 class BlockField( Field ):
-    def __init__( self, block_klass, offset, block_kwargs=None, count=None, fill=None, block_type=None, **kwargs ):
+    def __init__( self, block_klass, offset, block_kwargs=None, count=None, fill=None, block_type=None, default_klass=None, **kwargs ):
         """Field for inserting another Block into the parent class.
 
         block_klass
@@ -356,6 +356,9 @@ class BlockField( Field ):
         block_type
             Key to use with the block_klass mapping. (Usually a Ref for a property on the parent block)
 
+        default_klass
+            Fallback Block class to use if there's no match with the block_klass mapping.
+
         """
         super().__init__( **kwargs )
         self.block_klass = block_klass
@@ -367,6 +370,7 @@ class BlockField( Field ):
         if fill:
             assert utils.is_bytes( fill )
         self.fill = fill
+        self.default_klass = default_klass
 
     def _get_fill_pattern( self, length ):
         if self.fill:
@@ -386,9 +390,9 @@ class BlockField( Field ):
         result = []
         fill_pattern = self._get_fill_pattern( stride ) if self.fill else None
         for i in range( count ):
-            sub_buffer = buffer[offset + i*stride:]
+            sub_buffer = buffer[offset + i*stride:offset+(i+1)*stride]
             # if data matches the fill pattern, leave a None in the list
-            if fill_pattern and sub_buffer[:stride] == fill_pattern:
+            if fill_pattern and sub_buffer == fill_pattern:
                 result.append( None )
             else:
                 block = klass( source_data=sub_buffer, parent=parent, **self.block_kwargs )
@@ -478,7 +482,12 @@ class BlockField( Field ):
     def get_klass( self, parent=None ):
         if isinstance( self.block_klass, dict ):
             block_type = property_get( self.block_type, parent )
-            return self.block_klass[block_type]
+            if block_type in self.block_klass:
+                return self.block_klass[block_type]
+            elif self.default_klass:
+                return self.default_klass
+            else:
+                raise ParseError( 'No block klass match for type {}'.format( block_type ) )
         return self.block_klass
 
 

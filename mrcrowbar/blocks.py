@@ -219,7 +219,9 @@ class Block( object, metaclass=BlockMeta ):
                     if test == raw_buffer[:len( test )]:
                         logger.debug( 'Content: exact match!' )
                     else:
-                        logger.debug( 'Content: different!\n{}'.format( utils.hexdump_diff_str( raw_buffer[:len( test )], test ) ) )
+                        logger.debug( 'Content: different!' )
+                        for x in utils.hexdump_diff_iter( raw_buffer[:len( test )], test ):
+                            logger.debug( x )
                 elif test != raw_buffer[:len( test )]:
                     logger.info( '{} export produced changed output from import'.format( self ) )
 

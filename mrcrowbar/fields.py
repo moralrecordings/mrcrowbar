@@ -315,8 +315,6 @@ class ChunkStream( Field ):
             value = [value[index]]
         size = self._size_calc( value, parent )
 
-        if index is None and self.stream_end is not None:
-            size += len( self.stream_end )
         return size
 
     def _size_calc( self, value, parent=None ):

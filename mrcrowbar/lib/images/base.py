@@ -201,7 +201,7 @@ class CodecImage( Image ):
         image.load()
         return image
 
-    def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0, columns=1, downsample=1 ):
+    def ansi_format_iter( self, x_start=0, y_start=0, width=None, height=None, frame=0, columns=1, downsample=1 ):
         """Return the ANSI escape sequence to render the image.
 
         x_start
@@ -251,12 +251,13 @@ class CodecImage( Image ):
                 image.seek( fr )
                 return palette[image.getpixel( (x, y) )]
 
-            return utils.ansi_format_image( data_fetch, x_start, y_start, width, height, frames, columns, downsample )
-
-        pass
+            for x in utils.ansi_format_image_iter( data_fetch, x_start, y_start, width, height, frames, columns, downsample ):
+                yield x
+        return
 
     def print( self, *args, **kwargs ):
-        print( self.ansi_format( *args, **kwargs ) )
+        for x in self.ansi_format_iter( *args, **kwargs ):
+            print( x )
 
 
 class IndexedImage( Image ):
@@ -305,7 +306,7 @@ class IndexedImage( Image ):
                 logger.warning( 'Image was provided with a different palette, please enable change_palette if you want to set the palette' )
         self.source = image.tobytes()
 
-    def ansi_format( self, x_start=0, y_start=0, width=None, height=None, frame=0, columns=1, downsample=1 ):
+    def ansi_format_iter( self, x_start=0, y_start=0, width=None, height=None, frame=0, columns=1, downsample=1 ):
         """Return the ANSI escape sequence to render the image.
 
         x_start
@@ -357,10 +358,13 @@ class IndexedImage( Image ):
                 p = p if self.mask[stride*fr+index] else None
             return self.palette[p] if p is not None else Transparent()
 
-        return utils.ansi_format_image( data_fetch, x_start, y_start, width, height, frames, columns, downsample )
+        for x in utils.ansi_format_image_iter( data_fetch, x_start, y_start, width, height, frames, columns, downsample ):
+            yield x
+        return
     
     def print( self, *args, **kwargs ):
-        print( self.ansi_format( *args, **kwargs ) )
+        for x in self.ansi_format_iter( *args, **kwargs ):
+            print( x )
 
     @property
     def repr( self ):

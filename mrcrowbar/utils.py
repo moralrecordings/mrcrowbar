@@ -683,7 +683,7 @@ def ansi_format_string( string, foreground, background ):
     return '{}{}{}'.format( fmt, string, ANSI_FORMAT_RESET )
 
 
-def ansi_format_image( data_fetch, x_start=0, y_start=0, width=32, height=32, frame=0, columns=1, downsample=1 ):
+def ansi_format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=32, frame=0, columns=1, downsample=1 ):
     """Return the ANSI escape sequence to render a bitmap image.
 
     data_fetch
@@ -718,7 +718,6 @@ def ansi_format_image( data_fetch, x_start=0, y_start=0, width=32, height=32, fr
     else:
         frames = [f for f in frame]
 
-    result = io.StringIO()
 
     palette_cache = {}
     def get_pixels( c1, c2 ):
@@ -730,14 +729,15 @@ def ansi_format_image( data_fetch, x_start=0, y_start=0, width=32, height=32, fr
     rows = math.ceil( len( frames )/columns )
     for r in range( rows ):
         for y in range( 0, height, 2*downsample ):
+            result = []
             for c in range( min( (len( frames )-r*columns), columns ) ):
                 for x in range( 0, width, downsample ):
                     fr = frames[r*columns + c]
                     c1 = data_fetch( x_start+x, y_start+y, fr )
                     c2 = data_fetch( x_start+x, y_start+y+downsample, fr )
-                    result.write( get_pixels( c1, c2 ) )
-            result.write( '\n' )
-    return result.getvalue()
+                    result.append( get_pixels( c1, c2 ) )
+            yield ''.join( result )
+    return
 
 
 class BitReader( object ):

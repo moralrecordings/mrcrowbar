@@ -21,7 +21,7 @@ class SplashEGA( mrc.Block ):
 
 
 class SplashVGA( mrc.Block ):
-    palette =       mrc.BlockStream( ibm_pc.VGAColour, 0x0000, stride=0x03, count=256 )
+    palette =       mrc.BlockField( ibm_pc.VGAColour, 0x0000, count=256 )
     image_data =    mrc.Bytes( 0x0300 )
 
     def __init__( self, *args, **kwargs ):

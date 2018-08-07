@@ -140,7 +140,7 @@ class SNDS( mrc.Block ):
 # ZONE
 
 class TILE( mrc.Block ):
-    tiles =     mrc.BlockStream( TileData, 0x00 )
+    tiles =     mrc.BlockField( TileData, 0x00, stream=True )
 
 
 class ZONE( mrc.Block ):

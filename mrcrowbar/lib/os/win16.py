@@ -20,7 +20,7 @@ class ResidentNameTable( mrc.Block ):
     module_name_size =  mrc.UInt8( 0x00 )
     module_name =       mrc.Bytes( 0x01, length=mrc.Ref( 'module_name_size' ) )
     padding =           mrc.UInt16_LE( mrc.EndOffset( 'module_name' ) )
-    resnames =          mrc.BlockStream( ResidentName, mrc.EndOffset( 'padding' ), stream_end=b'\x00' )
+    resnames =          mrc.BlockField( ResidentName, mrc.EndOffset( 'padding' ), stream=True, stream_end=b'\x00' )
 
 
 class ImportedName( mrc.Block ):
@@ -34,7 +34,7 @@ class ImportedName( mrc.Block ):
 
 class ImportedNameTable( mrc.Block ):
     unk =           mrc.UInt8( 0x00 )
-    impnames =      mrc.BlockStream( ImportedName, 0x01, stream_end=b'\x00' )
+    impnames =      mrc.BlockField( ImportedName, 0x01, stream=True, stream_end=b'\x00' )
 
 
 class RelocationInternalRef( mrc.Block ):
@@ -225,7 +225,7 @@ class ResourceInfo( mrc.Block ):
 
 class ResourceTable( mrc.Block ):
     align_shift =   mrc.UInt16_LE( 0x00 )
-    resourceinfo =  mrc.BlockStream( ResourceInfo, 0x02, stream_end=b'\x00\x00' )
+    resourceinfo =  mrc.BlockField( ResourceInfo, 0x02, stream=True, stream_end=b'\x00\x00' )
     name_data =     mrc.Bytes( mrc.EndOffset( 'resourceinfo' ), length=0x107 )
 
     def __init__( self, *args, **kwargs ):
@@ -329,7 +329,7 @@ class NEModule( NEBase ):
     resnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'resnames_offset' ) )
     modreftable =   mrc.BlockField( ModuleReference, mrc.Ref( 'modref_offset' ), count=mrc.Ref( 'modref_count' ) )
     impnamedata =   mrc.Bytes( mrc.Ref( 'impnames_offset' ), length=mrc.Ref( 'impnames_size' ) )
-    #entrydata =     mrc.BlockStream( EntryBundle, mrc.Ref( 'entry_offset' ), length=mrc.Ref( 'entry_size' ) )
+    #entrydata =     mrc.BlockField( EntryBundle, mrc.Ref( 'entry_offset' ), stream=True, length=mrc.Ref( 'entry_size' ) )
     #nonresnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'nonresnames_rel_offset' ) )
 
     def __init__( self, *args, **kwargs ):
@@ -354,7 +354,7 @@ class NEHeader( NEBase ):
     resnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'resnames_offset' ) )
     modreftable =   mrc.BlockField( ModuleReference, mrc.Ref( 'modref_offset' ), count=mrc.Ref( 'modref_count' ) )
     impnamedata =   mrc.Bytes( mrc.Ref( 'impnames_offset' ), length=mrc.Ref( 'impnames_size' ) )
-    entrydata =     mrc.BlockStream( EntryBundle, mrc.Ref( 'entry_offset' ), length=mrc.Ref( 'entry_size' ) )
+    entrydata =     mrc.BlockField( EntryBundle, mrc.Ref( 'entry_offset' ), stream=True, length=mrc.Ref( 'entry_size' ) )
     nonresnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'nonresnames_offset' ) )
 
     @property

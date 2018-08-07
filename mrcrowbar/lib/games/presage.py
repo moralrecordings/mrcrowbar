@@ -21,4 +21,4 @@ class PRSFile( mrc.Block ):
     unk1 = mrc.UInt8( 0x18 )
     unk2 = mrc.UInt8( 0x19 )
     unk3 = mrc.UInt8( 0x1f )
-    chunks = mrc.BlockStream( PRSChunk, 0x30 )
+    chunks = mrc.BlockField( PRSChunk, 0x30, stream=True )

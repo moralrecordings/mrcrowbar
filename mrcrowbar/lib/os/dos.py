@@ -40,7 +40,7 @@ class B800Char( mrc.Block ):
 class B800Screen( mrc.Block ):
     B800_SCREEN_WIDTH =  80
 
-    chars = mrc.BlockStream( B800Char, 0x00, count=2000, stride=0x02 )
+    chars = mrc.BlockField( B800Char, 0x00, count=2000 )
 
     @property
     def text( self ):

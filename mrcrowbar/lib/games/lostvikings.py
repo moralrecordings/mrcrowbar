@@ -44,7 +44,7 @@ class Tile( mrc.Block ):
 
 
 class TileMap( mrc.Block ):
-    tiles = mrc.BlockStream( Tile, 0x00 )
+    tiles = mrc.BlockField( Tile, 0x00, stream=True )
 
 
 class TileQuad( mrc.Block ):
@@ -79,7 +79,7 @@ class MetaTile( mrc.Block ):
 
 
 class MetaTileMap( mrc.Block ):
-    metatiles = mrc.BlockStream( MetaTile, 0x00 )
+    metatiles = mrc.BlockField( MetaTile, 0x00, stream=True )
 
 
 class LZSS( mrc.Transform ):

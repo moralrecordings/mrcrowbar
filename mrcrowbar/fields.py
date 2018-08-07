@@ -146,93 +146,6 @@ class Field( object ):
         pass 
 
 
-class BlockStream( Field ):
-    def __init__( self, block_klass, offset, block_kwargs=None, transform=None, stop_check=None, length=None, stream_end=None, **kwargs ):
-        super().__init__( **kwargs )
-        self.block_klass = block_klass
-        self.offset = offset
-        self.block_kwargs = block_kwargs if block_kwargs else {}
-        self.transform = transform
-        self.stop_check = stop_check
-        self.length = length
-        if stream_end is not None:
-            assert utils.is_bytes( stream_end )
-        self.stream_end = stream_end
-
-    def get_from_buffer( self, buffer, parent=None ):
-        assert utils.is_bytes( buffer )
-        offset = property_get( self.offset, parent )
-        length = property_get( self.length, parent )
-        if length is not None:
-            buffer = buffer[:offset+length]
-
-        pointer = offset
-        result = []
-        while pointer < len( buffer ):
-            # run the stop check (if exists): if it returns true, we've hit the end of the stream
-            if self.stop_check and (self.stop_check( buffer, pointer )):
-                break
-            if self.stream_end is not None and buffer[pointer:pointer+len( self.stream_end )] == self.stream_end:
-                break
-            if self.transform:
-                data = self.transform.import_data( buffer[pointer:], parent=parent )
-                block = self.block_klass( source_data=data['payload'], parent=parent, **self.block_kwargs )
-                result.append( block )
-                pointer += data['end_offset']
-            else:
-                block = self.block_klass( source_data=buffer[pointer:], parent=parent, **self.block_kwargs )
-                size = block.get_size()
-                assert size > 0
-                result.append( block )
-                pointer += size
-        return result
-
-    def update_buffer_with_value( self, value, buffer, parent=None ):
-        super().update_buffer_with_value( value, buffer, parent )
-        offset = property_get( self.offset, parent )
-        
-        pointer = offset
-        block_data = bytearray()
-        for b in value:
-            data = b.export_data()
-            if self.transform:
-                data = self.transform.export_data( data, parent=parent )['payload']
-            block_data += data
-        
-        if self.stream_end is not None:
-            block_data += self.stream_end
-
-        if len( buffer ) < offset+len( block_data ):
-            buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )
-        buffer[offset:offset+len( block_data )] = block_data
-        return         
-
-    def get_start_offset( self, value, parent=None, index=None ):
-        offset = property_get( self.offset, parent )
-        if index is not None:
-            offset += self._size.calc( value[:index] )
-        return offset
-
-    def get_size( self, value, parent=None, index=None ):
-        value = value if value else []
-        if index is not None:
-            value = [value[index]]
-        size = self._size_calc( value, parent )
-
-        if index is None and self.stream_end is not None:
-            size += len( self.stream_end )
-        return size
-
-    def _size_calc( self, value, parent=None ):
-        size = 0
-        for b in value:
-            if self.transform:
-                data = self.transform.export_data( b.export_data(), parent=parent )['payload']
-                size += len( data )
-            else:
-                size += b.get_size()
-        return size
-
 
 class ChunkStream( Field ):
     def __init__( self, offset, chunk_map, length=None, default_chunk=None, chunk_id_size=None, length_field=None, alignment=1, **kwargs ):
@@ -334,7 +247,10 @@ class ChunkStream( Field ):
 
 
 class BlockField( Field ):
-    def __init__( self, block_klass, offset, block_kwargs=None, count=None, fill=None, block_type=None, default_klass=None, **kwargs ):
+    def __init__( self, block_klass, offset, block_kwargs=None, count=None, fill=None,
+                    block_type=None, default_klass=None, length=None, stream=False,
+                    alignment=1, transform=None, stream_end=None, stop_check=None,
+                    **kwargs ):
         """Field for inserting another Block into the parent class.
 
         block_klass
@@ -347,17 +263,36 @@ class BlockField( Field ):
             Arguments to be passed to the constructor of the block class.
 
         count
-            Interpret data as an array of this size. None implies a single value, non-negative
+            Load multiple Blocks. None implies a single value, non-negative
             numbers will return a Python list.
 
         fill
-            Byte pattern to apply to denote an empty entry in a list.
+            Exact byte sequence that denotes an empty entry in a list.
 
         block_type
             Key to use with the block_klass mapping. (Usually a Ref for a property on the parent block)
 
         default_klass
             Fallback Block class to use if there's no match with the block_klass mapping.
+
+        length
+            Maximum size of the buffer to read in.
+
+        stream
+            Read Blocks continuously until a stop condition is met.
+
+        alignment
+            Number of bytes to align the start of each Block to.
+
+        transform
+            Transform class to use for preprocessing the data before creating each Block.
+
+        stream_end
+            Byte pattern to denote the end of the stream.
+
+        stop_check
+            A function that takes a data buffer and an offset; should return True if
+            the end of the data stream has been reached and False otherwise.
 
         """
         super().__init__( **kwargs )
@@ -367,37 +302,70 @@ class BlockField( Field ):
         # TODO: support different args if using a switch
         self.offset = offset
         self.count = count
-        if fill:
-            assert utils.is_bytes( fill )
         self.fill = fill
         self.default_klass = default_klass
-
-    def _get_fill_pattern( self, length ):
-        if self.fill:
-            return (self.fill*math.ceil( length/len( self.fill ) ))[:length]
-        return None
+        self.length = length
+        self.stream = stream
+        self.alignment = alignment
+        self.transform = transform
+        if stream_end is not None:
+            assert utils.is_bytes( stream_end )
+        self.stream_end = stream_end
+        self.stop_check = stop_check
 
     def get_from_buffer( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
-        is_array = count is not None
-        count = count if is_array else 1
-        assert count >= 0  
-        klass = self.get_klass( parent )
-        stride = klass( parent=parent, **self.block_kwargs ).get_size()
+        fill = property_get( self.fill, parent )
+        stream = property_get( self.stream, parent )
 
+        is_array = stream or (count is not None)
+        count = count if is_array else 1
+        if count is not None:
+            assert count >= 0
+        length = property_get( self.length, parent )
+        if length is not None:
+            buffer = buffer[:offset+length]
+
+        klass = self.get_klass( parent )
+        pointer = offset
         result = []
-        fill_pattern = self._get_fill_pattern( stride ) if self.fill else None
-        for i in range( count ):
-            sub_buffer = buffer[offset + i*stride:offset+(i+1)*stride]
-            # if data matches the fill pattern, leave a None in the list
-            if fill_pattern and sub_buffer == fill_pattern:
+        while pointer < len( buffer ):
+            start_offset = pointer
+            # stop if we've hit the maximum number of items
+            if not stream and (len( result ) == count):
+                break
+            # run the stop check (if exists): if it returns true, we've hit the end of the stream
+            if self.stop_check and (self.stop_check( buffer, pointer )):
+                break
+            # stop if we find the end of stream marker
+            if self.stream_end is not None and buffer[pointer:pointer+len( self.stream_end )] == self.stream_end:
+                break
+            # add an empty list entry if we find the fill pattern
+            if fill and buffer[pointer:pointer+len( fill )] == fill:
                 result.append( None )
-            else:
-                block = klass( source_data=sub_buffer, parent=parent, **self.block_kwargs )
+                pointer += len( fill )
+            # if we have an inline transform, apply it
+            elif self.transform:
+                data = self.transform.import_data( buffer[pointer:], parent=parent )
+                block = klass( source_data=data['payload'], parent=parent, **self.block_kwargs )
                 result.append( block )
-               
+                pointer += data['end_offset']
+            # add block to results
+            else:
+                block = klass( source_data=buffer[pointer:], parent=parent, **self.block_kwargs )
+                size = block.get_size()
+                assert size > 0
+                result.append( block )
+                pointer += size
+
+            # if an alignment is set, do some aligning
+            if self.alignment:
+                width = (pointer-start_offset) % self.alignment
+                if width:
+                    pointer += self.alignment - width
+
         if not is_array:
             return result[0]
         return result
@@ -406,28 +374,44 @@ class BlockField( Field ):
         super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
+        fill = property_get( self.fill, parent )
+
         klass = self.get_klass( parent )
-        stride = klass( parent=parent, **self.block_kwargs ).get_size()
-        is_array = count is not None
+        is_array = stream or (count is not None)
 
         if is_array:
             try:
                 it = iter( value )
             except TypeError:
                 raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
-            assert len( value ) <= count
+            if not stream:
+                assert len( value ) <= count
         else:
             value = [value]
 
         block_data = bytearray()
         for b in value:
+            # if an alignment is set, do some aligning
+            if self.alignment:
+                width = len( block_data ) % self.alignment
+                if width:
+                    block_data += b'\x00'*(self.alignment - width)
+
             if b is None:
-                if self.fill:
-                    block_data += bytes(( self.fill[j % len(self.fill)] for j in range( stride ) ))
+                if fill:
+                    block_data += fill
                 else:
-                    block_data += b'\x00'*stride
+                    raise ParseError( 'A fill pattern needs to be specified to use None as a list entry' )
             else:
-                block_data += b.export_data()
+                data = b.export_data()
+                if self.transform:
+                    data = self.transform.export_data( data, parent=parent )['payload']
+                block_data += data
+
+        if self.stream_end is not None:
+            block_data += self.stream_end
+
         if len( buffer ) < offset+len( block_data ):
             buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )
         buffer[offset:offset+len( block_data )] = block_data
@@ -436,15 +420,17 @@ class BlockField( Field ):
     def validate( self, value, parent=None ):
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
         klass = self.get_klass( parent )
-        is_array = count is not None
+        is_array = stream or (count is not None)
 
         if is_array:
             try:
                 it = iter( value )
             except TypeError:
                 raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
-            assert len( value ) <= count
+            if count is not None:
+                assert len( value ) <= count
         else:
             value = [value]
         for b in value:
@@ -452,32 +438,38 @@ class BlockField( Field ):
                  raise FieldValidationError( 'Expecting block class {}, not {}'.format( self.block_klass, type( b ) ) )
 
     def get_start_offset( self, value, parent=None, index=None ):
-        count = property_get( self.count, parent )
-        klass = self.get_klass( parent )
-        stride = klass( parent=parent, **self.block_kwargs ).get_size()
         offset = property_get( self.offset, parent )
+        count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
+        is_array = stream or (count is not None)
+
         if index is not None:
-            if count is None:
-                raise IndexError( 'can\'t use index for a non-array BlockField' )
+            if not is_array:
+                raise IndexError( 'Can\'t use index for a non-array BlockField' )
             elif index not in range( 0, count ):
-                raise IndexError( 'index {} is not within range( 0, {} )'.format( index, count ) )
-            offset += stride*index
+                raise IndexError( 'Index {} is not within range( 0, {} )'.format( index, count ) )
+            offset += self._size_calc( value[:index] )
+
         return offset
 
     def get_size( self, value, parent=None, index=None ):
-        # TODO: current design assumes blocks are fixed size, maybe change this to introspection?
         count = property_get( self.count, parent )
-        klass = self.get_klass( parent )
-        stride = klass( parent=parent, **self.block_kwargs ).get_size()
+        stream = property_get( self.stream, parent )
+        is_array = stream or (count is not None)
+
         if index is not None:
-            if count is None:
-                raise IndexError( 'can\'t use index for a non-array BlockField' )
+            if not is_array:
+                raise IndexError( 'Can\'t use index for a non-array BlockField' )
             elif index not in range( 0, count ):
-                raise IndexError( 'index {} is not within range( 0, {} )'.format( index, count ) )
-            return stride
-        if count is not None:
-            return stride*count
-        return stride
+                raise IndexError( 'Index {} is not within range( 0, {} )'.format( index, count ) )
+            value = [value[index]]
+        else:
+            value = value if is_array else [value]
+
+        size = self._size_calc( value, parent )
+        if index is None and self.stream_end is not None:
+            size += len( self.stream_end )
+        return size
 
     def get_klass( self, parent=None ):
         if isinstance( self.block_klass, dict ):
@@ -489,6 +481,23 @@ class BlockField( Field ):
             else:
                 raise ParseError( 'No block klass match for type {}'.format( block_type ) )
         return self.block_klass
+
+    def _size_calc( self, value, parent=None ):
+        fill = property_get( self.fill, parent )
+
+        size = 0
+        for b in value:
+            if self.transform:
+                data = self.transform.export_data( b.export_data(), parent=parent )['payload']
+                size += len( data )
+            elif b is None:
+                if fill:
+                    size += len( fill )
+                else:
+                    raise ParseError( 'A fill pattern needs to be specified to use None as a list entry' )
+            else:
+                size += b.get_size()
+        return size
 
 
 class Bytes( Field ):

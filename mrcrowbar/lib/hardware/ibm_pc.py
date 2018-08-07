@@ -51,7 +51,7 @@ class SegmentDescriptor( mrc.Block ):
 
 
 class SegmentDescriptorTable( mrc.Block ):
-    seglist = mrc.BlockStream( SegmentDescriptor, 0x00 )
+    seglist = mrc.BlockField( SegmentDescriptor, 0x00, stream=True )
 
 
 class EGAColour( img.Colour ):

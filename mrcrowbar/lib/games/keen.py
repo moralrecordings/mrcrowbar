@@ -273,12 +273,8 @@ class EGALatch( mrc.Block ):
 class EGALatchComp( mrc.Block ):
     _egahead            = None
 
-    tiles_set           = mrc.BlockStream( EGATileStore, 0x00, transform=LZWCompressor() )
+    tilestore           = mrc.BlockField( EGATileStore, 0x00, transform=LZWCompressor() )
     
-    @property
-    def tilestore( self ):
-        return self.tiles_set[0]
-
 
 class SoundHeader( mrc.Block ):
     magic               = mrc.Const( mrc.Bytes( 0x00, length=4 ), b'SND\x00' )

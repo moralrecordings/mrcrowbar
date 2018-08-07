@@ -73,7 +73,7 @@ class Song( mrc.Block ):
     positions =         mrc.BlockField( SongPosition, mrc.EndOffset( 'position_count' ), count=mrc.Ref( 'position_count' ) )
 
     num_digital =       mrc.UInt16_LE( mrc.EndOffset( 'positions' ) )
-    patterns =          mrc.BlockStream( SongPattern, mrc.EndOffset( 'num_digital' ) )
+    patterns =          mrc.BlockField( SongPattern, mrc.EndOffset( 'num_digital' ), stream=True )
 
 
 class MUSFile( mrc.Block ):

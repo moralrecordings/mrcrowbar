@@ -504,11 +504,11 @@ class Level( mrc.Block ):
     custom_index =      mrc.UInt16_BE( 0x001c )
 
     #: List of Interactive object references (32 slots).
-    interactives =      mrc.BlockField( Interactive, 0x0020, count=32, fill=b'\x00' )
+    interactives =      mrc.BlockField( Interactive, 0x0020, count=32, fill=b'\x00'*8 )
     #: List of Terrain object references (400 slots).
-    terrains =          mrc.BlockField( Terrain, 0x0120, count=400, fill=b'\xff' )
+    terrains =          mrc.BlockField( Terrain, 0x0120, count=400, fill=b'\xff'*4 )
     #: List of SteelArea object references (32 slots).
-    steel_areas =       mrc.BlockField( SteelArea, 0x0760, count=32, fill=b'\x00' )
+    steel_areas =       mrc.BlockField( SteelArea, 0x0760, count=32, fill=b'\x00'*4 )
     #: Name of the level (ASCII string).
     name =              mrc.Bytes( 0x07e0, 32, default=b'                                ' )
 
@@ -523,7 +523,7 @@ class Level( mrc.Block ):
 
 
 class LevelDAT( mrc.Block ):
-    levels  = mrc.BlockStream( Level, 0x0000, transform=DATCompressor() )
+    levels  = mrc.BlockField( Level, 0x0000, stream=True, transform=DATCompressor() )
 
 ##########
 # oddtable.dat parser
@@ -766,9 +766,9 @@ class GroundDAT( mrc.Block ):
     _vgagr = None           # should be replaced by the correct VgagrDAT object
 
     #: Information for every type of interactive piece.
-    interactive_info        = mrc.BlockField( InteractiveInfo, 0x0000, count=16, fill=b'\x00' )
+    interactive_info        = mrc.BlockField( InteractiveInfo, 0x0000, count=16, fill=b'\x00'*28 )
     #: Information for every type of terrain piece.
-    terrain_info            = mrc.BlockField( TerrainInfo, 0x01c0, count=64, fill=b'\x00' )
+    terrain_info            = mrc.BlockField( TerrainInfo, 0x01c0, count=64, fill=b'\x00'*8 )
 
     #: Extended EGA palette used for rendering the level preview.
     palette_ega_preview     = img.Palette( ibm_pc.EGAColour, 0x03c0, count=8 )
@@ -806,7 +806,7 @@ class VgagrStore( mrc.Block ):
 
 
 class VgagrDAT( mrc.Block ):
-    stores = mrc.BlockStream( VgagrStore, 0x0000, transform=DATCompressor() )
+    stores = mrc.BlockField( VgagrStore, 0x0000, stream=True, transform=DATCompressor() )
 
     @property
     def terrain_store( self ):
@@ -911,8 +911,8 @@ class MainHUDGraphics( mrc.Block ):
 
 class MainDAT( mrc.Block ):
     pass
-    #main_anims = mrc.BlockStream( MainAnims, 0x0000, transform=DATCompressor() )
-    #main_masks = mrc.BlockField( MainMasks, transform=DATCompressor() )
+    #main_anims = mrc.BlockField( MainAnims, 0x0000, stream=True, transform=DATCompressor() )
+    #main_masks = mrc.BlockField( MainMasks, mrc.EndOffset( 'main_anims' ), stream=True, transform=DATCompressor() )
     #main_hud_graphics_hp = mrc.BlockField( MainHUDGraphicsHP, transform=DATCompressor() )
     #main_menu_graphics = mrc.BlockField( MainMenuGraphics, transform=DATCompressor() )
     #main_menu_anims = mrc.BlockField( MainMenuAnims, transform=DATCompressor() )
@@ -937,7 +937,7 @@ class Special( mrc.Block ):
 
 
 class VgaspecDAT( mrc.Block ):
-    special = mrc.BlockStream( Special, 0x0000, transform=DATCompressor() )
+    special = mrc.BlockField( Special, 0x0000, transform=DATCompressor() )
 
 
 ##########

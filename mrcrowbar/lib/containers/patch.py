@@ -35,7 +35,7 @@ class IPSRecord( mrc.Block ):
 
 class IPS( mrc.Block ):
     magic =     mrc.Const( mrc.Bytes( 0x00, length=5 ), b'PATCH' )
-    records =   mrc.BlockStream( IPSRecord, 0x05, stream_end=b'EOF' )
+    records =   mrc.BlockField( IPSRecord, 0x05, stream=True, stream_end=b'EOF' )
 
     @property
     def repr( self ):
@@ -136,7 +136,7 @@ class UPS( mrc.Block ):
     magic =         mrc.Const( mrc.Bytes( 0x00, length=4 ), b'UPS1' )
     input_size =    UIntVLV( 0x04 )
     output_size =   UIntVLV( mrc.EndOffset( 'input_size' ) )
-    blocks =        mrc.BlockStream( UPSBlock, mrc.EndOffset( 'output_size' ), stop_check=STOP_CHECK )
+    blocks =        mrc.BlockField( UPSBlock, mrc.EndOffset( 'output_size' ), stream=True, stop_check=STOP_CHECK )
     input_crc32 =   mrc.UInt32_LE( mrc.EndOffset( 'blocks' ) )
     output_crc32 =  mrc.UInt32_LE( mrc.EndOffset( 'input_crc32' ) )
     patch_crc32 =   mrc.UInt32_LE( mrc.EndOffset( 'output_crc32' ) )

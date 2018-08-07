@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 
 import itertools
 
@@ -9,8 +8,7 @@ from mrcrowbar.utils import BitReader
 
 
 class LevelPalette( mrc.Block ):
-    _block_size = 32
-    palette =   mrc.BlockStream( md.VDPColour, 0x0000, stride=0x02, count=16 )
+    palette =   mrc.BlockField( md.VDPColour, 0x0000, count=16 )
 
 
 # source: http://segaretro.org/Enigma_compression

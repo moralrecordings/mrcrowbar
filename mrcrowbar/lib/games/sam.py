@@ -81,7 +81,7 @@ class SAMTileset16( mrc.Block ):
 
 
 class SAMGfx16( mrc.Block ):
-    tilesets = mrc.BlockStream( SAMTileset16, 0x00, transform=SAMEncryption( length=0x1f80 ) )
+    tilesets = mrc.BlockField( SAMTileset16, 0x00, transform=SAMEncryption( length=0x1f80 ) )
 
 
 class SAMTileset8( mrc.Block ):
@@ -134,7 +134,7 @@ class SAMTileset8( mrc.Block ):
 
 
 class SAMGfx8( mrc.Block ):
-    tilesets = mrc.BlockStream( SAMTileset8, 0x00, transform=SAMEncryption( length=0x800 ) )
+    tilesets = mrc.BlockField( SAMTileset8, 0x00, transform=SAMEncryption( length=0x800 ) )
 
 
 class Loader( mrc.Loader ):

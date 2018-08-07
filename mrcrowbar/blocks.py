@@ -220,7 +220,6 @@ class Block( object, metaclass=BlockMeta ):
                         logger.debug( 'Content: exact match!' )
                     elif test == raw_buffer[:len( test )]:
                         logger.debug( 'Content: partial match!' )
-                        import pdb; pdb.set_trace()
                     else:
                         logger.debug( 'Content: different!' )
                         for x in utils.hexdump_diff_iter( raw_buffer[:len( test )], test ):

@@ -973,8 +973,8 @@ class Bits( ValueField ):
     def validate( self, value, parent=None ):
         if self.enum_t:
             if (value not in [x.value for x in self.enum_t]):
-                raise FieldValidationError( 'Value {} not castable to {}'.format( value, self.enum ) )
-            value = self.enum_t(value).value
+                raise FieldValidationError( 'Value {} not castable to {}'.format( value, self.enum_t ) )
+            value = self.enum_t( value ).value
         super().validate( value, parent )
 
     @property

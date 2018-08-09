@@ -197,18 +197,18 @@ def basic_diff( source1, source2, start=None, end=None ):
     return results
 
 
-def ansi_format_histdump_line( source, offset, length=None, end=None, width=64 ):
+def ansi_format_histdump_line( source, offset, length=None, end=None, width=64, address_base_offset=0 ):
     if length is not None:
         data = source[offset:offset+length]
     else:
         data = source[offset:]
     end = end if end else len( source )
-    digits = max( 8, math.floor( math.log( end )/math.log( 16 ) ) )
+    digits = ('{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}').format( offset+address_base_offset )
     stat = Stats(data)
-    return ('{:0'+str( digits )+'x} │ {} │ {:.10f}').format( offset, stat.ansi_format_histogram_line( width ), stat.entropy )
+    return ('{} │ {} │ {:.10f}').format( digits, stat.ansi_format_histogram_line( width ), stat.entropy )
 
 
-def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, width=64 ):
+def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, width=64, address_base=None ):
     assert is_bytes( source )
 
     start = 0 if (start is None) else start
@@ -225,18 +225,20 @@ def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, w
     end = min( end, len( source ) )
     if len( source ) == 0 or (start == end == 0):
         return
+    address_base_offset = address_base-start if address_base is not None else 0
 
     for offset in range( start, end, samples ):
-        yield ansi_format_histdump_line( source, offset, length=samples, end=end, width=width )
+        yield ansi_format_histdump_line( source, offset, length=samples, end=end, width=width, address_base_offset=address_base_offset )
     return
 
 
-def histdump( source, start=None, end=None, length=None, samples=0x10000, width=64 ):
-    for line in histdump_iter( source, start, end, length, samples, width ):
+def histdump( source, start=None, end=None, length=None, samples=0x10000, width=64, address_base=None ):
+    for line in histdump_iter( source, start, end, length, samples, width, address_base ):
         print( line )
 
 
-def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, colour=True, prefix='', highlight_addr=None, highlight_map=None ):
+def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, colour=True,
+        prefix='', highlight_addr=None, highlight_map=None, address_base_offset=0 ):
     def get_colour( index ):
         if highlight_map:
             if index in highlight_map:
@@ -261,7 +263,9 @@ def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4
     if end is None:
         end = len( source )
 
-    line = [colour_wrap( '{}{:08x}'.format( prefix, offset ), highlight_addr ), ' │  ']
+    digits = ('{}{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}').format( prefix, offset+address_base_offset )
+
+    line = [colour_wrap( digits, highlight_addr ), ' │  ']
     for major in range( major_len ):
         for minor in range( minor_len ):
             suboffset = offset+major*minor_len+minor
@@ -274,7 +278,7 @@ def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4
     return ''.join( line )
 
 
-def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True ):
+def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None ):
     """Return the contents of a byte string in tabular hexadecimal/ASCII format.
     
     source
@@ -298,6 +302,9 @@ def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_
     colour
         Add ANSI colour formatting to output (default: true)
 
+    address_base
+        Base address to use for labels (default: start)
+
     Raises ValueError if both end and length are defined.
     """
     assert is_bytes( source )
@@ -316,13 +323,14 @@ def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_
     end = min( end, len( source ) )
     if len( source ) == 0 or (start == end == 0):
         return
+    address_base_offset = address_base-start if address_base is not None else 0
 
     for offset in range( start, end, minor_len*major_len ):
-        yield ansi_format_hexdump_line( source, offset, end, major_len, minor_len, colour )
+        yield ansi_format_hexdump_line( source, offset, end, major_len, minor_len, colour, address_base_offset=address_base_offset )
     return
 
 
-def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True ):
+def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None ):
     """Print the contents of a byte string in tabular hexadecimal/ASCII format.
     
     source
@@ -346,13 +354,16 @@ def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4
     colour
         Add ANSI colour formatting to output (default: true)
 
+    address_base
+        Base address to use for labels (default: start)
+
     Raises ValueError if both end and length are defined.
     """
-    for line in hexdump_iter( source, start, end, length, major_len, minor_len, colour ):
+    for line in hexdump_iter( source, start, end, length, major_len, minor_len, colour, address_base ):
         print( line )
 
 
-def hexdump_diff_iter( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2 ):
+def hexdump_diff_iter( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2, address_base=None ):
     """Returns the differences between two byte strings in tabular hexadecimal/ASCII format.
 
     source1
@@ -385,6 +396,9 @@ def hexdump_diff_iter( source1, source2, start=None, end=None, length=None, majo
     after
         Number of lines of context following a match to show
 
+    address_base
+        Base address to use for labels (default: start)
+
     Raises ValueError if both end and length are defined.
     """
     stride = minor_len*major_len
@@ -393,6 +407,8 @@ def hexdump_diff_iter( source1, source2, start=None, end=None, length=None, majo
 
     start = max( start, 0 )
     end = min( end, max( len( source1 ), len( source2 ) ) )
+    address_base_offset = address_base-start if address_base is not None else 0
+
     diff_lines = []
     for offset in range( start, end, stride ):
         if source1[offset:offset+stride] != source2[offset:offset+stride]:
@@ -422,12 +438,12 @@ def hexdump_diff_iter( source1, source2, start=None, end=None, length=None, majo
                 for i in range( o, o+l ):
                     highlights[i] = HIGHLIGHT_COLOUR_MAP[0]
             if offset < len( source1 ):
-                yield ansi_format_hexdump_line( source1, offset, min( end, len( source1 ) ), major_len, minor_len, colour, prefix='-', highlight_addr=HIGHLIGHT_COLOUR_MAP[0], highlight_map=highlights )
+                yield ansi_format_hexdump_line( source1, offset, min( end, len( source1 ) ), major_len, minor_len, colour, prefix='-', highlight_addr=HIGHLIGHT_COLOUR_MAP[0], highlight_map=highlights, address_base_offset=address_base_offset )
             highlights = {k: HIGHLIGHT_COLOUR_MAP[1] for k in highlights.keys()}
             if offset < len( source2 ):
-                yield ansi_format_hexdump_line( source2, offset, min( end, len( source2 ) ), major_len, minor_len, colour, prefix='+' , highlight_addr=HIGHLIGHT_COLOUR_MAP[1], highlight_map=highlights )
+                yield ansi_format_hexdump_line( source2, offset, min( end, len( source2 ) ), major_len, minor_len, colour, prefix='+' , highlight_addr=HIGHLIGHT_COLOUR_MAP[1], highlight_map=highlights, address_base_offset=address_base_offset )
         elif show_lines[offset] == 1:
-            yield ansi_format_hexdump_line( source1, offset, end, major_len, minor_len, colour, prefix=' ' )
+            yield ansi_format_hexdump_line( source1, offset, end, major_len, minor_len, colour, prefix=' ', address_base_offset=address_base_offset )
         elif show_lines[offset] == 0:
             skip = True
 
@@ -438,7 +454,7 @@ def hexdump_diff_iter( source1, source2, start=None, end=None, length=None, majo
     return
 
 
-def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2 ):
+def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2, address_base=None ):
     """Returns the differences between two byte strings in tabular hexadecimal/ASCII format.
 
     source1
@@ -471,9 +487,12 @@ def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len
     after
         Number of lines of context following a match to show
 
+    address_base
+        Base address to use for labels (default: start)
+
     Raises ValueError if both end and length are defined.
     """
-    for line in hexdump_diff_iter( source1, source2, start, end, length, major_len, minor_len, colour, before, after ):
+    for line in hexdump_diff_iter( source1, source2, start, end, length, major_len, minor_len, colour, before, after, address_base ):
         print( line )
 
 

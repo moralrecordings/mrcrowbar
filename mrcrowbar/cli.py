@@ -20,6 +20,12 @@ ARGS_COMMON = {
         type=auto_int,
         help='End offset to stop reading at (default: end)',
     ),
+    '--address-base': dict(
+        metavar='INT',
+        dest='address_base',
+        type=auto_int,
+        help='Base address to use for labelling (default: start)',
+    ),
     '--length': dict(
         metavar='INT',
         dest='length',
@@ -133,6 +139,12 @@ ARGS_HIST = {
         type=auto_int,
         help='End offset to stop reading at (default: end)',
     ),
+    '--address-base': dict(
+        metavar='INT',
+        dest='address_base',
+        type=auto_int,
+        help='Base address to use for labelling (default: start)',
+    ),
     '--length': dict(
         metavar='INT',
         dest='length',
@@ -171,7 +183,7 @@ def mrcdump():
         utils.hexdump(
             source, start=raw_args.start, end=raw_args.end, length=raw_args.length,
             major_len=raw_args.major_len, minor_len=raw_args.minor_len,
-            colour=raw_args.colour
+            colour=raw_args.colour, address_base=raw_args.address_base,
         )
         print( '' )
 
@@ -195,7 +207,7 @@ def mrcdiff():
         source1, source2, start=raw_args.start, end=raw_args.end,
         length=raw_args.length, major_len=raw_args.major_len,
         minor_len=raw_args.minor_len, colour=raw_args.colour,
-        before=before, after=after
+        before=before, after=after, address_base=raw_args.address_base,
     )
 
 def mrchist():
@@ -206,4 +218,7 @@ def mrchist():
 
     source = mmap.mmap( raw_args.source.fileno(), 0, access=mmap.ACCESS_READ )
 
-    utils.histdump( source, raw_args.start, raw_args.end, raw_args.length, raw_args.samples, raw_args.width )
+    utils.histdump( source, start=raw_args.start, end=raw_args.end, 
+        length=raw_args.length, samples=raw_args.samples, width=raw_args.width, 
+        address_base=raw_args.address_base,
+    )

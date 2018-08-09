@@ -147,7 +147,7 @@ class Field( object ):
 
 
 
-class ChunkStream( Field ):
+class ChunkField( Field ):
     def __init__( self, offset, chunk_map, length=None, default_chunk=None, chunk_id_size=None, length_field=None, alignment=1, **kwargs ):
         super().__init__( **kwargs )
         self.offset = offset

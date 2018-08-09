@@ -6,6 +6,8 @@ from mrcrowbar import models as mrc, utils
 
 # source: http://benoit.papillault.free.fr/c/disc2/exefmt.txt
 # http://geos.icc.ru:8080/scripts/WWWBinV.dll/ShowR?NE.rfi
+# Pietrek, Matt,. Windows Internals: The Implementation of the Windows Operating Environment, 1993, Addison-Wesley
+
 class ResidentName( mrc.Block ):
     size =          mrc.UInt8( 0x00 )
     name =          mrc.Bytes( 0x01, length=mrc.Ref( 'size' ) )
@@ -50,7 +52,7 @@ class RelocationInternalRef( mrc.Block ):
 class RelocationImportName( mrc.Block ):
     index =          mrc.UInt16_LE( 0x00 )
     name_offset =    mrc.UInt16_LE( 0x02 )
-    name = mrc.StoreRef( ImportedName, mrc.Ref( '_parent._parent._parent.impnamestore' ), mrc.Ref( 'name_offset' ), size=32 )
+    name = mrc.StoreRef( ImportedName, mrc.Ref( '_parent._parent._parent._parent._parent.impnamestore' ), mrc.Ref( 'name_offset' ), size=32 )
 
     @property
     def repr( self ):

@@ -356,7 +356,12 @@ class BlockField( Field ):
             else:
                 block = klass( source_data=buffer[pointer:], parent=parent, **self.block_kwargs )
                 size = block.get_size()
-                assert size > 0
+                if size == 0:
+                    if stream:
+                        raise ParseError( 'Can\'t stream 0 byte Blocks ({}) from a BlockField'.format( klass ) )
+                    elif count > 1 and len( result ) == 0:
+                        logger.warning( '{}: copying 0 byte Blocks ({}) from a BlockField, this is probably not what you want'.format( self, klass ) )
+
                 result.append( block )
                 pointer += size
 

@@ -585,8 +585,8 @@ class Bytes( Field ):
         if length is not None and (not isinstance( self.length, Ref )) and (len( value ) != length):
             raise FieldValidationError( 'Length defined as a constant, was expecting {} bytes but got {}!'.format( length, len( value ) ) )
 
-        if type( value ) != bytes:
-            raise FieldValidationError( 'Expecting type {}, not {}'.format( bytes, type( value ) ) )
+        if not utils.is_bytes( value ):
+            raise FieldValidationError( 'Expecting bytes, not {}'.format( type( value ) ) )
         return
 
     @property
@@ -639,8 +639,8 @@ class CString( Field ):
         return
 
     def validate( self, value, parent=None ):
-        if type( value ) != bytes:
-            raise FieldValidationError( 'Expecting type {}, not {}'.format( bytes, type( value ) ) )
+        if not utils.is_bytes( value ):
+            raise FieldValidationError( 'Expecting bytes, not {}'.format( type( value ) ) )
         return 
 
     def get_start_offset( self, value, parent=None, index=None ):

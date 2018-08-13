@@ -160,10 +160,11 @@ class EndOffset( Ref ):
 
     def get( self, instance ):
         target = instance
+        align = property_get( self.align, instance )
         for attr in self.path[:-1]:
             target = getattr( target, attr )
         target = target.get_field_end_offset( self.path[-1] )
-        target -= (target % -self.align)
+        target -= (target % -align)
         if self.neg:
             target *= -1
         return target

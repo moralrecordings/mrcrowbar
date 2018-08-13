@@ -62,6 +62,13 @@ class Store( View ):
         key = (instance, offset, size)
         self.items[key] = value
 
+    def remove_object( self, instance, offset, size ):
+        value = self.get_object( instance, offset, size )
+        key = (instance, offset, size)
+        del self.items[key]
+        del self.refs[key]
+        return value
+
     def cache( self ):
         for key, data in self.refs.items():
             if key not in self.items:
@@ -225,3 +232,7 @@ class StoreRef( Ref ):
         store = property_get( self.store, instance )
         assert isinstance( value, self.block_klass )
         return store.set_object( instance, self.offset, self.size, value )
+
+    def remove( self, instance ):
+        store = property_get( self.store, instance )
+        return store.remove_object( instance, self.offset, self.size )

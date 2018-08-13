@@ -56,7 +56,7 @@ class RelocationImportName( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'index=0x{:04x}, offset=0x{:04x}'.format( self.index, self.offset )
+        return 'index=0x{:04x}, name={}'.format( self.index, self.name )
 
 
 class RelocationImportOrdinal( mrc.Block ):
@@ -356,7 +356,8 @@ class NEHeader( NEBase ):
     resnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'resnames_offset' ) )
     modreftable =   mrc.BlockField( ModuleReference, mrc.Ref( 'modref_offset' ), count=mrc.Ref( 'modref_count' ) )
     impnamedata =   mrc.Bytes( mrc.Ref( 'impnames_offset' ), length=mrc.Ref( 'impnames_size' ) )
-    entrydata =     mrc.BlockField( EntryBundle, mrc.Ref( 'entry_offset' ), stream=True, length=mrc.Ref( 'entry_size' ) )
+    #entrydata =     mrc.BlockField( EntryBundle, mrc.Ref( 'entry_offset' ), stream=True, length=mrc.Ref( 'entry_size' ) )
+    entrydata =     mrc.Bytes( mrc.Ref( 'entry_offset' ), length=mrc.Ref( 'entry_size' ) )
     nonresnametable =  mrc.BlockField( ResidentNameTable, mrc.Ref( 'nonresnames_offset' ) )
 
     @property
@@ -391,12 +392,7 @@ class EXE( mrc.Block ):
 
     ne_header =     mrc.BlockField( NEHeader, mrc.Ref( 'ne_offset' ) )
 
-    segdata =       mrc.Bytes( 0x900 )
-
-    @property
-    def segdata_offset( self ):
-        # FIXME: make autodetection work
-        return 0x900
+    segdata =       mrc.Bytes( mrc.EndOffset( 'ne_header', align=mrc.Ref( 'sector_align' ) ) )
 
     @property
     def sector_align( self ):
@@ -409,5 +405,5 @@ class EXE( mrc.Block ):
         return self.ne_offset - 0x3e
 
     def __init__( self, *args, **kwargs ):
-        self.segdatastore = mrc.Store( self, mrc.Ref( 'segdata' ), base_offset=-self.segdata_offset, align=mrc.Ref( 'sector_align' ) )
+        self.segdatastore = mrc.Store( self, mrc.Ref( 'segdata' ), base_offset=mrc.EndOffset( 'ne_header', neg=True, align=mrc.Ref( 'sector_align' ) ), align=mrc.Ref( 'sector_align' ) )
         super().__init__( *args, **kwargs )

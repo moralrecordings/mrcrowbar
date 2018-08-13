@@ -382,6 +382,10 @@ class BlockField( Field ):
         stream = property_get( self.stream, parent )
         fill = property_get( self.fill, parent )
 
+        if count is not None and count != len( value ):
+            property_set( self.count, parent, len( value ) )
+            count = len( value )
+
         klass = self.get_klass( parent )
         is_array = stream or (count is not None)
 
@@ -434,8 +438,8 @@ class BlockField( Field ):
                 it = iter( value )
             except TypeError:
                 raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
-            if count is not None:
-                assert len( value ) <= count
+            if count is not None and (not isinstance( self.count, Ref )) and (len( value ) != count):
+                raise FieldValidationError( 'Count defined as a constant, was expecting {} list entries but got {}!'.format( length, len( value ) ) )
         else:
             value = [value]
         for b in value:

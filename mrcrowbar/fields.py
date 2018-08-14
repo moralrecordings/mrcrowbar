@@ -444,7 +444,7 @@ class BlockField( Field ):
             value = [value]
         for b in value:
             if (b is not None) and (not isinstance( b, klass )):
-                 raise FieldValidationError( 'Expecting block class {}, not {}'.format( self.block_klass, type( b ) ) )
+                 raise FieldValidationError( 'Expecting block class {}, not {}'.format( klass, type( b ) ) )
 
     def get_start_offset( self, value, parent=None, index=None ):
         offset = property_get( self.offset, parent )

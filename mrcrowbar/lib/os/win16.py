@@ -183,7 +183,9 @@ class Resource( mrc.Block ):
     sharable =      mrc.Bits( 0x04, 0b00100000 )
     movable =       mrc.Bits( 0x04, 0b00010000 )
     in_memory =     mrc.Bits( 0x04, 0b00000100 )
+    unk1 =          mrc.Bits( 0x04, 0b10001111 )
     discardable =   mrc.Bits( 0x05, 0b00010000 )
+    unk2 =          mrc.Bits( 0x05, 0b11101111 )
     resource_id_low =   mrc.UInt8( 0x06 )
     int_id =            mrc.Bits( 0x07, 0b10000000 )
     resource_id_high =  mrc.Bits( 0x07, 0b01111111 )
@@ -228,11 +230,11 @@ class ResourceInfo( mrc.Block ):
 class ResourceTable( mrc.Block ):
     align_shift =   mrc.UInt16_LE( 0x00 )
     resourceinfo =  mrc.BlockField( ResourceInfo, 0x02, stream=True, stream_end=b'\x00\x00' )
-    name_data =     mrc.Bytes( mrc.EndOffset( 'resourceinfo' ), length=0x107 )
+    #name_data =     mrc.Bytes( mrc.EndOffset( 'resourceinfo' ), length=0x107 )
 
     def __init__( self, *args, **kwargs ):
         super().__init__( *args, **kwargs )
-        self.store = mrc.Store( self, mrc.Ref( 'name_data' ) )
+        #self.store = mrc.Store( self, mrc.Ref( 'name_data' ) )
 
 
 class EmptySegmentIndicator( mrc.Block ):
@@ -280,6 +282,10 @@ class ModuleReference( mrc.Block ):
     name_offset = mrc.UInt16_LE( 0x00 )
 
     name = mrc.StoreRef( ImportedName, mrc.Ref( '_parent.impnamestore' ), mrc.Ref( 'name_offset' ), size=32 )
+
+    @property
+    def repr( self ):
+        return 'name={}'.format( name )
 
 
 # source: Matt Pietrek, "Windows Internals", 1993

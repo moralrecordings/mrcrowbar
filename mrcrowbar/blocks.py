@@ -236,20 +236,34 @@ class Block( object, metaclass=BlockMeta ):
 
         output = bytearray( b'\x00'*self.get_size() )
 
+        # prevalidate all data before export.
+        # this is important to ensure that any dependent fields
+        # are updated beforehand, e.g. a count referenced
+        # in a BlockField
+        queue = []
         for name in klass._fields:
-            scrubbed_data = klass._fields[name].scrub( 
-                self._field_data[name], parent=self 
-            )
-            klass._fields[name].validate( 
-                scrubbed_data, parent=self 
-            )
+            self.scrub_field( name )
+            self.validate_field( name )
+
+        for name in klass._fields:
+            self.update_deps_on_field( name )
+
+        for name in klass._fields:
             klass._fields[name].update_buffer_with_value(
-                scrubbed_data, output, parent=self
+                self._field_data[name], output, parent=self
             )
 
         for name, check in klass._checks.items():
             check.update_buffer( output, parent=self )
         return output
+
+    def update_deps( self ):
+        """Update dependencies on all the fields on this Block instance."""
+        klass = self.__class__
+
+        for name in klass._fields:
+            self.update_deps_on_field( name )
+        return
 
     def validate( self ):
         """Validate all the fields on this Block instance."""
@@ -281,14 +295,18 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
         return klass._fields[field_name].get_end_offset( self._field_data[field_name], parent=self, index=index )
 
+    def update_deps_on_field( self, field_name ):
+        klass = self.__class__
+        return klass._fields[field_name].update_deps( self._field_data[field_name], parent=self )
+
     def scrub_field( self, field_name ):
         klass = self.__class__
-        return klass._fields[field_name].scrub( self._field_data[field_name], parent=self )
+        self._field_data[field_name] = klass._fields[field_name].scrub( self._field_data[field_name], parent=self )
+        return self._field_data[field_name]
 
     def validate_field( self, field_name ):
         klass = self.__class__
-        scrubbed_data = self.scrub_field( field_name )
-        return klass._fields[field_name].validate( scrubbed_data, parent=self )
+        return klass._fields[field_name].validate( self._field_data[field_name], parent=self )
 
 
 class Unknown( Block ):

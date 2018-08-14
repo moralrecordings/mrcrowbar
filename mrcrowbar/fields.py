@@ -131,6 +131,17 @@ class Field( object ):
         """
         return value
 
+    def update_deps( self, value, parent=None ):
+        """Update all dependent variables with data derived from the value of the field.
+
+        value
+            Input Python object to process.
+
+        parent
+            Parent block object where this Field is defined. Used for e.g.
+            evaluating Refs.
+        """
+
     def validate( self, value, parent=None ):
         """Validate that a correctly-typed Python object meets the constraints for the field.
 
@@ -144,7 +155,6 @@ class Field( object ):
         Throws FieldValidationError if a constraint fails.
         """
         pass 
-
 
 
 class ChunkField( Field ):
@@ -382,10 +392,6 @@ class BlockField( Field ):
         stream = property_get( self.stream, parent )
         fill = property_get( self.fill, parent )
 
-        if count is not None and count != len( value ):
-            property_set( self.count, parent, len( value ) )
-            count = len( value )
-
         klass = self.get_klass( parent )
         is_array = stream or (count is not None)
 
@@ -425,6 +431,11 @@ class BlockField( Field ):
             buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )
         buffer[offset:offset+len( block_data )] = block_data
         return
+
+    def update_deps( self, value, parent=None ):
+        count = property_get( self.count, parent )
+        if count is not None and count != len( value ):
+            property_set( self.count, parent, len( value ) )
 
     def validate( self, value, parent=None ):
         offset = property_get( self.offset, parent )
@@ -567,9 +578,6 @@ class Bytes( Field ):
         if self.transform:
             data = self.transform.export_data( data, parent=parent )['payload']
 
-        if length is not None and length != len( value ):
-            property_set( self.length, parent, len( value ) )
-
         new_size = offset+len( data )
         if self.stream_end is not None:
             new_size += len( self.stream_end )
@@ -581,6 +589,11 @@ class Bytes( Field ):
         if self.stream_end is not None:
             buffer[offset+len( data ):new_size] = self.stream_end
         return
+
+    def update_deps( self, value, parent=None ):
+        length = property_get( self.length, parent )
+        if length is not None and length != len( value ):
+            property_set( self.length, parent, len( value ) )
 
     def validate( self, value, parent=None ):
         offset = property_get( self.offset, parent )
@@ -850,9 +863,6 @@ class ValueField( Field ):
 
         if not is_array:
             value = [value]
-        if not count == len( value ):
-            property_set( self.count, parent, len( value ) )
-            count = len( value )
 
         if (len( buffer ) < offset+self.field_size*count):
             buffer.extend( b'\x00'*(offset+self.field_size*count-len( buffer )) )
@@ -879,6 +889,11 @@ class ValueField( Field ):
                 for i in range( self.field_size ):
                     buffer[start+i] = data[i]
         return
+
+    def update_deps( self, value, parent=None ):
+        count = property_get( self.count, parent )
+        if count is not None and count != len( value ):
+            property_set( self.count, parent, len( value ) )
 
     def validate( self, value, parent=None ):
         count = property_get( self.count, parent )

@@ -646,60 +646,137 @@ HEATMAP_LINES = (
 )
 HEATMAP_COLOURS = [[round( mix_line( HEATMAP_LINES[j], i/255 ) ) for j in range( 3 )] for i in range( 256 )]
 
-
+#: ANSI escape sequence container
+ANSI_FORMAT_BASE = '\x1b[{}m'
 #: ANSI escape sequence for resetting the colour settings to the default.
-ANSI_FORMAT_RESET = '\x1b[0m'
+ANSI_FORMAT_RESET_CMD = '0'
+ANSI_FORMAT_RESET = ANSI_FORMAT_BASE.format( ANSI_FORMAT_RESET_CMD )
 #: ANSI escape sequence for setting the foreground colour (24-bit).
-ANSI_FORMAT_FOREGROUND = '\x1b[38;2;{};{};{}m'
+ANSI_FORMAT_FOREGROUND_CMD = '38;2;{};{};{}'
+ANSI_FORMAT_FOREGROUND = ANSI_FORMAT_BASE.format( ANSI_FORMAT_FOREGROUND_CMD )
 #: ANSI escape sequence for setting the background colour (24-bit).
-ANSI_FORMAT_BACKGROUND = '\x1b[48;2;{};{};{}m'
+ANSI_FORMAT_BACKGROUND_CMD = '48;2;{};{};{}'
+ANSI_FORMAT_BACKGROUND = ANSI_FORMAT_BASE.format( ANSI_FORMAT_BACKGROUND_CMD )
 #: ANSI escape sequence for setting the foreground colour (xterm).
-ANSI_FORMAT_FOREGROUND_XTERM = '\x1b[38;5;{}m'
+ANSI_FORMAT_FOREGROUND_XTERM_CMD = '38;5;{}'
+ANSI_FORMAT_FOREGROUND_XTERM = ANSI_FORMAT_BASE.format( ANSI_FORMAT_FOREGROUND_XTERM_CMD )
 #: ANSI escape sequence for setting the background colour (xterm).
-ANSI_FORMAT_BACKGROUND_XTERM = '\x1b[48;5;{}m'
+ANSI_FORMAT_BACKGROUND_XTERM_CMD = '48;5;{}'
+ANSI_FORMAT_BACKGROUND_XTERM = ANSI_FORMAT_BASE.format( ANSI_FORMAT_BACKGROUND_XTERM_CMD )
 #: ANSI escape sequence for setting the foreground and background colours (24-bit).
 ANSI_FORMAT_COLOURS = '\x1b[38;2;{};{};{};48;2;{};{};{}m'
 
-def ansi_format_pixels( top, bottom ):
-    """Return the ANSI escape sequence to render two vertically-stacked Colours as a
-    single monospace character."""
-    if top.a_8 == 0 and bottom.a_8 == 0:
+def normalise_rgba( raw_colour ):
+    if raw_colour is None:
+        return (0, 0, 0, 0)
+    elif hasattr( raw_colour, 'rgba' ):
+        return raw_colour.rgba
+    elif len( raw_colour ) == 3:
+        return (raw_colour[0], raw_colour[1], raw_colour[2], 255)
+    elif len( raw_colour ) == 4:
+        return (raw_colour[0], raw_colour[1], raw_colour[2], raw_colour[3])
+    raise ValueError( 'raw_colour must be either None, a Colour, or a tuple (RGB/RGBA)' )
+
+
+def colour( string, foreground=None, background=None, reset=True ):
+    """Shorthand for ansi_format_string()"""
+    return ansi_format_string( string, foreground, background, reset )
+
+
+def pixels( top, bottom, reset=True, repeat=1 ):
+    """Shorthand for ansi_format_pixels()"""
+    return ansi_format_pixels( top, bottom, reset, repeat )
+
+
+def ansi_format_string( string, foreground=None, background=None, reset=True ):
+    """Return the ANSI escape sequence to render a Unicode string.
+
+    string
+        String to format
+
+    foreground
+        Foreground colour to use. Accepted types: None, int (xterm
+        palette ID), tuple (RGB, RGBA), Colour
+
+    background
+        Background colour to use. Accepted types: None, int (xterm
+        palette ID), tuple (RGB, RGBA), Colour
+
+    reset
+        Reset the formatting at the end (default: True)
+    """
+    fg_format = None
+    if isinstance( foreground, int ):
+        fg_format = ANSI_FORMAT_FOREGROUND_XTERM_CMD.format( foreground )
+    else:
+        fg_rgba = normalise_rgba( foreground )
+        if fg_rgba[3] != 0:
+            fg_format = ANSI_FORMAT_FOREGROUND_CMD.format( *fg_rgba[:3] )
+
+    bg_format = None
+    if isinstance( background, int ):
+        bg_format = ANSI_FORMAT_BACKGROUND_XTERM_CMD.format( background )
+    else:
+        bg_rgba = normalise_rgba( background )
+        if bg_rgba[3] != 0:
+            bg_format = ANSI_FORMAT_BACKGROUND_CMD.format( *bg_rgba[:3] )
+
+    colour_format = ''
+    if foreground is not None and background is not None:
+        colour_format = ANSI_FORMAT_BASE.format( '{};{}'.format( fg_format, bg_format ) )
+    elif fg_format is not None:
+        colour_format = ANSI_FORMAT_BASE.format( fg_format )
+    elif bg_format is not None:
+        colour_format = ANSI_FORMAT_BASE.format( bg_format )
+
+    reset_format = '' if not reset else ANSI_FORMAT_RESET
+
+    return '{}{}{}'.format( colour_format, string, reset_format )
+
+
+def ansi_format_pixels( top, bottom, reset=True, repeat=1 ):
+    """Return the ANSI escape sequence to render two vertically-stacked pixels as a
+    single monospace character.
+
+    top
+        Top colour to use. Accepted types: None, int (xterm
+        palette ID), tuple (RGB, RGBA), Colour
+
+    bottom
+        Bottom colour to use. Accepted types: None, int (xterm
+        palette ID), tuple (RGB, RGBA), Colour
+
+    reset
+        Reset the formatting at the end (default: True)
+
+    repeat
+        Number of horizontal pixels to render (default: 1)
+    """
+    top_src = None
+    if isinstance( top, int ):
+        top_src = top
+    else:
+        top_rgba = normalise_rgba( top )
+        if top_rgba[3] != 0:
+            top_src = top_rgba
+
+    bottom_src = None
+    if isinstance( bottom, int ):
+        bottom_src = bottom
+    else:
+        bottom_rgba = normalise_rgba( bottom )
+        if bottom_rgba[3] != 0:
+            bottom_src = bottom_rgba
+
+    if (top_src is None) and (bottom_src is None):
         return ' '
     elif top == bottom:
-        return '{}█{}'.format(
-            ANSI_FORMAT_FOREGROUND.format(
-                top.r_8, top.g_8, top.b_8
-            ), ANSI_FORMAT_RESET
-        )
-    elif top.a_8 == 0 and bottom.a_8 != 0:
-        return '{}▄{}'.format(
-            ANSI_FORMAT_FOREGROUND.format(
-                bottom.r_8, bottom.g_8, bottom.b_8
-            ), ANSI_FORMAT_RESET
-        )
-    elif top.a_8 != 0 and bottom.a_8 == 0:
-        return '{}▀{}'.format(
-            ANSI_FORMAT_FOREGROUND.format(
-                top.r_8, top.g_8, top.b_8
-            ), ANSI_FORMAT_RESET
-        )
-    return '{}▀{}'.format(
-        ANSI_FORMAT_COLOURS.format(
-            top.r_8, top.g_8, top.b_8,
-            bottom.r_8, bottom.g_8, bottom.b_8,
-        ), ANSI_FORMAT_RESET
-    )
-
-
-def ansi_format_string( string, foreground, background ):
-    """Return the ANSI escape sequence to render a Unicode string with a
-    foreground and a background Colour."""
-    # FIXME: add better support for transparency
-    fmt = ANSI_FORMAT_COLOURS.format(
-        foreground.r_8, foreground.g_8, foreground.b_8,
-        background.r_8, background.g_8, background.b_8
-    )
-    return '{}{}{}'.format( fmt, string, ANSI_FORMAT_RESET )
+        return ansi_format_string( '█'*repeat, top_src, None, reset )
+    elif (top_src is None) and (bottom_src is not None):
+        return ansi_format_string( '▄'*repeat, bottom_src, None, reset )
+    elif (top_src is not None) and (bottom_src is None):
+        return ansi_format_string( '▀'*repeat, top_src, None, reset )
+    return ansi_format_string( '▀'*repeat, top_src, bottom_src, reset )
 
 
 def ansi_format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=32, frame=0, columns=1, downsample=1 ):

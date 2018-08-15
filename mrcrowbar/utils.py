@@ -245,19 +245,11 @@ def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4
                 return highlight_map[index]
         return BYTE_COLOUR_MAP[source[index]]
 
-    def colour_wrap( s, col ):
-        if not col or not colour:
-            return s
-        return '{}{}{}'.format(
-            ANSI_FORMAT_FOREGROUND_XTERM.format( col ),
-            s, ANSI_FORMAT_RESET
-        )
-
     def get_glyph():
         b = source[offset:min( offset+major_len*minor_len, end )]
         letters = []
         for i in range( offset, min( offset+major_len*minor_len, end ) ):
-            letters.append( colour_wrap( BYTE_GLYPH_MAP[source[i]], get_colour( i ) ) )
+            letters.append( ansi_format_string( BYTE_GLYPH_MAP[source[i]], get_colour( i ) ) )
         return ''.join( letters )
 
     if end is None:
@@ -543,10 +535,9 @@ class Stats( object ):
         result = []
         for b in buckets_norm:
             if b is not None:
-                result.append( '{}{}'.format( ANSI_FORMAT_FOREGROUND.format( *HEATMAP_COLOURS[b] ),'█' ) )
+                result.append( ansi_format_string( '█', HEATMAP_COLOURS[b] ) )
             else:
                 result.append( ' ' )
-        result.append( ANSI_FORMAT_RESET )
         return ''.join( result )
 
     def ansi_format( self, width=64, height=12 ):
@@ -653,18 +644,24 @@ ANSI_FORMAT_RESET_CMD = '0'
 ANSI_FORMAT_RESET = ANSI_FORMAT_BASE.format( ANSI_FORMAT_RESET_CMD )
 #: ANSI escape sequence for setting the foreground colour (24-bit).
 ANSI_FORMAT_FOREGROUND_CMD = '38;2;{};{};{}'
-ANSI_FORMAT_FOREGROUND = ANSI_FORMAT_BASE.format( ANSI_FORMAT_FOREGROUND_CMD )
 #: ANSI escape sequence for setting the background colour (24-bit).
 ANSI_FORMAT_BACKGROUND_CMD = '48;2;{};{};{}'
-ANSI_FORMAT_BACKGROUND = ANSI_FORMAT_BASE.format( ANSI_FORMAT_BACKGROUND_CMD )
 #: ANSI escape sequence for setting the foreground colour (xterm).
 ANSI_FORMAT_FOREGROUND_XTERM_CMD = '38;5;{}'
-ANSI_FORMAT_FOREGROUND_XTERM = ANSI_FORMAT_BASE.format( ANSI_FORMAT_FOREGROUND_XTERM_CMD )
 #: ANSI escape sequence for setting the background colour (xterm).
 ANSI_FORMAT_BACKGROUND_XTERM_CMD = '48;5;{}'
-ANSI_FORMAT_BACKGROUND_XTERM = ANSI_FORMAT_BASE.format( ANSI_FORMAT_BACKGROUND_XTERM_CMD )
-#: ANSI escape sequence for setting the foreground and background colours (24-bit).
-ANSI_FORMAT_COLOURS = '\x1b[38;2;{};{};{};48;2;{};{};{}m'
+#: ANSI escape sequence for bold text
+ANSI_FORMAT_BOLD_CMD = '1'
+#: ANSI escape sequence for faint text
+ANSI_FORMAT_FAINT_CMD = '2'
+#: ANSI escape sequence for bold text
+ANSI_FORMAT_ITALIC_CMD = '3'
+#: ANSI escape sequence for bold text
+ANSI_FORMAT_UNDERLINE_CMD = '4'
+#: ANSI escape sequence for bold text
+ANSI_FORMAT_BLINK_CMD = '5'
+#: ANSI escape sequence for inverted text
+ANSI_FORMAT_INVERTED_CMD = '7'
 
 def normalise_rgba( raw_colour ):
     if raw_colour is None:
@@ -678,17 +675,9 @@ def normalise_rgba( raw_colour ):
     raise ValueError( 'raw_colour must be either None, a Colour, or a tuple (RGB/RGBA)' )
 
 
-def colour( string, foreground=None, background=None, reset=True ):
-    """Shorthand for ansi_format_string()"""
-    return ansi_format_string( string, foreground, background, reset )
 
-
-def pixels( top, bottom, reset=True, repeat=1 ):
-    """Shorthand for ansi_format_pixels()"""
-    return ansi_format_pixels( top, bottom, reset, repeat )
-
-
-def ansi_format_string( string, foreground=None, background=None, reset=True ):
+def ansi_format_string( string, foreground=None, background=None, reset=True, bold=False,
+    faint=False, italic=False, underline=False, blink=False, inverted=False ):
     """Return the ANSI escape sequence to render a Unicode string.
 
     string
@@ -704,6 +693,24 @@ def ansi_format_string( string, foreground=None, background=None, reset=True ):
 
     reset
         Reset the formatting at the end (default: True)
+
+    bold
+        Enable bold text (default: False)
+
+    faint
+        Enable faint text (default: False)
+
+    italic
+        Enable italic text (default: False)
+
+    underline
+        Enable underlined text (default: False)
+
+    blink
+        Enable blinky text (default: False)
+
+    inverted
+        Enable inverted text (default: False)
     """
     fg_format = None
     if isinstance( foreground, int ):
@@ -721,14 +728,25 @@ def ansi_format_string( string, foreground=None, background=None, reset=True ):
         if bg_rgba[3] != 0:
             bg_format = ANSI_FORMAT_BACKGROUND_CMD.format( *bg_rgba[:3] )
 
-    colour_format = ''
-    if foreground is not None and background is not None:
-        colour_format = ANSI_FORMAT_BASE.format( '{};{}'.format( fg_format, bg_format ) )
-    elif fg_format is not None:
-        colour_format = ANSI_FORMAT_BASE.format( fg_format )
-    elif bg_format is not None:
-        colour_format = ANSI_FORMAT_BASE.format( bg_format )
+    colour_format = []
+    if fg_format is not None:
+        colour_format.append( fg_format )
+    if bg_format is not None:
+        colour_format.append( bg_format )
+    if bold:
+        colour_format.append( ANSI_FORMAT_BOLD_CMD )
+    if faint:
+        colour_format.append( ANSI_FORMAT_FAINT_CMD )
+    if italic:
+        colour_format.append( ANSI_FORMAT_ITALIC_CMD )
+    if underline:
+        colour_format.append( ANSI_FORMAT_UNDERLINE_CMD )
+    if blink:
+        colour_format.append( ANSI_FORMAT_BLINK_CMD )
+    if inverted:
+        colour_format.append( ANSI_FORMAT_INVERTED_CMD )
 
+    colour_format = ANSI_FORMAT_BASE.format( ';'.join( colour_format ) )
     reset_format = '' if not reset else ANSI_FORMAT_RESET
 
     return '{}{}{}'.format( colour_format, string, reset_format )
@@ -768,15 +786,45 @@ def ansi_format_pixels( top, bottom, reset=True, repeat=1 ):
         if bottom_rgba[3] != 0:
             bottom_src = bottom_rgba
 
+    # short circuit for empty pixel
     if (top_src is None) and (bottom_src is None):
-        return ' '
-    elif top == bottom:
-        return ansi_format_string( '█'*repeat, top_src, None, reset )
+        return ' '*repeat 
+
+    string = '▀'*repeat;
+    colour_format = []
+
+    if top_src == bottom_src:
+        string = '█'*repeat
     elif (top_src is None) and (bottom_src is not None):
-        return ansi_format_string( '▄'*repeat, bottom_src, None, reset )
-    elif (top_src is not None) and (bottom_src is None):
-        return ansi_format_string( '▀'*repeat, top_src, None, reset )
-    return ansi_format_string( '▀'*repeat, top_src, bottom_src, reset )
+        string = '▄'*repeat
+
+    if (top_src is None) and (bottom_src is not None):
+        if isinstance( bottom_src, int ):
+            colour_format.append( ANSI_FORMAT_FOREGROUND_XTERM_CMD.format( bottom_src ) )
+        else:
+            colour_format.append( ANSI_FORMAT_FOREGROUND_CMD.format( *bottom_src[:3] ) )
+    else:
+        if isinstance( top_src, int ):
+            colour_format.append( ANSI_FORMAT_FOREGROUND_XTERM_CMD.format( top_src ) )
+        else:
+            colour_format.append( ANSI_FORMAT_FOREGROUND_CMD.format( *top_src[:3] ) )
+
+    if top_src is not None and bottom_src is not None and top_src != bottom_src:
+        if isinstance( top_src, int ):
+            colour_format.append( ANSI_FORMAT_BACKGROUND_XTERM_CMD.format( bottom_src ) )
+        else:
+            colour_format.append( ANSI_FORMAT_BACKGROUND_CMD.format( *bottom_src[:3] ) )
+
+    colour_format = ANSI_FORMAT_BASE.format( ';'.join( colour_format ) )
+    reset_format = '' if not reset else ANSI_FORMAT_RESET
+
+    return '{}{}{}'.format( colour_format, string, reset_format )
+
+#: Shorthand for ansi_format_string()
+colour = ansi_format_string
+
+#: Shorthand for ansi_format_pixels()
+pixels = ansi_format_pixels
 
 
 def ansi_format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=32, frame=0, columns=1, downsample=1 ):

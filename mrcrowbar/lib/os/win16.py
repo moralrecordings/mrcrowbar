@@ -2,7 +2,7 @@
 
 from enum import IntEnum
 
-from mrcrowbar import models as mrc, utils
+from mrcrowbar import models as mrc
 
 # source: http://benoit.papillault.free.fr/c/disc2/exefmt.txt
 # http://geos.icc.ru:8080/scripts/WWWBinV.dll/ShowR?NE.rfi
@@ -288,8 +288,6 @@ class ModuleReference( mrc.Block ):
         return 'name={}'.format( name )
 
 
-# source: Matt Pietrek, "Windows Internals", 1993
-
 class NEBase( mrc.Block ):
     ne_magic =      mrc.Const( mrc.Bytes( 0x00, length=2 ), b'NE' )
 
@@ -378,15 +376,16 @@ class NEHeader( NEBase ):
 class ModuleTable( mrc.Block ):
     ne_header =     mrc.BlockField( NEModule, 0x00 )
 
-    segdata =       mrc.Bytes( 0x900 )
+    segdata =       mrc.Bytes( mrc.EndOffset( 'ne_header', align=mrc.Ref( 'sector_align' ) ) )
 
     @property
-    def segdata_offset( self ):
-        # FIXME: make autodetection work
-        return 0x900
+    def sector_align( self ):
+        if self.ne_header:
+            return 1 << self.ne_header.sector_shift
+        return 32
 
     def __init__( self, *args, **kwargs ):
-        self.segdatastore = mrc.Store( self, mrc.Ref( 'segdata' ), base_offset=-self.segdata_offset )
+        self.segdatastore = mrc.Store( self, mrc.Ref( 'segdata' ), base_offset=mrc.EndOffset( 'ne_header', neg=True, align=mrc.Ref( 'sector_align' ) ), align=mrc.Ref( 'sector_align' ) )
         super().__init__( *args, **kwargs )
 
 

@@ -257,14 +257,14 @@ def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4
 
     digits = ('{}{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}').format( prefix, offset+address_base_offset )
 
-    line = [colour_wrap( digits, highlight_addr ), ' │  ']
+    line = [ansi_format_string( digits, highlight_addr ), ' │  ']
     for major in range( major_len ):
         for minor in range( minor_len ):
             suboffset = offset+major*minor_len+minor
             if suboffset >= end:
                 line.append( '   ' )
                 continue
-            line.append( colour_wrap( '{:02x} '.format( source[suboffset] ), get_colour( suboffset ) ) )
+            line.append( ansi_format_string( '{:02x} '.format( source[suboffset] ), get_colour( suboffset ) ) )
         line.append( ' ' )
     line.append( '│ {}'.format( get_glyph() ) )
     return ''.join( line )

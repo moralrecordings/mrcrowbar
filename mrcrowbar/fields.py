@@ -1,13 +1,12 @@
 """Definition classes for common fields in binary formats."""
 
-import struct
 import itertools 
 import math
 import logging
 logger = logging.getLogger( __name__ )
 
 from mrcrowbar.refs import Ref, property_get, property_set
-from mrcrowbar import utils
+from mrcrowbar import utils, encoding
 
 _next_position_hint = itertools.count()
 
@@ -165,7 +164,7 @@ class ChunkField( Field ):
         self.length = length
         self.alignment = alignment
         if length_field:
-            assert issubclass( length_field, ValueField )
+            assert issubclass( length_field, NumberField )
             self.length_field = length_field( 0x00 )
         else:
             self.length_field = None
@@ -717,7 +716,7 @@ class CStringN( Field ):
 
 class CStringNStream( Field ):
     def __init__( self, offset, length_field, **kwargs ):
-        assert issubclass( length_field, ValueField )
+        assert issubclass( length_field, NumberField )
         super().__init__( **kwargs )
         self.offset = offset
         self.length_field = length_field( 0x00 )
@@ -764,18 +763,21 @@ class CStringNStream( Field ):
         return size
 
 
-class ValueField( Field ):
-    def __init__( self, format, field_size, format_type, format_range, offset, default=0, count=None, bitmask=None, range=None, enum=None, **kwargs ):
+class NumberField( Field ):
+    def __init__( self, format_type, field_size, signedness, endian, format_range, offset, default=0, count=None, bitmask=None, range=None, enum=None, **kwargs ):
         """Base class for numeric value Fields.
 
-        format
-            Data format, represented as a Python 'struct' module format string. (Usually defined by child class)
+        format_type
+            Python native type equivalent. Used for validation. (Usually defined by child class)
 
         field_size
             Size of field in bytes. (Usually defined by child class)
 
-        format_type
-            Python native type equivalent. Used for validation. (Usually defined by child class)
+        signedness
+            Signedness of the field. Should be 'signed' or 'unsigned'. (Usually defined by child class)
+
+        endian
+            Endianness of the field. Should be 'little', 'big' or None. (Usually defined by child class)
 
         format_range
             Numeric bounds of format. Used for validation. (Usually defined by child class)
@@ -801,15 +803,16 @@ class ValueField( Field ):
             Restrict allowed values to those provided by a Python enum type. Used for validation.
         """
         super().__init__( default=default, **kwargs )
-        self.offset = offset
-        self.format = format
         self.format_type = format_type
+        self.field_size = field_size
+        self.signedness = signedness
+        self.endian = endian
         self.format_range = format_range
+        self.offset = offset
         if bitmask:
             assert utils.is_bytes( bitmask )
             assert len( bitmask ) == field_size
         self.count = count
-        self.field_size = field_size
         self.bitmask = bitmask
         self.range = range
         self.enum = enum
@@ -818,6 +821,7 @@ class ValueField( Field ):
         assert utils.is_bytes( buffer )
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
+        endian = property_get( self.endian, parent )
         is_array = count is not None
         count = count if is_array else 1
         assert count >= 0
@@ -833,8 +837,8 @@ class ValueField( Field ):
                         int.from_bytes( self.bitmask, byteorder='big' )
                         ).to_bytes( self.field_size, byteorder='big' )
 
-            # use Python's struct module to convert bytes to native
-            value = struct.unpack( self.format, data )[0]
+            # convert bytes to Python type
+            value = encoding.unpack( (self.format_type, self.field_size, self.signedness, endian), data )
             # friendly warnings if the imported data fails the range check
             if self.range and (value not in self.range):
                 logger.warning( '{}: value {} outside of range {}'.format( self, value, self.range ) )
@@ -857,6 +861,7 @@ class ValueField( Field ):
         super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
+        endian = property_get( self.endian, parent )
         is_array = count is not None
         count = count if is_array else 1
         assert count >= 0
@@ -872,7 +877,7 @@ class ValueField( Field ):
             # cast via enum if required
             if self.enum:
                 item = self.enum( item ).value
-            data = struct.pack( self.format, item )
+            data = encoding.pack( (self.format_type, self.field_size, self.signedness, endian), item )
             
             # force check for no data loss in the value from bitmask
             if self.bitmask:
@@ -939,23 +944,23 @@ class ValueField( Field ):
         return self.field_size
 
 
-class Int8( ValueField ):
+class Int8( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '<b', 1, int, range( -1<<7, 1<<7 ), *args, **kwargs )
+        super().__init__( int, 1, 'signed', None, range( -1<<7, 1<<7 ), *args, **kwargs )
 
 
-class UInt8( ValueField ):
+class UInt8( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '>B', 1, int, range( 0, 1<<8 ), *args, **kwargs )
+        super().__init__( int, 1, 'unsigned', None, range( 0, 1<<8 ), *args, **kwargs )
 
 
-class Bits( ValueField ):
+class Bits( NumberField ):
     def __init__( self, offset, bits, default=0, size=1, enum=None, *args, **kwargs ):
         SIZES = {
-            1: ('>B', 1, int, range( 0, 1<<8 )),
-            2: ('>H', 2, int, range( 0, 1<<16 )),
-            4: ('>I', 4, int, range( 0, 1<<32 )),
-            8: ('>Q', 8, int, range( 0, 1<<64 )),
+            1: (int, 1, 'unsigned', None, range( 0, 1<<8 )),
+            2: (int, 2, 'unsigned', 'big', range( 0, 1<<16 )),
+            4: (int, 4, 'signed', 'big', range( 0, 1<<32 )),
+            8: (int, 8, 'signed', 'big', range( 0, 1<<64 )),
         }
         assert size in SIZES
         assert type( bits ) == int
@@ -966,7 +971,7 @@ class Bits( ValueField ):
         self.bits = [(1<<i) for i, x in enumerate( reversed( self.mask_bits ) ) if x == '1']
         self.check_range = range( 0, 1<<len( self.bits ) )
         self.enum_t = enum
-        bitmask = struct.pack( SIZES[size][0], bits )
+        bitmask = encoding.pack( SIZES[size][:4], bits )
         super().__init__( *SIZES[size], offset, default=default, bitmask=bitmask, *args, **kwargs )
 
     def get_from_buffer( self, buffer, parent=None ):
@@ -1009,83 +1014,122 @@ class Bits( ValueField ):
         details
 
 
-class UInt16_LE( ValueField ):
+class Int16_LE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '<H', 2, int, range( 0, 1<<16 ), *args, **kwargs )
+        super().__init__( int, 2, 'signed', 'little', range( -1<<15, 1<<15 ), *args, **kwargs )
 
 
-class UInt32_LE( ValueField ):
+class Int32_LE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '<I', 4, int, range( 0, 1<<32 ), *args, **kwargs )
+        super().__init__( int, 4, 'signed', 'little', range( -1<<31, 1<<31 ), *args, **kwargs )
 
 
-class UInt64_LE( ValueField ):
+class Int64_LE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '<Q', 8, int, range( 0, 1<<64 ), *args, **kwargs )
+        super().__init__( int, 8, 'signed', 'little', range( -1<<63, 1<<63 ), *args, **kwargs )
 
 
-class Int16_LE( ValueField ):
+class UInt16_LE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '<h', 2, int, range( -1<<15, 1<<15 ), *args, **kwargs )
+        super().__init__( int, 2, 'unsigned', 'little', range( 0, 1<<16 ), *args, **kwargs )
 
 
-class Int32_LE( ValueField ):
+class UInt32_LE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '<i', 4, int, range( -1<<31, 1<<31 ), *args, **kwargs )
+        super().__init__( int, 4, 'unsigned', 'little', range( 0, 1<<32 ), *args, **kwargs )
 
 
-class Int64_LE( ValueField ):
+class UInt64_LE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '<q', 8, int, range( -1<<63, 1<<63 ), *args, **kwargs )
+        super().__init__( int, 8, 'unsigned', 'little', range( 0, 1<<64 ), *args, **kwargs )
 
 
-class Float_LE( ValueField ):
+class Float32_LE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '<f', 4, float, None, *args, **kwargs )
+        super().__init__( float, 4, 'signed', 'little', None, *args, **kwargs )
 
 
-class Double_LE( ValueField ):
+class Float64_LE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '<d', 8, float, None, *args, **kwargs )
+        super().__init__( float, 8, 'signed', 'little', None, *args, **kwargs )
 
 
-class UInt16_BE( ValueField ):
+class Int16_BE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '>H', 2, int, range( 0, 1<<16 ), *args, **kwargs )
+        super().__init__( int, 2, 'signed', 'big', range( -1<<15, 1<<15 ), *args, **kwargs )
 
 
-class UInt32_BE( ValueField ):
+class Int32_BE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '>I', 4, int, range( 0, 1<<32 ), *args, **kwargs )
+        super().__init__( int, 4, 'signed', 'big', range( -1<<31, 1<<31 ), *args, **kwargs )
 
 
-class UInt64_BE( ValueField ):
+class Int64_BE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '>Q', 8, int, range( 0, 1<<64 ), *args, **kwargs )
+        super().__init__( int, 8, 'signed', 'big', range( -1<<63, 1<<63 ), *args, **kwargs )
 
 
-class Int16_BE( ValueField ):
+class UInt16_BE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '>h', 2, int, range( -1<<15, 1<<15 ), *args, **kwargs )
+        super().__init__( int, 2, 'unsigned', 'big', range( 0, 1<<16 ), *args, **kwargs )
 
 
-class Int32_BE( ValueField ):
+class UInt32_BE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '>i', 4, int, range( -1<<31, 1<<31 ), *args, **kwargs )
+        super().__init__( int, 4, 'unsigned', 'big', range( 0, 1<<32 ), *args, **kwargs )
 
 
-class Int64_BE( ValueField ):
+class UInt64_BE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '>q', 8, int, range( -1<<63, 1<<63 ), *args, **kwargs )
+        super().__init__( int, 8, 'unsigned', 'big', range( 0, 1<<64 ), *args, **kwargs )
 
 
-class Float_BE( ValueField ):
+class Float32_BE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '>f', 4, float, None, *args, **kwargs )
+        super().__init__( float, 4, 'signed', 'big', None, *args, **kwargs )
 
 
-class Double_BE( ValueField ):
+class Float64_BE( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( '>d', 8, float, None, *args, **kwargs )
+        super().__init__( float, 8, 'signed', 'big', None, *args, **kwargs )
 
+
+class Int16_P( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( int, 2, 'signed', mrc.Ref( '_endian' ), range( -1<<15, 1<<15 ), *args, **kwargs )
+
+
+class Int32_P( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( int, 4, 'signed', mrc.Ref( '_endian' ), range( -1<<31, 1<<31 ), *args, **kwargs )
+
+
+class Int64_P( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( int, 8, 'signed', mrc.Ref( '_endian' ), range( -1<<63, 1<<63 ), *args, **kwargs )
+
+
+class UInt16_P( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( int, 2, 'unsigned', mrc.Ref( '_endian' ), range( 0, 1<<16 ), *args, **kwargs )
+
+
+class UInt32_P( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( int, 4, 'unsigned', mrc.Ref( '_endian' ), range( 0, 1<<32 ), *args, **kwargs )
+
+
+class UInt64_P( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( int, 8, 'unsigned', mrc.Ref( '_endian' ), range( 0, 1<<64 ), *args, **kwargs )
+
+
+class Float32_P( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( float, 4, 'signed', mrc.Ref( '_endian' ), None, *args, **kwargs )
+
+
+class Float64_P( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( float, 8, 'signed', mrc.Ref( '_endian' ), None, *args, **kwargs )
 

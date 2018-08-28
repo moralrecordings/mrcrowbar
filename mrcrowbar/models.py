@@ -5,12 +5,12 @@ from mrcrowbar.refs import Ref, ConstRef, property_get, property_set, \
                             view_property, EndOffset
 from mrcrowbar.fields import ParseError, FieldValidationError, Field, \
                             ChunkField, BlockField, Bytes, \
-                            CString, CStringN, CStringNStream, ValueField, \
+                            CString, CStringN, CStringNStream, NumberField, \
                             Int8, UInt8, Bits, UInt16_LE, UInt32_LE, \
                             UInt64_LE, Int16_LE, Int32_LE, Int64_LE, \
-                            Float_LE, Double_LE, UInt16_BE, UInt32_BE, \
+                            Float32_LE, Float64_LE, UInt16_BE, UInt32_BE, \
                             UInt64_BE, Int16_BE, Int32_BE, Int64_BE, \
-                            Float_BE, Double_BE
+                            Float32_BE, Float64_BE
 from mrcrowbar.blocks import Block, Unknown
 from mrcrowbar.loaders import Loader
 from mrcrowbar.transforms import Transform

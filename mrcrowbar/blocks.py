@@ -132,9 +132,10 @@ class BlockMeta( type ):
 
 class Block( object, metaclass=BlockMeta ):
     _parent = None
+    _endian = None
     repr = None
 
-    def __init__( self, source_data=None, parent=None, preload_attrs=None ):
+    def __init__( self, source_data=None, parent=None, preload_attrs=None, endian=None ):
         """Base class for Blocks.
 
         source_data
@@ -148,10 +149,19 @@ class Block( object, metaclass=BlockMeta ):
         preload_attrs
             Attributes on the Block to set before importing the data. Used
             for linking in dependencies before loading.
+
+        endian
+            Platform endianness to use when interpreting the Block data. 
+            Useful for Blocks which have the same data layout but different
+            endianness for stored numbers. Has no effect on fields with an
+            predefined endianness.
         """
         self._field_data = {}
         self._ref_cache = {}
+        if parent is not None:
+            assert isinstance( parent, Block )
         self._parent = parent
+        self._endian = endian if endian else (parent._endian if parent else None)
 
         if preload_attrs:
             for attr, value in preload_attrs.items():

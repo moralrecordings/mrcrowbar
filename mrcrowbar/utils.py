@@ -3,11 +3,12 @@
 import array
 import math
 import io
-import struct
 import mmap
 import logging
 logger = logging.getLogger( __name__ )
 
+from mrcrowbar import encoding
+globals().update( encoding._load_byte_types() )
 
 def enable_logging( level='WARNING' ):
     """Enable sending logs to stderr. Useful for shell sessions.
@@ -30,51 +31,6 @@ def is_bytes( obj ):
     return isinstance( obj, (bytes, bytearray, mmap.mmap) )
 
 
-def _from_byte_type( code, size ):
-    result = lambda buffer: struct.unpack( code, buffer[:size] )[0]
-    result.__doc__ = "Convert a {0} byte string to a Python {1}.".format(
-        *_byte_type_to_text( code, size )
-    )
-    return result
-
-def _to_byte_type( code, size ):
-    result = lambda value: struct.pack( code, value )
-    result.__doc__ = "Convert a Python {1} to a {0} byte string.".format(
-        *_byte_type_to_text( code, size )
-    )
-    return result
-
-def _byte_type_to_text( code, size ):
-    raw_type = 'float' if code[1] in 'fd' else 'integer'
-    is_signed = code[1].islower()
-    endianness = 'big' if code[0] == '>' else 'little'
-    return ('{}{}-bit {}{}'.format(
-        ('signed ' if is_signed else 'unsigned ') if raw_type == 'integer' else '',
-        size*8,
-        raw_type,
-        ' ({}-endian)'.format(endianness) if size>1 else ''
-    ), raw_type)
-
-BYTE_TYPES = {
-    'int8':         ('<b', 1),
-    'uint8':        ('>B', 1),
-    'uint16_le':    ('<H', 2),
-    'uint32_le':    ('<I', 4),
-    'uint64_le':    ('<Q', 8),
-    'int16_le':     ('<h', 2),
-    'int32_le':     ('<i', 4),
-    'int64_le':     ('<q', 8),
-    'float_le':     ('<f', 4),
-    'double_le':    ('<d', 8),
-    'uint16_be':    ('>H', 2),
-    'uint32_be':    ('>I', 4),
-    'uint64_be':    ('>Q', 8),
-    'int16_be':     ('>h', 2),
-    'int32_be':     ('>i', 4),
-    'int64_be':     ('>q', 8),
-    'float_be':     ('>f', 4),
-    'double_be':    ('>d', 8),
-}
 
 BYTE_REVERSE = bytes.fromhex( '008040c020a060e0109050d030b070f0'\
                               '088848c828a868e8189858d838b878f8'\
@@ -100,12 +56,6 @@ BYTE_COLOUR_MAP = (12,) + (14,)*32 + (11,)*94 + (14,)*128 + (12,)
 
 HIGHLIGHT_COLOUR_MAP = (9, 10)
 
-def _load_byte_types():
-    for byte_type, (type_code, type_size) in BYTE_TYPES.items():
-        globals()['from_{}'.format(byte_type)] = _from_byte_type( type_code, type_size )
-        globals()['to_{}'.format(byte_type)] = _to_byte_type( type_code, type_size )
-
-_load_byte_types()
 
 
 def find_all_iter( source, substring, start=None, end=None, overlap=False ):

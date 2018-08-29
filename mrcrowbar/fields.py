@@ -157,20 +157,25 @@ class Field( object ):
 
 
 class ChunkField( Field ):
-    def __init__( self, offset, chunk_map, length=None, default_chunk=None, chunk_id_size=None, length_field=None, alignment=1, **kwargs ):
+    def __init__( self, offset, chunk_map, length=None, default_chunk=None, chunk_id_size=None, chunk_id_field=None, chunk_length_field=None, alignment=1, **kwargs ):
         super().__init__( **kwargs )
         self.offset = offset
         self.chunk_map = chunk_map
         self.length = length
         self.alignment = alignment
-        if length_field:
-            assert issubclass( length_field, NumberField )
-            self.length_field = length_field( 0x00 )
+        if chunk_length_field:
+            assert issubclass( chunk_length_field, NumberField )
+            self.chunk_length_field = chunk_length_field( 0x00 )
         else:
-            self.length_field = None
+            self.chunk_length_field = None
+        if chunk_id_field:
+            assert issubclass( chunk_id_field, NumberField )
+            self.chunk_id_field = chunk_id_field( 0x00 )
+        else:
+            self.chunk_id_field = None
         self.default_chunk = default_chunk
         
-        self.chunk_id_size=chunk_id_size
+        self.chunk_id_size = chunk_id_size
         #for chunk_id, chunk in self.chunk_map:
         #    assert utils.is_bytes( chunk_id )
         #    if self.chunk_id_size:
@@ -191,8 +196,12 @@ class ChunkField( Field ):
         while pointer < len( data ):
             start_offset = pointer
             chunk_id = None
-            if self.chunk_id_size:
+            if self.chunk_id_field:
+                chunk_id = self.chunk_id_field.get_from_buffer( data[pointer:], parent=parent )
+                pointer += self.chunk_id_field.field_size
+            elif self.chunk_id_size:
                 chunk_id = data[pointer:pointer+self.chunk_id_size]
+                pointer += len( chunk_id )
             else:
                 for test_id in chunk_map:
                     if data[pointer:].startswith( test_id ):
@@ -200,6 +209,8 @@ class ChunkField( Field ):
                         break
                 if not chunk_id:
                     raise ParseError( 'Could not find matching chunk at offset {}'.format( pointer ) )
+                pointer += len( chunk_id )
+
             if chunk_id in chunk_map:
                 chunk_klass = chunk_map[chunk_id]
             elif self.default_chunk:
@@ -207,15 +218,14 @@ class ChunkField( Field ):
             else:
                 raise ParseError( 'No chunk class match for ID {}'.format( chunk_id ) )
 
-            pointer += len( chunk_id )
-            if self.length_field:
-                size = self.length_field.get_from_buffer( data[pointer:] )
-                pointer += self.length_field.field_size
-                chunk = chunk_klass( data[pointer:pointer+size] )
+            if self.chunk_length_field:
+                size = self.chunk_length_field.get_from_buffer( data[pointer:], parent=parent )
+                pointer += self.chunk_length_field.field_size
+                chunk = chunk_klass( data[pointer:pointer+size], parent=parent )
                 result.append( (chunk_id, chunk) )
                 pointer += size
             else:
-                chunk = chunk_klass( data[pointer:] )
+                chunk = chunk_klass( data[pointer:], parent=parent )
                 result.append( (chunk_id, chunk) )
                 pointer += chunk.get_size()
             if self.alignment:
@@ -243,9 +253,12 @@ class ChunkField( Field ):
         size = 0
         for key, b in value:
             start_size = size
-            size += len( key )
-            if self.length_field:
-                size += self.length_field.field_size
+            if self.chunk_id_field:
+                size += self.chunk_id_field.field_size
+            else:
+                size += len( key )
+            if self.chunk_length_field:
+                size += self.chunk_length_field.field_size
             size += b.get_size()
             if self.alignment:
                 width = (size-start_size) % self.alignment
@@ -491,15 +504,16 @@ class BlockField( Field ):
         return size
 
     def get_klass( self, parent=None ):
-        if isinstance( self.block_klass, dict ):
+        block_klass = property_get( self.block_klass, parent )
+        if isinstance( block_klass, dict ):
             block_type = property_get( self.block_type, parent )
-            if block_type in self.block_klass:
-                return self.block_klass[block_type]
+            if block_type in block_klass:
+                return block_klass[block_type]
             elif self.default_klass:
                 return self.default_klass
             else:
                 raise ParseError( 'No block klass match for type {}'.format( block_type ) )
-        return self.block_klass
+        return block_klass
 
     def _size_calc( self, value, parent=None ):
         fill = property_get( self.fill, parent )
@@ -1096,40 +1110,40 @@ class Float64_BE( NumberField ):
 
 class Int16_P( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( int, 2, 'signed', mrc.Ref( '_endian' ), range( -1<<15, 1<<15 ), *args, **kwargs )
+        super().__init__( int, 2, 'signed', Ref( '_endian' ), range( -1<<15, 1<<15 ), *args, **kwargs )
 
 
 class Int32_P( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( int, 4, 'signed', mrc.Ref( '_endian' ), range( -1<<31, 1<<31 ), *args, **kwargs )
+        super().__init__( int, 4, 'signed', Ref( '_endian' ), range( -1<<31, 1<<31 ), *args, **kwargs )
 
 
 class Int64_P( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( int, 8, 'signed', mrc.Ref( '_endian' ), range( -1<<63, 1<<63 ), *args, **kwargs )
+        super().__init__( int, 8, 'signed', Ref( '_endian' ), range( -1<<63, 1<<63 ), *args, **kwargs )
 
 
 class UInt16_P( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( int, 2, 'unsigned', mrc.Ref( '_endian' ), range( 0, 1<<16 ), *args, **kwargs )
+        super().__init__( int, 2, 'unsigned', Ref( '_endian' ), range( 0, 1<<16 ), *args, **kwargs )
 
 
 class UInt32_P( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( int, 4, 'unsigned', mrc.Ref( '_endian' ), range( 0, 1<<32 ), *args, **kwargs )
+        super().__init__( int, 4, 'unsigned', Ref( '_endian' ), range( 0, 1<<32 ), *args, **kwargs )
 
 
 class UInt64_P( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( int, 8, 'unsigned', mrc.Ref( '_endian' ), range( 0, 1<<64 ), *args, **kwargs )
+        super().__init__( int, 8, 'unsigned', Ref( '_endian' ), range( 0, 1<<64 ), *args, **kwargs )
 
 
 class Float32_P( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( float, 4, 'signed', mrc.Ref( '_endian' ), None, *args, **kwargs )
+        super().__init__( float, 4, 'signed', Ref( '_endian' ), None, *args, **kwargs )
 
 
 class Float64_P( NumberField ):
     def __init__( self, *args, **kwargs ):
-        super().__init__( float, 8, 'signed', mrc.Ref( '_endian' ), None, *args, **kwargs )
+        super().__init__( float, 8, 'signed', Ref( '_endian' ), None, *args, **kwargs )
 

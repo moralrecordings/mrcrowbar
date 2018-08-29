@@ -161,7 +161,7 @@ class Block( object, metaclass=BlockMeta ):
         if parent is not None:
             assert isinstance( parent, Block )
         self._parent = parent
-        self._endian = endian if endian else (parent._endian if parent else None)
+        self._endian = endian if endian else (parent._endian if parent else self._endian)
 
         if preload_attrs:
             for attr, value in preload_attrs.items():

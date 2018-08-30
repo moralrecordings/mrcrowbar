@@ -62,6 +62,10 @@ class Rect( mrc.Block ):
             self.top, self.left, self.bottom, self.right, self.width, self.height )
 
 
+class SoundCastV4( mrc.Block ):
+    pass
+
+
 class BitmapCastV4( mrc.Block ):
     unk1 = mrc.UInt8( 0x00 )
     unk2 = mrc.Bits( 0x01, 0xf0 )
@@ -70,13 +74,15 @@ class BitmapCastV4( mrc.Block ):
     bounding_rect = mrc.BlockField( Rect, 0x0b )
     reg_x = mrc.UInt16_BE( 0x13 )
     reg_y = mrc.UInt16_BE( 0x15 )
-    bpp = mrc.UInt16_BE( 0x17 )
-    unk4 = mrc.Bytes( 0x1a, length=0x24 )
-    name = mrc.Bytes( 0x3e )
+    #bpp = mrc.UInt16_BE( 0x17 )
+    #unk4 = mrc.Bytes( 0x1a, length=0x24 )
+    #name = mrc.Bytes( 0x3e )
+    unk4 = mrc.Bytes( 0x17 )
 
     @property
     def repr( self ):
-        return 'name={}, pitch={}, bpp={}, reg_x={}, reg_y={}, unk1={}, unk2={}'.format( self.name, self.pitch, self.bpp, self.reg_x, self.reg_y, self.unk1, self.unk2 )
+        #return 'name={}, pitch={}, bpp={}, reg_x={}, reg_y={}, unk1={}, unk2={}'.format( self.name, self.pitch, self.bpp, self.reg_x, self.reg_y, self.unk1, self.unk2 )
+        return 'pitch={}, reg_x={}, reg_y={}, unk1={}, unk2={}, unk4={}'.format( self.pitch, self.reg_x, self.reg_y, self.unk1, self.unk2, self.unk4 )
 
 
 class BitmapCompressor( mrc.Transform ):
@@ -129,43 +135,43 @@ class CastV4( mrc.Block ):
 
 
 class KeyEntry( mrc.Block ):
-    section_index   = mrc.UInt32_BE( 0x00 )
-    cast_index      = mrc.UInt32_BE( 0x04 )
-    chunk_id        = mrc.Bytes( 0x08, length=4 )
+    section_index   = mrc.UInt32_P( 0x00 )
+    cast_index      = mrc.UInt32_P( 0x04 )
+    chunk_id        = mrc.UInt32_P( 0x08 )
 
     @property
     def repr( self ):
-        return 'chunk_id: {}, section_index: {}, cast_index: {}'.format( self.chunk_id, self.section_index, self.cast_index )
+        return 'chunk_id: {}, section_index: {}, cast_index: {}'.format( riff.TagB( self.chunk_id ), self.section_index, self.cast_index )
 
 
 class KeyV4( mrc.Block ):
-    unk1 =          mrc.UInt16_BE( 0x00 )
-    unk2 =          mrc.UInt16_BE( 0x02 )
-    unk3 =          mrc.UInt32_BE( 0x04 )
-    entry_count =   mrc.UInt32_BE( 0x08 )
+    unk1 =          mrc.UInt16_P( 0x00 )
+    unk2 =          mrc.UInt16_P( 0x02 )
+    unk3 =          mrc.UInt32_P( 0x04 )
+    entry_count =   mrc.UInt32_P( 0x08 )
     entries =       mrc.BlockField( KeyEntry, 0x0c, count=mrc.Ref( 'entry_count' ) )
     garbage =       mrc.Bytes( mrc.EndOffset( 'entries' ) )
 
 
 class MMapEntry( mrc.Block ):
-    chunk_id =  mrc.Bytes( 0x00, length=4 )
-    length =    mrc.UInt32_BE( 0x04 )
-    offset =    mrc.UInt32_BE( 0x08 )
-    flags =     mrc.UInt16_BE( 0x0c )
-    unk1 =      mrc.UInt16_BE( 0x0e )
-    memsize =   mrc.UInt32_BE( 0x10 )
+    chunk_id =  mrc.UInt32_P( 0x00 )
+    length =    mrc.UInt32_P( 0x04 )
+    offset =    mrc.UInt32_P( 0x08 )
+    flags =     mrc.UInt16_P( 0x0c )
+    unk1 =      mrc.UInt16_P( 0x0e )
+    memsize =   mrc.UInt32_P( 0x10 )
 
     @property
     def repr( self ):
-        return 'chunk_id: {}, length: 0x{:08x}, offset: 0x{:08x}, flags: {}'.format( self.chunk_id, self.length, self.offset, self.flags )
+        return 'chunk_id: {}, length: 0x{:08x}, offset: 0x{:08x}, flags: {}'.format( riff.TagB( self.chunk_id ), self.length, self.offset, self.flags )
 
 
 class MMapV4( mrc.Block ):
     unk1 =      mrc.Bytes( 0x00, length=8 )
-    entries_max = mrc.UInt32_BE( 0x04 )
-    entries_used = mrc.UInt32_BE( 0x08 )
+    entries_max = mrc.UInt32_P( 0x04 )
+    entries_used = mrc.UInt32_P( 0x08 )
     unk2 =      mrc.Const( mrc.Bytes( 0x0c, length=8 ), b'\xff'*8 )
-    unk3 =      mrc.UInt32_BE( 0x14 )
+    unk3 =      mrc.UInt32_P( 0x14 )
     entries =    mrc.BlockField( MMapEntry, 0x18, count=mrc.Ref( 'entries_max' ), fill=b'\xaa'*0x14 )
     
     @property
@@ -181,13 +187,29 @@ class Sord( mrc.Block ):
     index = mrc.UInt16_BE( 0x14, count=mrc.Ref( 'count' ) )
 
 
-class DirectorV4( riff.RIFX ):
+class DirectorV4Map( riff.RIFXMap ):
     CHUNK_MAP = {
-        b'mmap': MMapV4,
-        b'KEY*': KeyV4,
-        b'Sord': Sord,
-        b'CASt': CastV4,
+        riff.Tag( b'mmap' ): MMapV4,
+        riff.Tag( b'KEY*' ): KeyV4,
+        riff.Tag( b'Sord' ): Sord,
+        riff.Tag( b'CASt' ): CastV4,
     }
+DirectorV4Map.CHUNK_MAP[riff.Tag( b'RIFX' )] = DirectorV4Map
 
 
+class DirectorV4( riff.RIFX ):
+    CHUNK_MAP_CLASS = DirectorV4Map
 
+
+class PJ93( mrc.Block ):
+    _endian = 'little'
+    
+    magic = mrc.Const( mrc.Bytes( 0x00 ), b'PJ93' )
+    rifx_offset = mrc.UInt32_P( 0x04 )
+    fontmap_offset = mrc.UInt32_P( 0x08 )
+    resfork1_offset = mrc.UInt32_P( 0x0c )
+    resfork2_offset = mrc.UInt32_P( 0x10 )
+    graphics_dll_offset = mrc.UInt32_P( 0x14 )
+    sound_dll_offset = mrc.UInt32_P( 0x18 )
+    rifx_offset_dup = mrc.UInt32_P( 0x1c )
+    

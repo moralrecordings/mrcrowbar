@@ -1,6 +1,10 @@
 import struct
 
 RAW_TYPE_NAME = {
+    (int, 1, 'signed', 'little'):   'int8',
+    (int, 1, 'unsigned', 'little'): 'uint8',
+    (int, 1, 'signed', 'big'):      'int8',
+    (int, 1, 'unsigned', 'big'):    'uint8',
     (int, 1, 'signed', None):       'int8',
     (int, 1, 'unsigned', None):     'uint8',
     (int, 2, 'signed', 'little'):   'int16_le',
@@ -23,10 +27,10 @@ RAW_TYPE_NAME = {
 RAW_TYPE_NAME_REVERSE = {v: k for k, v in RAW_TYPE_NAME.items()}
 
 RAW_TYPE_STRUCT = {
-    (int, 1, 'unsigned'):   'b',
-    (int, 1, 'signed'):     'B',
-    (int, 2, 'unsigned'):   'h',
-    (int, 2, 'signed'):     'H',
+    (int, 1, 'unsigned'):   'B',
+    (int, 1, 'signed'):     'b',
+    (int, 2, 'unsigned'):   'H',
+    (int, 2, 'signed'):     'h',
     (int, 4, 'unsigned'):   'I',
     (int, 4, 'signed'):     'i',
     (int, 8, 'unsigned'):   'Q',
@@ -96,7 +100,7 @@ def _to_raw_type_array( type_id ):
 
 
 for format_type, field_size, signedness in RAW_TYPE_STRUCT:
-    endian_choices = [None] if field_size == 1 else ['little', 'big']
+    endian_choices = [None, 'little', 'big'] if field_size == 1 else ['little', 'big']
     for endian in endian_choices:
         type_id = (format_type, field_size, signedness, endian)
         FROM_RAW_TYPE[type_id] = _from_raw_type( type_id )
@@ -131,13 +135,13 @@ def pack( type_id, value ):
     return TO_RAW_TYPE[type_id]( value )
 
 
-def unpack_array( type_id, value ):
+def unpack_array( type_id, values ):
     if isinstance( type_id, str ):
         type_id = RAW_TYPE_NAME_REVERSE[type_id]
-    return FROM_RAW_TYPE_ARRAY[type_id]( value )
+    return FROM_RAW_TYPE_ARRAY[type_id]( values )
 
 
-def pack_array( type_id, value ):
+def pack_array( type_id, values ):
     if isinstance( type_id, str ):
         type_id = RAW_TYPE_NAME_REVERSE[type_id]
-    return TO_RAW_TYPE_ARRAY[type_id]( value )
+    return TO_RAW_TYPE_ARRAY[type_id]( values )

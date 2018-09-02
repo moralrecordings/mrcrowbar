@@ -8,7 +8,7 @@ import logging
 logger = logging.getLogger( __name__ )
 
 from mrcrowbar import encoding
-globals().update( encoding._load_byte_types() )
+globals().update( encoding._load_raw_types() )
 
 def enable_logging( level='WARNING' ):
     """Enable sending logs to stderr. Useful for shell sessions.

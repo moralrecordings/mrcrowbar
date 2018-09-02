@@ -1,6 +1,7 @@
 
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.images import base as img
+from mrcrowbar.lib.audio import base as aud
 from mrcrowbar.lib.containers import riff
 from mrcrowbar import utils
 
@@ -42,6 +43,60 @@ DIRECTOR_PALETTE_RAW =  '000000111111222222444444555555777777888888aaaaaa'\
 DIRECTOR_PALETTE = img.from_palette_bytes( bytes.fromhex( DIRECTOR_PALETTE_RAW ), stride=3, order=(0, 1, 2) )
 
 
+class SoundV4( mrc.Block ):
+    unk1 = mrc.UInt16_BE( 0x00 )
+    unk2 = mrc.UInt32_BE( 0x04 )
+    unk3 = mrc.UInt16_BE( 0x0c )
+    channels = mrc.UInt16_BE( 0x14 )
+    sample_rate = mrc.UInt16_BE( 0x16 )
+    unk4 = mrc.UInt16_BE( 0x18 )
+    length = mrc.UInt32_BE( 0x1e )
+    unk5 = mrc.UInt16_BE( 0x22 )
+    length_copy = mrc.UInt32_BE( 0x24 )
+    unk6 = mrc.UInt16_BE( 0x28 )
+    playback_rate = mrc.UInt16_BE( 0x2a )
+    unk7 = mrc.UInt16_BE( 0x2c )
+    sample_bits = mrc.UInt16_BE( 0x3e )
+
+    data = mrc.Bytes( 0x4e )
+
+    def __init__( self, *argc, **argv ):
+        self.audio = aud.Wave( self, mrc.Ref( 'data' ), mrc.Ref( 'channels' ), aud.SAMPLE_WIDTH_UINT8, mrc.Ref( 'sample_rate' ) )
+        super().__init__( *argc, **argv )
+
+    @property
+    def repr( self ):
+        return 'channels={}, sample_rate={}, length={}, sample_bits={}'.format( self.channels, self.sample_rate, self.length, self.sample_bits )
+
+
+class SoundCastV4Extra( mrc.Block ):
+    name_size = mrc.UInt8( 0x00 )
+    name = mrc.CStringN( 0x01, length=mrc.Ref( 'name_size' ) )
+
+    @property
+    def repr( self ):
+        return 'name={}'.format( self.name )
+
+
+class SoundCastV4( mrc.Block ):
+    unk1 = mrc.UInt32_BE( 0x00 )
+    unk2 = mrc.UInt32_BE( 0x04 )
+    unk3 = mrc.UInt32_BE( 0x08 )
+    unk4 = mrc.UInt32_BE( 0x0c )
+    unk5 = mrc.UInt32_BE( 0x10 )
+    channels = mrc.UInt16_BE( 0x14 )
+    unk6 = mrc.UInt32_BE( 0x16 )
+    unk7 = mrc.UInt32_BE( 0x1a )
+    extra_size = mrc.UInt32_BE( 0x1e )
+    extra = mrc.BlockField( SoundCastV4Extra, 0x22, stream=True, length=mrc.Ref( 'extra_size' ) )
+
+    @property
+    def repr( self ):
+        return 'unk1={}, unk2={}, unk3={}, unk4={}, unk5={}, channels={}, unk6={}, unk7={}{}'.format(
+            self.unk1, self.unk2, self.unk3, self.unk4, self.unk5, self.channels, self.unk6, self.unk7,
+            ', name={}'.format( self.extra[0].name ) if self.extra else '' )
+
+
 class Rect( mrc.Block ):
     top = mrc.UInt16_BE( 0x00 )
     left = mrc.UInt16_BE( 0x02 )
@@ -60,10 +115,6 @@ class Rect( mrc.Block ):
     def repr( self ):
         return 'top={}, left={}, bottom={}, right={}, width={}, height={}'.format( 
             self.top, self.left, self.bottom, self.right, self.width, self.height )
-
-
-class SoundCastV4( mrc.Block ):
-    pass
 
 
 class BitmapCastV4( mrc.Block ):
@@ -131,7 +182,7 @@ class CastV4( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'size1: {}, size2: {}, type: {}'.format( self.size1, self.size2, str( self.cast_type ) )
+        return 'size1: {}, size2: {}, cast_type: {}'.format( self.size1, self.size2, str( self.cast_type ) )
 
 
 class KeyEntry( mrc.Block ):
@@ -193,6 +244,7 @@ class DirectorV4Map( riff.RIFXMap ):
         riff.Tag( b'KEY*' ): KeyV4,
         riff.Tag( b'Sord' ): Sord,
         riff.Tag( b'CASt' ): CastV4,
+        riff.Tag( b'snd ' ): SoundV4,
     }
 DirectorV4Map.CHUNK_MAP[riff.Tag( b'RIFX' )] = DirectorV4Map
 
@@ -204,7 +256,7 @@ class DirectorV4( riff.RIFX ):
 class PJ93( mrc.Block ):
     _endian = 'little'
     
-    magic = mrc.Const( mrc.Bytes( 0x00 ), b'PJ93' )
+    magic = mrc.Const( mrc.Bytes( 0x00, length=4 ), b'PJ93' )
     rifx_offset = mrc.UInt32_P( 0x04 )
     fontmap_offset = mrc.UInt32_P( 0x08 )
     resfork1_offset = mrc.UInt32_P( 0x0c )

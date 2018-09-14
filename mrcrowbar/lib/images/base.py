@@ -444,6 +444,10 @@ class Planarizer( mrc.Transform ):
             assert (width*height) % 8 == 0
             if plane_size:
                 raise Exception( 'Can\'t define plane_size when either width or height is defined.' )
+        elif plane_size is None and frame_count == 1:
+            # for a single frame without a plane size, assume the buffer contains everything
+            assert len( buffer ) % bpp == 0
+            plane_size = len( buffer ) // bpp
         else:
             assert plane_size is not None
         assert (frame_count >= 1)
@@ -546,6 +550,10 @@ class Planarizer( mrc.Transform ):
             assert (width*height) % 8 == 0
             if plane_size:
                 raise Exception( 'Can\'t define plane_size when either width or height is defined.' )
+        elif plane_size is None and frame_count == 1:
+            # for a single frame without a plane size, assume the buffer contains everything
+            assert len( buffer ) % bpp == 0
+            plane_size = len( buffer ) // bpp
         else:
              assert plane_size is not None
 

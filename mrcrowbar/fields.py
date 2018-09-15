@@ -969,12 +969,12 @@ class UInt8( NumberField ):
 
 
 class Bits( NumberField ):
-    def __init__( self, offset, bits, default=0, size=1, enum=None, *args, **kwargs ):
+    def __init__( self, offset, bits, default=0, size=1, enum=None, endian=None, *args, **kwargs ):
         SIZES = {
-            1: (int, 1, 'unsigned', None, range( 0, 1<<8 )),
-            2: (int, 2, 'unsigned', 'big', range( 0, 1<<16 )),
-            4: (int, 4, 'signed', 'big', range( 0, 1<<32 )),
-            8: (int, 8, 'signed', 'big', range( 0, 1<<64 )),
+            1: (int, 1, 'unsigned', None if endian is None else endian, range( 0, 1<<8 )),
+            2: (int, 2, 'unsigned', 'big' if endian is None else endian, range( 0, 1<<16 )),
+            4: (int, 4, 'signed', 'big' if endian is None else endian, range( 0, 1<<32 )),
+            8: (int, 8, 'signed', 'big' if endian is None else endian, range( 0, 1<<64 )),
         }
         assert size in SIZES
         assert type( bits ) == int

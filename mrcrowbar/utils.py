@@ -781,9 +781,9 @@ def ansi_format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=3
     """Return the ANSI escape sequence to render a bitmap image.
 
     data_fetch
-        Function that takes three arguments (x position, y position, and frame number) and returns
-        a Colour corresponding to the pixel stored there, or Transparent if the requested pixel is 
-        out of bounds.
+        Function that takes three arguments (x position, y position, and frame) and returns
+        a Colour corresponding to the pixel stored there, or Transparent if the requested 
+        pixel is out of bounds.
 
     x_start
         Offset from the left of the image data to render from. Defaults to 0.
@@ -798,7 +798,7 @@ def ansi_format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=3
         Height of the image data to render. Defaults to 32.
 
     frame
-        Single frame number, or a list of frame numbers to render in sequence. Defaults to frame 0.
+        Single frame number/object, or a list to render in sequence. Defaults to frame 0.
 
     columns
         Number of frames to render per line (useful for printing tilemaps!). Defaults to 1.
@@ -807,11 +807,11 @@ def ansi_format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=3
         Shrink larger images by printing every nth pixel only. Defaults to 1.
     """
     frames = []
-    if isinstance( frame, int ):
+    try:
+        frame_iter = iter( frame )
+        frames = [f for f in frame_iter]
+    except TypeError:
         frames = [frame]
-    else:
-        frames = [f for f in frame]
-
 
     palette_cache = {}
     def get_pixels( c1, c2 ):

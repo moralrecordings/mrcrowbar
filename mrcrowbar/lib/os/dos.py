@@ -66,3 +66,44 @@ class B800Screen( mrc.Block ):
 
     def __repr__( self ):
         return '<{}: {} chars, {}x{}>'.format( self.__class__.__name__, len( self.chars ), self.B800_SCREEN_WIDTH, 1+(len( self.chars )-1)//self.B800_SCREEN_WIDTH )
+
+
+# source: https://www.fileformat.info/format/exe/corion-mz.htm
+
+class Relocation( mrc.Block ):
+    offset =    mrc.UInt16_LE( 0x00 )
+    segment =   mrc.UInt16_LE( 0x02 )
+
+
+class MZHeader( mrc.Block ):
+    magic =         mrc.Const( mrc.Bytes( 0x00, length=2 ), b'MZ' )
+    last_page_size =     mrc.UInt16_LE( 0x02 )
+    page_count =    mrc.UInt16_LE( 0x04 )
+    reltable_count = mrc.UInt16_LE( 0x06 )
+    header_size_raw =   mrc.UInt16_LE( 0x08 )
+    min_alloc_raw =     mrc.UInt16_LE( 0x0a )
+    max_alloc_raw =     mrc.UInt16_LE( 0x0c )
+    initial_ss =    mrc.UInt16_LE( 0x0e )
+    initial_sp =    mrc.UInt16_LE( 0x10 )
+    checksum =      mrc.UInt16_LE( 0x12 )
+    initial_ip =    mrc.UInt16_LE( 0x14 )
+    initial_cs =    mrc.UInt16_LE( 0x16 )
+    reltable_offset = mrc.UInt16_LE( 0x18 )
+    overlay =       mrc.UInt16_LE( 0x1a )
+
+    @property
+    def header_size( self ):
+        return self.header_size_raw * 16
+
+    @header_size.setter
+    def header_size( self, value ):
+        self.header_size_raw = (value // 16) + (1 if value % 16 else 0)
+
+    @property
+    def extra_offset( self ):
+        return self.page_count * 512
+
+
+class EXE( mrc.Block ):
+    mz_header = mrc.BlockField( MZHeader, 0x00 )
+

@@ -1,5 +1,6 @@
 """Definition classes for common fields in binary formats."""
 
+import collections
 import itertools 
 import math
 import logging
@@ -156,6 +157,9 @@ class Field( object ):
         pass 
 
 
+Chunk = collections.namedtuple( 'Chunk', ['id', 'obj'] )
+
+
 class ChunkField( Field ):
     def __init__( self, offset, chunk_map, length=None, default_chunk=None, chunk_id_size=None, chunk_id_field=None, chunk_length_field=None, alignment=1, **kwargs ):
         super().__init__( **kwargs )
@@ -222,11 +226,11 @@ class ChunkField( Field ):
                 size = self.chunk_length_field.get_from_buffer( data[pointer:], parent=parent )
                 pointer += self.chunk_length_field.field_size
                 chunk = chunk_klass( data[pointer:pointer+size], parent=parent )
-                result.append( (chunk_id, chunk) )
+                result.append( Chunk( id=chunk_id, obj=chunk ) )
                 pointer += size
             else:
                 chunk = chunk_klass( data[pointer:], parent=parent )
-                result.append( (chunk_id, chunk) )
+                result.append( Chunk( id=chunk_id, obj=chunk ) )
                 pointer += chunk.get_size()
             if self.alignment:
                 width = (pointer-start_offset) % self.alignment

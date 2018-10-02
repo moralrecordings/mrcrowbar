@@ -43,6 +43,39 @@ DIRECTOR_PALETTE_RAW =  '000000111111222222444444555555777777888888aaaaaa'\
 DIRECTOR_PALETTE = [p for p in reversed( img.from_palette_bytes( bytes.fromhex( DIRECTOR_PALETTE_RAW ), stride=3, order=(0, 1, 2) ) )]
 
 
+
+
+class ChannelV4( mrc.Block ):
+    channel_size = mrc.UInt16_BE( 0x00 )
+    channel_offset = mrc.UInt16_BE( 0x02 )
+    data = mrc.Bytes( 0x04, length=mrc.Ref( 'channel_size' ) )
+
+
+class FrameV4( mrc.Block ):
+    size = mrc.UInt16_BE( 0x00 )
+    channels = mrc.BlockField( ChannelV4, 0x02, stream=True, length=mrc.Ref( 'size_channels' ) )
+
+    @property
+    def size_channels( self ):
+        return self.size-0x02
+
+
+class FramesV4( mrc.Block ):
+    size = mrc.UInt32_BE( 0x00 )
+    unk1 = mrc.UInt32_BE( 0x04 )
+    unk2 = mrc.UInt32_BE( 0x08 )
+    unk3 = mrc.UInt16_BE( 0x0c )
+    unk4 = mrc.UInt16_BE( 0x0e )
+    unk5 = mrc.UInt16_BE( 0x10 )
+    unk6 = mrc.UInt16_BE( 0x12 )
+
+    frames = mrc.BlockField( FrameV4, 0x14, stream=True, length=mrc.Ref( 'size_frames' ) )
+
+    @property
+    def size_frames( self ):
+        return self.size-0x14
+
+
 class SoundV4( mrc.Block ):
     unk1 = mrc.UInt16_BE( 0x00 )
     unk2 = mrc.UInt32_BE( 0x04 )
@@ -87,30 +120,22 @@ class SoundCastV4Extra( mrc.Block ):
 
 
 class SoundCastV4( mrc.Block ):
-    unk1 = mrc.UInt32_BE( 0x00 )
-    unk2 = mrc.UInt32_BE( 0x04 )
-    unk3 = mrc.UInt32_BE( 0x08 )
-    unk4 = mrc.UInt32_BE( 0x0c )
-    unk5 = mrc.UInt32_BE( 0x10 )
-    channels = mrc.UInt16_BE( 0x14 )
-    unk6 = mrc.UInt32_BE( 0x16 )
-    unk7 = mrc.UInt32_BE( 0x1a )
-    extra_size = mrc.UInt32_BE( 0x1e )
-    extra = mrc.BlockField( SoundCastV4Extra, 0x22, stream=True, length=mrc.Ref( 'extra_size' ) )
+    unk1 = mrc.Bytes( 0x00, length=0x20 )
+    extra_size = mrc.UInt8( 0x20 )
+    extra = mrc.BlockField( SoundCastV4Extra, 0x21, stream=True, length=mrc.Ref( 'extra_size' ) )
 
     @property
     def repr( self ):
-        return 'unk1={}, unk2={}, unk3={}, unk4={}, unk5={}, channels={}, unk6={}, unk7={}{}'.format(
-            self.unk1, self.unk2, self.unk3, self.unk4, self.unk5, self.channels, self.unk6, self.unk7,
-            ', name={}'.format( self.extra[0].name ) if self.extra else '' )
+        return 'unk1={}{}'.format(
+            self.unk1, ', name={}'.format( self.extra[0].name ) if self.extra else '' )
 
 
 class ScriptCastV4( mrc.Block ):
-    unk1        = mrc.Bytes( 0x00, length=0x15 )
-    script_id   = mrc.UInt16_BE( 0x15 )
-    unk4_size   = mrc.UInt16_BE( 0x17 )
-    unk3        = mrc.UInt32_BE( 0x19 )
-    unk4        = mrc.UInt32_BE( 0x1d, count=mrc.Ref( 'unk4_size' ) )
+    unk1        = mrc.Bytes( 0x00, length=0x14 )
+    script_id   = mrc.UInt16_BE( 0x14 )
+    unk4_size   = mrc.UInt16_BE( 0x16 )
+    unk3        = mrc.UInt32_BE( 0x18 )
+    unk4        = mrc.UInt32_BE( 0x1c, count=mrc.Ref( 'unk4_size' ) )
 
     @property
     def repr( self ):
@@ -162,17 +187,16 @@ class Rect( mrc.Block ):
 class BitmapCastV4( mrc.Block ):
     _data = None
 
-    unk1 = mrc.UInt8( 0x00 )
-    bpp = mrc.Bits( 0x01, 0xf0 )
-    pitch = mrc.Bits( 0x01, 0x0fff, size=2 )
-    initial_rect = mrc.BlockField( Rect, 0x03 )
-    bounding_rect = mrc.BlockField( Rect, 0x0b )
-    reg_x = mrc.UInt16_BE( 0x13 )
-    reg_y = mrc.UInt16_BE( 0x15 )
-    #bpp = mrc.UInt16_BE( 0x17 )
-    #unk4 = mrc.Bytes( 0x1a, length=0x24 )
+    bpp = mrc.Bits( 0x00, 0xf0 )
+    pitch = mrc.Bits( 0x00, 0x0fff, size=2 )
+    initial_rect = mrc.BlockField( Rect, 0x02 )
+    bounding_rect = mrc.BlockField( Rect, 0x0a )
+    reg_x = mrc.UInt16_BE( 0x12 )
+    reg_y = mrc.UInt16_BE( 0x14 )
+    #bpp = mrc.UInt16_BE( 0x16 )
+    #unk4 = mrc.Bytes( 0x18, length=0x24 )
     #name = mrc.Bytes( 0x3e )
-    unk4 = mrc.Bytes( 0x17 )
+    unk4 = mrc.Bytes( 0x16 )
 
     @property
     def repr( self ):
@@ -212,7 +236,8 @@ class CastV4( mrc.Block ):
     size1 =     mrc.UInt16_BE( 0x00 )
     size2 =     mrc.UInt32_BE( 0x02 )
     cast_type = mrc.UInt8( 0x06, enum=CastType )
-    detail =    mrc.BlockField( CAST_MAP, 0x07, block_type=mrc.Ref( 'cast_type' ), default_klass=mrc.Unknown )
+    unk1 =      mrc.UInt8( 0x07 )
+    detail =    mrc.BlockField( CAST_MAP, 0x08, block_type=mrc.Ref( 'cast_type' ), default_klass=mrc.Unknown )
     garbage =   mrc.Bytes( mrc.EndOffset( 'detail' ) )
 
     @property

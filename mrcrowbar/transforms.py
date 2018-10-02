@@ -1,15 +1,11 @@
 """Definition classes for transformations."""
 
-from typing import NamedTuple
-
+import collections
 import logging
 logger = logging.getLogger( __name__ )
 
-
-class TransformResult( NamedTuple ):
-    payload: bytes = b''
-    end_offset: int = 0
-
+TransformResult = collections.namedtuple( 'TransformResult', ['payload', 'end_offset'] )
+TransformResult.__new__.__defaults__ = (b'', 0)
 
 class Transform( object ):
     """Base class for defining transformations."""

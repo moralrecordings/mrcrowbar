@@ -41,7 +41,4 @@ class LZSSCompressor( mrc.Transform ):
                     text_buf[r] = c
                     r = (r+1) & (self.N-1)
                     
-        return {
-            'payload': bytes( result ),
-            'end_offset': len( buffer )
-        }
+        return mrc.TransformResult( payload=bytes( result ), end_offset=len( buffer ) )

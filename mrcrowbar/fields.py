@@ -371,9 +371,9 @@ class BlockField( Field ):
             # if we have an inline transform, apply it
             elif self.transform:
                 data = self.transform.import_data( buffer[pointer:], parent=parent )
-                block = klass( source_data=data['payload'], parent=parent, **self.block_kwargs )
+                block = klass( source_data=data.payload, parent=parent, **self.block_kwargs )
                 result.append( block )
-                pointer += data['end_offset']
+                pointer += data.end_offset
             # add block to results
             else:
                 block = klass( source_data=buffer[pointer:], parent=parent, **self.block_kwargs )
@@ -433,7 +433,7 @@ class BlockField( Field ):
             else:
                 data = b.export_data()
                 if self.transform:
-                    data = self.transform.export_data( data, parent=parent )['payload']
+                    data = self.transform.export_data( data, parent=parent ).payload
                 block_data += data
 
         if self.stream_end is not None:
@@ -521,7 +521,7 @@ class BlockField( Field ):
         size = 0
         for b in value:
             if self.transform:
-                data = self.transform.export_data( b.export_data(), parent=parent )['payload']
+                data = self.transform.export_data( b.export_data(), parent=parent ).payload
                 size += len( data )
             elif b is None:
                 if fill:
@@ -578,7 +578,7 @@ class Bytes( Field ):
             data = data[:length]
 
         if self.transform:
-            data = self.transform.import_data( data, parent=parent )['payload']
+            data = self.transform.import_data( data, parent=parent ).payload
     
         return data
 
@@ -589,7 +589,7 @@ class Bytes( Field ):
 
         data = value
         if self.transform:
-            data = self.transform.export_data( data, parent=parent )['payload']
+            data = self.transform.export_data( data, parent=parent ).payload
 
         new_size = offset+len( data )
         if self.stream_end is not None:
@@ -640,7 +640,7 @@ class Bytes( Field ):
         length = property_get( self.length, parent )
         if length is None:
             if self.transform:
-                data = self.transform.export_data( value, parent=parent )['payload']
+                data = self.transform.export_data( value, parent=parent ).payload
                 return len( data )
             return len( value )
         return length

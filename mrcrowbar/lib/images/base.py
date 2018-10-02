@@ -548,12 +548,7 @@ class Planarizer( mrc.Transform ):
             bits = plane_size*8*bpp
             end_offset = frame_offset + (bits)//8 + (1 if (bits % 8) else 0)
 
-        result = {
-            'payload': bytes( raw_image ),
-            'end_offset': end_offset
-        }
-
-        return result
+        return mrc.TransformResult( payload=bytes( raw_image ), end_offset=end_offset )
 
 
     def export_data( self, buffer: bytes, parent=None ):
@@ -613,15 +608,12 @@ class Planarizer( mrc.Transform ):
                 planes.byteswap()
 
             for b in range( bpp ):
-                for i in range( width*height//8 ):
+                for i in range( plane_size ):
                     # for each group of 8 chunky pixels, use pack_bits to fill up 8 bits
                     # of the relevant bitplane
                     raw_planes[pointer+b*segment_size+i] = utils.pack_bits( (planes[i] >> b) )
 
-        result = {
-            'payload': raw_planes
-        }
-        return result
+        return mrc.TransformResult( payload=raw_planes )
 
 
 

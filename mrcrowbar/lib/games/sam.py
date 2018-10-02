@@ -24,17 +24,14 @@ class SAMEncryption( mrc.Transform ):
 
     def import_data( self, buffer, parent=None ):
         limit = len( buffer ) if not self.length else min( len( buffer ), self.length )
-        return {
-            'payload': bytes( [utils.BYTE_REVERSE[c] ^ self.KEY[i%len( self.KEY )] 
-                              for i, c in enumerate( buffer[:limit] )] ),
-            'end_offset': limit
-        }
+        payload = bytes( [utils.BYTE_REVERSE[c] ^ self.KEY[i%len( self.KEY )]
+                            for i, c in enumerate( buffer[:limit] )] )
+        return mrc.TransformResult( payload=payload, end_offset=limit )
 
     def export_data( self, buffer, parent=None ):
-        return {
-            'payload': bytes( [utils.BYTE_REVERSE[c ^ self.KEY[i%len( self.KEY )]] 
-                              for i, c in enumerate( buffer )] ),
-        }
+        payload = bytes( [utils.BYTE_REVERSE[c ^ self.KEY[i%len( self.KEY )]]
+                            for i, c in enumerate( buffer )] )
+        return mrc.TransformResult( payload=payload )
 
 
 class SAMTileset16( mrc.Block ):

@@ -43,6 +43,15 @@ DIRECTOR_PALETTE_RAW =  '000000111111222222444444555555777777888888aaaaaa'\
 DIRECTOR_PALETTE = [p for p in reversed( img.from_palette_bytes( bytes.fromhex( DIRECTOR_PALETTE_RAW ), stride=3, order=(0, 1, 2) ) )]
 
 
+class ChannelCompressor( mrc.Transform ):
+    def import_data( self, buffer, parent=None ):
+        result = bytearray( 50*25 )
+        pointer = 0
+        while pointer < len( buffer ):
+            size = utils.from_uint16_be( buffer[pointer:pointer+2] )
+            offset = utils.from_uint16_be( buffer[pointer+2:pointer+4] )
+            result[offset:offset+size] = buffer[pointer+4:pointer+4+size]
+        return mrc.TransformResult( payload=result, end_offset=pointer )
 
 
 class ChannelV4( mrc.Block ):
@@ -157,7 +166,7 @@ class BitmapCompressor( mrc.Transform ):
             else:
                 result.extend( buffer[pointer:pointer+length] )
                 pointer += length
-        return {'payload': result}
+        return mrc.TransformResult( payload=result, end_offset=pointer )
 
 
 class BitmapV4( mrc.Block ):

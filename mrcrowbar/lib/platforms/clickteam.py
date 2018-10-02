@@ -58,10 +58,7 @@ class ImageRLE( mrc.Transform ):
             else:
                 result += buffer[pointer:pointer+1]*test
                 pointer += 1
-        return {
-            'payload': bytes( result ),
-            'end_offset': pointer
-        }
+        return mrc.TransformResult( payload=bytes( result ), end_offset=pointer )
 
 
 class ImageData( mrc.Block ):

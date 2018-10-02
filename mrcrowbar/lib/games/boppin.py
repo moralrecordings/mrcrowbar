@@ -158,8 +158,8 @@ def resource_stop_check( buffer, offset ):
     if (offset >= len( buffer )-8):
         return True
 
-    block_offset = utils.from_uint32_le( buffer[offset-8:] )
-    block_size = utils.from_uint32_le( buffer[offset-4:] )
+    block_offset = utils.from_uint32_le( buffer[offset-8:offset-4] )
+    block_size = utils.from_uint32_le( buffer[offset-4:offset] )
 
     # ignore filler entries
     if (block_offset == 0xffffffff) and (block_size == 0):
@@ -184,19 +184,19 @@ class BoppinCompressor( mrc.Transform ):
     
     def import_data( self, buffer, parent=None ):
         if len( buffer ) == 0:
-            return {'payload': b'', 'end_offset': 0}
+            return mrc.TransformResult()
 
         lc = lzss.LZSSCompressor()
-        size_comp = utils.from_uint32_le( buffer )
+        size_comp = utils.from_uint32_le( buffer[0:4] )
 
         if size_comp != len( buffer ):
             logger.info( '{}: File not compressed'.format( self ) )
-            return {'payload': buffer, 'end_offset': len( buffer )}
+            return mrc.TransformResult( payload=buffer, end_offset=len( buffer ) )
         
-        size_raw = utils.from_uint32_le( buffer[4:] )
+        size_raw = utils.from_uint32_le( buffer[4:8] )
         result = lc.import_data( buffer[8:][:size_comp] )
-        if len( result['payload'] ) != size_raw:
-            logger.warning( '{}: Was expecting a decompressed size of {}, got {}!'.format( self, size_raw, len( result['payload'] ) ) )
+        if len( result.payload ) != size_raw:
+            logger.warning( '{}: Was expecting a decompressed size of {}, got {}!'.format( self, size_raw, len( result.payload ) ) )
 
         return result
 

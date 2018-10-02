@@ -18,6 +18,6 @@ from mrcrowbar.fields import ParseError, FieldValidationError, Field, \
                             Float32_P, Float64_P
 from mrcrowbar.blocks import Block, Unknown
 from mrcrowbar.loaders import Loader
-from mrcrowbar.transforms import Transform
+from mrcrowbar.transforms import Transform, TransformResult
 from mrcrowbar.checks import CheckException, Check, Const, Updater
 from mrcrowbar.views import View, Store, LinearStore, StoreRef

@@ -44,12 +44,7 @@ class RLECompressor( mrc.Transform ):
                 out.extend( buffer[i+1:i+2]*(byte+3) )
                 i += 2
 
-        result = {
-            'payload': bytes( out ),
-            'end_offset': i
-        }
-
-        return result
+        return mrc.TransformResult( payload=bytes( out ), end_offset=i )
 
 
 class RLEWCompressor( mrc.Transform ):
@@ -68,12 +63,7 @@ class RLEWCompressor( mrc.Transform ):
                 out.extend( word )
                 i += 2
 
-        result = {
-            'payload': bytes( out ),
-            'end_offset': i
-        }
-
-        return result
+        return mrc.TransformResult( payload=bytes( out ), end_offset=i )
 
 
 class LZWCompressor( mrc.Transform ):
@@ -129,12 +119,7 @@ class LZWCompressor( mrc.Transform ):
         if len( output ) != decomp_size:
             logger.warning( '{}: was expecting data of size {}, got data of size {} instead'.format( self, decomp_size, len( output ) ) )
 
-        result = {
-            'payload': bytes( output ),
-            'end_offset': len( buffer )
-        }
-
-        return result
+        return mrc.TransformResult( payload=bytes( output ), end_offset=len( buffer ) )
 
 
 
@@ -299,12 +284,8 @@ class PreviewCompressor( mrc.Transform ):
     def import_data( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
         stage_1 = self.rle.import_data( buffer )
-        stage_2 = self.plan.import_data( stage_1['payload'] )
-        result = {
-            'payload': stage_2['payload'],
-            'end_offset': stage_1['end_offset']
-        }
-        return result
+        stage_2 = self.plan.import_data( stage_1.payload )
+        return mrc.TransformResult( payload=stage_2.payload, end_offset=stage_1.end_offset )
 
 
 class Preview( mrc.Block ):

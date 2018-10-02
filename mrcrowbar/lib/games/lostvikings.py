@@ -130,9 +130,7 @@ class LZSS( mrc.Transform ):
 
         logger.info( '{} - output_size: {:08x}, output_end: {:08x}, input_size: {:08x}, input_end: {:08x}'.format( self, output_size, len( output ), len( buffer ), data_p ) )
 
-        return {
-            'payload': bytes( output ), 'end_offset': data_p
-        }
+        return mrc.TransformResult( payload=bytes( output ), end_offset=data_p )
 
 
 class Interlace( mrc.Transform ):
@@ -142,11 +140,7 @@ class Interlace( mrc.Transform ):
         for i in range( 0, len( buffer ), 64 ):
             deint = buffer[i:i+64:2] + buffer[i+1:i+64:2]
             result[i:i+64] = bytes( [deint[8*(j%8)+(j//8)] for j in range( 64 )] ) 
-        return {
-            'payload': bytes( result ),
-            'end_offset': len( result )
-        }
-
+        return mrc.TransformResult( payload=bytes( result ), end_offset=len( result ) )
 
 
 # in BLACK.EXE at 0x14ef8. 

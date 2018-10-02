@@ -46,10 +46,10 @@ class DATCompressor( mrc.Transform ):
         pointer = 0;
         total_num_bytes = len( buffer )
         
-        bit_count = utils.from_uint8( buffer[pointer:] )
-        checksum = utils.from_uint8( buffer[pointer+1:] )
-        decompressed_size = utils.from_uint32_be( buffer[pointer+2:] )
-        compressed_size = utils.from_uint32_be( buffer[pointer+6:] )
+        bit_count = utils.from_uint8( buffer[pointer:pointer+1] )
+        checksum = utils.from_uint8( buffer[pointer+1:pointer+2] )
+        decompressed_size = utils.from_uint32_be( buffer[pointer+2:pointer+6] )
+        compressed_size = utils.from_uint32_be( buffer[pointer+6:pointer+10] )
         
         pointer += 10
         total_num_bytes -= 10
@@ -103,12 +103,7 @@ class DATCompressor( mrc.Transform ):
             if not (state['dptr'] > 0): 
                 break
         
-        result = {
-            'payload': bytes( state['ddata'] ),
-            'end_offset': pointer
-        }
-
-        return result
+        return mrc.TransformResult( payload=bytes( state['ddata'] ), end_offset=pointer )
 
 
     def export_data( self, buffer, parent=None ):
@@ -229,11 +224,7 @@ class DATCompressor( mrc.Transform ):
         output[6:10] = utils.to_uint32_be( compressed_size )
         output.extend( compressed_data )
 
-        result = {
-            'payload': bytes( output )
-        }
-
-        return result
+        return mrc.TransformResult( payload=bytes( output ) )
             
 
 
@@ -272,21 +263,16 @@ class SpecialCompressor( mrc.Transform ):
             result.append( b''.join( buf_out ) )
 
         # result is a 960x160 3bpp image, divided into 4x 40 scanline segments
-        unpack = (self.plan.import_data( x )['payload'] for x in result)
+        unpack = (self.plan.import_data( x ).payload for x in result)
         
-        result = {
-            'payload': bytes( itertools.chain( *unpack ) ),
-            'end_offset': i
-        }
-
-        return result
+        return mrc.TransformResult( payload=bytes( itertools.chain( *unpack ) ), end_offset=i )
 
     def export_data( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
         assert len( buffer ) == 960*160
         
         segments = (buffer[960*40*i:960*40*(i+1)] for i in range(4))
-        segments = (self.plan.export_data( x )['payload'] for x in segments)
+        segments = (self.plan.export_data( x ).payload for x in segments)
         
         result = bytearray()
 
@@ -314,10 +300,7 @@ class SpecialCompressor( mrc.Transform ):
 
             result.append( 0x80 )
         
-        result = {
-            'payload': bytes( result )
-        }
-        return result
+        return mrc.TransformResult( payload=bytes( result ) )
                     
 
 

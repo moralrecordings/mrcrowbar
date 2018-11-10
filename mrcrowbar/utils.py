@@ -28,7 +28,7 @@ def enable_logging( level='WARNING' ):
 
 def is_bytes( obj ):
     """Returns whether obj is an acceptable Python byte string."""
-    return isinstance( obj, (bytes, bytearray, mmap.mmap) )
+    return isinstance( obj, (bytes, bytearray, mmap.mmap, memoryview) )
 
 
 
@@ -507,24 +507,14 @@ class Stats( object ):
             raise ValueError( 'Width of the histogram must be less than or equal to 256' )
 
         buckets = self.histogram( width )
-        scale = height*8.0/max( buckets ) if max( buckets ) else height*8.0
-        buckets_norm = [b*scale for b in buckets]
         result = []
-        for y_pos in range( height, 0, -1 ):
-            result.append( ' ' )
-            for _, x_value in enumerate( buckets_norm ):
-                if (x_value // 8) >= y_pos:
-                    result.append( BAR_VERT[8] )
-                elif (x_value // 8) == y_pos-1:
-                    result.append( BAR_VERT[round( x_value % 8 )] )
-                else:
-                    result.append( BAR_VERT[0] )
-            result.append( '\n' )
+        for line in ansi_format_bar_graph_iter( buckets, width=width, height=height ):
+            result.append( ' {}\n'.format( line ) )
 
         result.append( '╘'+('═'*width)+'╛\n' )
         result.append( 'entropy: {:.10f}\n'.format( self.entropy ) )
         result.append( 'samples: {}'.format( self.samples ) )
-        return ''.join(result)
+        return ''.join( result )
 
     def print( self, *args, **kwargs ):
         """Print the graphical version of the results produced by ansi_format()."""
@@ -623,7 +613,6 @@ def normalise_rgba( raw_colour ):
     elif len( raw_colour ) == 4:
         return (raw_colour[0], raw_colour[1], raw_colour[2], raw_colour[3])
     raise ValueError( 'raw_colour must be either None, a Colour, or a tuple (RGB/RGBA)' )
-
 
 
 def ansi_format_string( string, foreground=None, background=None, reset=True, bold=False,
@@ -775,6 +764,60 @@ colour = ansi_format_string
 
 #: Shorthand for ansi_format_pixels()
 pixels = ansi_format_pixels
+
+
+def ansi_format_bar_graph_iter( data, width=64, height=12, y_min=None, y_max=None ):
+    if width <= 0:
+        raise ValueError( 'Width of the graph must be greater than zero' )
+    if height % 2:
+        raise ValueError( 'Height of the graph must be a multiple of 2' )
+    if y_min is None:
+        y_min = min( data )
+    y_min = min( y_min, 0 )
+    if y_max is None:
+        y_max = max( data )
+    y_max = max( y_max, 0 )
+
+    # determine top-left of vertical origin
+    if y_max <= 0:
+        top_height, bottom_height = 0, height
+        y_scale = 8*height/y_min
+    elif y_min >= 0:
+        top_height, bottom_height = height, 0
+        y_scale = 8*height/y_max
+    else:
+        top_height, bottom_height = height//2, height//2
+        y_scale = 8*height/(2*max( abs( y_min ), abs( y_max ) ))
+
+    # precalculate sizes
+    sample_count = len( data )
+    if sample_count <= width:
+        sample_ranges = [(math.floor( i*sample_count/width ), math.floor( i*sample_count/width )+1) for i in range( width )]
+    else:
+        sample_ranges = [(round( i*sample_count/width ), round( (i+1)*sample_count/width )) for i in range( width )]
+    samples = [(round( min( data[x[0]:x[1]] )*y_scale ), round( max( data[x[0]:x[1]] )*y_scale )) for x in sample_ranges]
+    
+    for y in range( top_height, 0, -1 ):
+        result = []
+        for _, value in samples:
+            if value // 8 >= y:
+                result.append( BAR_VERT[8] )
+            elif value // 8 == y-1:
+                result.append( BAR_VERT[value % 8] )
+            else:
+                result.append( BAR_VERT[0] )
+        yield ''.join( result )
+
+    for y in range( -1, -bottom_height-1, -1 ):
+        result = []
+        for value, _ in samples:
+            if -value // 8 >= -y:
+                result.append( BAR_VERT[8] )
+            elif -value // 8 == -y-1:
+                result.append( ansi_format_string( BAR_VERT[value % 8], inverted=True ) )
+            else:
+                result.append( BAR_VERT[0] )
+        yield ''.join( result )
 
 
 def ansi_format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=32, frame=0, columns=1, downsample=1 ):

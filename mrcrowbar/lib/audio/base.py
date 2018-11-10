@@ -87,6 +87,20 @@ class Wave( mrc.View ):
     signedness = mrc.view_property( '_signedness' )
     endian = mrc.view_property( '_endian' )
 
+    def normalised( self ):
+        return normalise_audio( self.source, self.format_type, self.field_size, self.signedness, self.endian )
+
+    def ansi_format( self, width=64, height=12 ):
+        audio = self.normalised()
+        result = []
+        for line in utils.ansi_format_bar_graph_iter( audio, width=width, height=height, y_min=-1, y_max=1 ):
+            result.append( '{}\n'.format( line ) )
+        return ''.join( result )
+
+    def print( self, *args, **kwargs ):
+        """Print the graphical version of the results produced by ansi_format()."""
+        print( self.ansi_format( *args, **kwargs ) )
+
     def play( self, interpolation=AudioInterpolation.LINEAR ):
         if not pyaudio:
             raise ImportError( 'pyaudio must be installed for audio playback support (see https://people.csail.mit.edu/hubert/pyaudio)' )
@@ -94,7 +108,7 @@ class Wave( mrc.View ):
         format = getattr( pyaudio, PYAUDIO_NORMALISE_TYPE )
         rate = self.sample_rate
 
-        samp_array = normalise_audio( self.source, self.format_type, self.field_size, self.signedness, self.endian )
+        samp_array = self.normalised()
         samp_array.append( 0.0 )
 
         if interpolation != AudioInterpolation.NONE:

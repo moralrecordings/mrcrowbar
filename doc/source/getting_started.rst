@@ -29,13 +29,13 @@ Windows 10 users: I highly recommend installing the `Windows Subsystem for Linux
 
 [This chunk of the docs needs a lot of work. If you are struggling, please hit me up via `email <mailto:code@moral.net.au>`_ or on Twitter at `@moralrecordings <https://twitter.com/moralrecordings>`_.]
 
-
-An example
-----------
+Writing and using Blocks
+------------------------
 
 Here's a class for a level file used by the 1991 DOS game *Lemmings*, taken from mrcrowbar.lib.games.lemmings:
 
 .. code:: python
+    from mrcrowbar import models as mrc
 
     class Level( mrc.Block ):
         """Represents a single Lemmings level."""

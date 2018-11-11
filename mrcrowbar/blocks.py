@@ -204,6 +204,7 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
         if raw_buffer:
             assert utils.is_bytes( raw_buffer )
+#            raw_buffer = memoryview( raw_buffer )
 
         self._field_data = {}
 
@@ -237,6 +238,8 @@ class Block( object, metaclass=BlockMeta ):
                 elif test != raw_buffer[:len( test )]:
                     logger.info( '{} export produced changed output from import'.format( self ) )
 
+#        if raw_buffer:
+#            raw_buffer.release()
         return
 
 

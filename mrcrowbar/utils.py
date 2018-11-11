@@ -791,12 +791,16 @@ def ansi_format_bar_graph_iter( data, width=64, height=12, y_min=None, y_max=Non
 
     # precalculate sizes
     sample_count = len( data )
-    if sample_count <= width:
-        sample_ranges = [(math.floor( i*sample_count/width ), math.floor( i*sample_count/width )+1) for i in range( width )]
+    if sample_count == 0:
+        # empty graph
+        samples = [(0, 0) for x in range( width )]
     else:
-        sample_ranges = [(round( i*sample_count/width ), round( (i+1)*sample_count/width )) for i in range( width )]
-    samples = [(round( min( data[x[0]:x[1]] )*y_scale ), round( max( data[x[0]:x[1]] )*y_scale )) for x in sample_ranges]
-    
+        if sample_count <= width:
+            sample_ranges = [(math.floor( i*sample_count/width ), math.floor( i*sample_count/width )+1) for i in range( width )]
+        else:
+            sample_ranges = [(round( i*sample_count/width ), round( (i+1)*sample_count/width )) for i in range( width )]
+        samples = [(round( min( data[x[0]:x[1]] )*y_scale ), round( max( data[x[0]:x[1]] )*y_scale )) for x in sample_ranges]
+
     for y in range( top_height, 0, -1 ):
         result = []
         for _, value in samples:
@@ -808,13 +812,13 @@ def ansi_format_bar_graph_iter( data, width=64, height=12, y_min=None, y_max=Non
                 result.append( BAR_VERT[0] )
         yield ''.join( result )
 
-    for y in range( -1, -bottom_height-1, -1 ):
+    for y in range( 1, bottom_height+1, 1 ):
         result = []
         for value, _ in samples:
-            if -value // 8 >= -y:
+            if -value // 8 >= y:
                 result.append( BAR_VERT[8] )
-            elif -value // 8 == -y-1:
-                result.append( ansi_format_string( BAR_VERT[value % 8], inverted=True ) )
+            elif -value // 8 == y-1:
+                result.append( ansi_format_string( BAR_VERT[8-((-value) % 8)], inverted=True ) )
             else:
                 result.append( BAR_VERT[0] )
         yield ''.join( result )

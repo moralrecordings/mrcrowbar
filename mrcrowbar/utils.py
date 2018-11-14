@@ -5,6 +5,7 @@ import math
 import io
 import mmap
 import logging
+from collections import Counter
 logger = logging.getLogger( __name__ )
 
 from mrcrowbar import encoding
@@ -450,12 +451,12 @@ class Stats( object ):
         """Generate a Stats instance for a byte string and analyse the data."""
         assert is_bytes( buffer )
 
-        #: Byte histogram for the source data.
-        self.histo = array.array( 'L', [0]*256 )
-        # do histogram expensively for now, to avoid pulling in e.g numpy
         self.samples = len( buffer )
-        for byte in buffer:
-            self.histo[byte] += 1
+        # Python's Counter object uses a fast path
+        cc = Counter( buffer )
+
+        #: Byte histogram for the source data.
+        self.histo = array.array( 'L', (cc.get( i, 0 ) for i in range( 256 )) )
 
         #: Shanning entropy calculated for the source data.
         self.entropy = 0.0

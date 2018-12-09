@@ -161,7 +161,33 @@ Chunk = collections.namedtuple( 'Chunk', ['id', 'obj'] )
 
 
 class ChunkField( Field ):
-    def __init__( self, offset, chunk_map, length=None, default_chunk=None, chunk_id_size=None, chunk_id_field=None, chunk_length_field=None, alignment=1, **kwargs ):
+    """Field for inserting a tokenised Block stream into the parent class.
+    
+    chunk_map
+        A dict mapping between the chunk 
+
+    offset
+        Position of data, relative to the start of the parent block.
+
+    length
+        Maximum size of the buffer to read in.
+
+    default_klass
+        Fallback Block class to use if there's no match with the chunk_map mapping.
+
+    chunk_id_size
+        Size in bytes of the Chunk ID.
+
+    chunk_id_field
+        Field class used to parse Chunk ID. Defaults to Bytes.
+
+    chunk_length_field
+        Field class used to parse the Chunk data length. For use when a Chunk consists of an ID followed by the size of the data.
+       
+    alignment
+        Number of bytes to align the start of each Chunk to.
+    """
+    def __init__( self, chunk_map, offset, length=None, default_klass=None, chunk_id_size=None, chunk_id_field=None, chunk_length_field=None, alignment=1, **kwargs ):
         super().__init__( **kwargs )
         self.offset = offset
         self.chunk_map = chunk_map
@@ -177,14 +203,9 @@ class ChunkField( Field ):
             self.chunk_id_field = chunk_id_field( 0x00 )
         else:
             self.chunk_id_field = None
-        self.default_chunk = default_chunk
+        self.default_klass = default_klass
         
         self.chunk_id_size = chunk_id_size
-        #for chunk_id, chunk in self.chunk_map:
-        #    assert utils.is_bytes( chunk_id )
-        #    if self.chunk_id_size:
-        #        assert len( chunk_id ) == self.chunk_id_size
-
         
     def get_from_buffer( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
@@ -217,8 +238,8 @@ class ChunkField( Field ):
 
             if chunk_id in chunk_map:
                 chunk_klass = chunk_map[chunk_id]
-            elif self.default_chunk:
-                chunk_klass = self.default_chunk
+            elif self.default_klass:
+                chunk_klass = self.default_klass
             else:
                 raise ParseError( 'No chunk class match for ID {}'.format( chunk_id ) )
 
@@ -238,7 +259,14 @@ class ChunkField( Field ):
                     pointer += self.alignment - width
 
         return result
-            
+    
+    def update_buffer_with_value( self, value, buffer, parent=None ):
+        super().update_buffer_with_value( value, buffer, parent )
+        chunk_map = property_get( self.chunk_map, parent )
+        offset = property_get( self.offset, parent )
+        length = property_get( self.length, parent )
+        
+
     def get_start_offset( self, value, parent=None, index=None ):
         offset = property_get( self.offset, parent )
         if index is not None:

@@ -7,19 +7,19 @@ class RIFF( mrc.Block ):
     magic = mrc.Const( mrc.Bytes( 0x00, length=4 ), b'RIFF' )
     size = mrc.UInt32_LE( 0x04 )
     form_type = mrc.Bytes( 0x08, length=4 )
-    stream = mrc.ChunkField( 0x0c, chunk_map=mrc.Ref( 'CHUNK_MAP' ),
+    stream = mrc.ChunkField( mrc.Ref( 'CHUNK_MAP' ), 0x0c
                              length=mrc.Ref( 'size' ), chunk_id_field=mrc.UInt32_BE,
                              chunk_length_field=mrc.UInt32_LE, alignment=2,
-                             default_chunk=mrc.Unknown )
+                             default_klass=mrc.Unknown )
 
 
 class RIFXMap( mrc.Block ):
     CHUNK_MAP = {}
     form_type = mrc.Bytes( 0x00, length=4 )
-    stream = mrc.ChunkField( 0x04, chunk_map=mrc.Ref( 'CHUNK_MAP' ),
+    stream = mrc.ChunkField( mrc.Ref( 'CHUNK_MAP' ), 0x04,
                              chunk_id_field=mrc.UInt32_P,
                              chunk_length_field=mrc.UInt32_P, alignment=2,
-                             default_chunk=mrc.Unknown )
+                             default_klass=mrc.Unknown )
 
 
 class RIFX( mrc.Block ):

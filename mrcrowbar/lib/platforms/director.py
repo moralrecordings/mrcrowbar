@@ -307,6 +307,104 @@ class Sord( mrc.Block ):
     index = mrc.UInt16_BE( 0x14, count=mrc.Ref( 'count' ) )
 
 
+class TextV4( mrc.Block ):
+    unk1 = mrc.UInt32_BE( 0x00 )
+    length = mrc.UInt32_BE( 0x04 )
+    unk2 = mrc.UInt32_BE( 0x08 )
+    data = mrc.Bytes( 0xc, length=mrc.Ref( 'length' ) )
+    unk3 = mrc.Bytes( mrc.EndOffset( 'data' ) )
+
+
+# source: http://fileformats.archiveteam.org/wiki/Lingo_bytecode#Header
+
+class ScriptConstantType( IntEnum ):
+    STRING =    0x0001
+    UINT32 =    0x0004
+    FLOAT =     0x0009
+
+
+class ScriptString( mrc.Block ):
+    length = mrc.UInt32_BE( 0x00 )
+    value = mrc.CStringN( 0x04, length=mrc.Ref( 'length' ) )
+
+    def repr( self ):
+        return value.decode( 'utf-8' )
+
+
+class ScriptConstantString( mrc.Block ):
+    offset = mrc.UInt32_BE( 0x00 )
+    value = mrc.StoreRef( ScriptString, mrc.Ref( '_parent._parent.consts_store' ), offset=mrc.Ref( 'offset' ), size=None )
+
+
+class ScriptConstantUInt32( mrc.Block ):
+    value = mrc.UInt32_BE( 0x00 )
+
+    def repr( self ):
+        return '{}'.format( value )
+
+
+class ScriptFloat( mrc.Block ):
+    length = mrc.UInt32_BE( 0x00 ),
+    data = mrc.Bytes( 0x04, length=mrc.Ref( 'length' ) )
+
+
+class ScriptConstantFloat( mrc.Block ):
+    offset = mrc.UInt32_BE( 0x00 )
+    value = mrc.StoreRef( ScriptFloat, mrc.Ref( '_parent._parent.consts_store' ), offset=mrc.Ref( 'offset' ), size=None )
+
+
+class ScriptConstant( mrc.Block ):
+    SCRIPT_CONSTANT_TYPES = {
+        0x0001: ScriptConstantString,
+        0x0004: ScriptConstantUInt32,
+        0x0009: ScriptConstantFloat
+    }
+
+    const_type = mrc.UInt16_BE( 0x00, enum=ScriptConstantType )
+    const = mrc.BlockField( SCRIPT_CONSTANT_TYPES, 0x02, block_type=mrc.Ref( 'const_type' ) )
+
+
+class ScriptFunction( mrc.Block ):
+    name_index = mrc.UInt16_BE( 0x00 )
+    unk1 = mrc.UInt16_BE( 0x02 )
+    length = mrc.UInt32_BE( 0x04 )
+    offset = mrc.UInt32_BE( 0x08 )
+    arg_count = mrc.UInt16_BE( 0x0c )
+    unk2 = mrc.UInt32_BE( 0x0e )
+    var_count = mrc.UInt16_BE( 0x12 )
+    unk3 = mrc.UInt32_BE( 0x14 )
+    count3 = mrc.UInt16_BE( 0x18 )
+    unk4 = mrc.UInt32_BE( 0x1a )
+    unk5 = mrc.UInt32_BE( 0x1e )
+    unk6 = mrc.UInt16_BE( 0x22 )
+    count4 = mrc.UInt16_BE( 0x24 )
+    unk7 = mrc.UInt32_BE( 0x26 )
+
+
+class ScriptV4( mrc.Block ):
+    functions_offset = mrc.UInt16_BE( 0x40 )
+
+    functions_count = mrc.UInt16_BE( 0x48 )
+    consts_count = mrc.UInt16_BE( 0x4e )
+
+    consts_offset = mrc.UInt16_BE( 0x52 )
+
+    consts_base = mrc.UInt16_BE( 0x5a )
+
+    functions = mrc.BlockField( ScriptFunction, mrc.Ref( 'functions_offset' ), count=mrc.Ref( 'functions_count' ) )
+    consts = mrc.BlockField( ScriptConstant, mrc.Ref( 'consts_offset' ), count=mrc.Ref( 'consts_count' ) )
+    consts_raw = mrc.Bytes( mrc.EndOffset( 'consts' ) )
+
+    @property
+    def consts_store_offset( self ):
+        return self.consts_base-self.get_field_end_offset( 'consts' )
+
+    def __init__( self, *args, **kwargs ):
+        self.consts_store = mrc.Store( self, mrc.Ref( 'consts_raw' ),
+                                        base_offset=mrc.Ref( 'consts_store_offset' ) )
+        super().__init__( *args, **kwargs )
+
+
 class DirectorV4Map( riff.RIFXMap ):
     CHUNK_MAP = {
         riff.Tag( b'mmap' ): MMapV4,
@@ -315,6 +413,8 @@ class DirectorV4Map( riff.RIFXMap ):
         riff.Tag( b'CASt' ): CastV4,
         riff.Tag( b'snd ' ): SoundV4,
         riff.Tag( b'BITD' ): BitmapV4,
+        riff.Tag( b'STXT' ): TextV4,
+        riff.Tag( b'Lscr' ): ScriptV4,
     }
 DirectorV4Map.CHUNK_MAP[riff.Tag( b'RIFX' )] = DirectorV4Map
 

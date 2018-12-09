@@ -5,6 +5,73 @@ import logging
 logger = logging.getLogger( __name__ )
 
 
+class Archive( object ):
+    def __init__( self ):
+        pass
+
+    def close( self ):
+        pass
+
+    def get_meta( self ):
+        pass
+
+    def list_files( self, path=None, recurse=True ):
+        pass
+
+    def list_paths( self, path=None, recurse=True ):
+        pass
+    
+    def get_file_meta( self, path ):
+        pass
+
+    def get_file( self, path ):
+        pass
+
+    def get_path_meta( self, path ):
+        pass
+
+
+class FileSystem( Archive ):
+    def __init__( self, base_path ):
+        self.base_path = os.path.abspath( base_path )
+
+    def _to_internal( self, path ):
+        assert path.startswith( self.base_path )
+        return path[len( self.base_path ):]+os.path.sep
+
+    def _from_internal( self, path ):
+        assert path.startswith( os.path.sep )
+        return self.base_path + path
+
+    def list_paths( self, path=None, recurse=True ):
+        results = []
+        base = self.base_path if path is None else self._from_internal( path )
+
+        if not recurse:
+            _, sub_folders, _ = next( os.walk( base ) )
+            results = [self._to_internal( root ) for root in sub_folders]
+        else:
+            for root, sub_folders, files in os.walk( base ):
+                results.append( self._to_internal( root ) )
+        return results
+
+    def list_files( self, path=None, recurse=True ):
+        results = []
+        base = self.base_path if path is None else self._from_internal( path )
+        if not recurse:
+            _, _, files = next( os.walk( base ) )
+            results = [self._to_internal( f ) for f in files]
+        else:
+            for root, sub_folders, files in os.walk( base ):
+                for f in files:
+                    results.append( self._to_internal( root )+f )
+        return results
+    
+    def get_file( self, path ):
+        # TODO: something nicer involving mmap?
+        return open( self._from_internal( path ), 'rb' ).read()
+
+
 class Loader( object ):
     _SEP = re.escape( os.path.sep )
 
@@ -19,23 +86,22 @@ class Loader( object ):
 
     def load( self, target_path ):
         #target_path = os.path.abspath( target_path )
-        for root, subFolders, files in os.walk( target_path ):
-            for f in files:
-                full_path = os.path.join( root, f )
+        self.fs = FileSystem( target_path )
+        for f in self.fs.list_files():
 
-                for key, regex in self.file_re_map.items():
-                    match = regex.search( full_path )
-                    if match:
-                        self._files[full_path] = {
-                            'klass': self.file_class_map[key],
-                            're': key,
-                            'match': match.groups()
-                        }
-                        if not self.case_sensitive:
-                            self._files[full_path]['match'] = tuple([x.upper() for x in self._files[full_path]['match']])
+            for key, regex in self.file_re_map.items():
+                match = regex.search( f )
+                if match:
+                    self._files[full_path] = {
+                        'klass': self.file_class_map[key],
+                        're': key,
+                        'match': match.groups()
+                    }
+                    if not self.case_sensitive:
+                        self._files[f]['match'] = tuple( [x.upper() for x in self._files[f]['match']] )
 
         if self.unique_matches:
-            unique_check = {k:v for k, v in Counter([x['match'] for x in self._files.values()]).items() if v > 1}
+            unique_check = {k:v for k, v in Counter( [x['match'] for x in self._files.values()] ).items() if v > 1}
             if unique_check:
                 extras = []
                 for name, file in self._files.items():

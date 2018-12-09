@@ -462,7 +462,7 @@ class Stats( object ):
         self.entropy = 0.0
         for count in self.histo:
             if count != 0:
-                cover = count/len( buffer )
+                cover = count/self.samples
                 self.entropy += -cover * math.log2( cover )
 
     def histogram( self, width ):

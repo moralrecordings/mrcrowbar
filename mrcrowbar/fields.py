@@ -157,6 +157,178 @@ class Field( object ):
         pass 
 
 
+class StreamField( Field ):
+    def __init__( self, offset=mrc.Chain(), count=None, length=None, stream=False,
+                    alignment=1, stream_end=None, stop_check=None, **kwargs ):
+        super().__init__( **kwargs )
+        self.offset = offset
+        self.count = count
+        self.length = length
+        self.stream = stream
+        self.alignment = alignment
+        if stream_end is not None:
+            assert utils.is_bytes( stream_end )
+        self.stream_end = stream_end
+        self.stop_check = stop_check
+
+    def get_element_from_buffer( self, offset, buffer, parent=None ):
+        pass
+
+    def get_from_buffer( self, buffer, parent=None ):
+        assert utils.is_bytes( buffer )
+        offset = property_get( self.offset, parent )
+        count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
+        alignment = property_get( self.alignment, parent )
+
+        is_array = stream or (count is not None)
+        count = count if is_array else 1
+        if count is not None:
+            assert count >= 0
+        length = property_get( self.length, parent )
+        if length is not None:
+            buffer = buffer[:offset+length]
+
+        pointer = offset
+        result = []
+        while pointer < len( buffer ):
+            start_offset = pointer
+            # stop if we've hit the maximum number of items
+            if not stream and (len( result ) == count):
+                break
+            # run the stop check (if exists): if it returns true, we've hit the end of the stream
+            if self.stop_check and (self.stop_check( buffer, pointer )):
+                break
+            # stop if we find the end of stream marker
+            if self.stream_end is not None and buffer[pointer:pointer+len( self.stream_end )] == self.stream_end:
+                break
+
+            item, end_offset = self.get_element_from_buffer( pointer, buffer, parent )
+            result.append( item )
+            pointer = end_offset
+
+            # if an alignment is set, do some aligning
+            if alignment is not None:
+                width = (pointer-start_offset) % alignment
+                if width:
+                    pointer += alignment - width
+
+        if not is_array:
+            return result[0]
+        return result
+
+    def update_buffer_with_element( self, offset, item, buffer, parent ):
+        pass
+
+    def update_buffer_with_value( self, value, buffer, parent=None ):
+        super().update_buffer_with_value( value, buffer, parent )
+        offset = property_get( self.offset, parent )
+        count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
+        alignment = property_get( self.alignment, parent )
+
+        is_array = stream or (count is not None)
+        
+        if is_array:
+            try:
+                it = iter( value )
+            except TypeError:
+                raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
+            if not stream:
+                assert len( value ) <= count
+        else:
+            value = [value]
+
+        pointer = offset
+        for item in value:
+            start_offset = pointer
+            end_offset = self.update_buffer_with_element( self, pointer, item, buffer, parent )
+            pointer = end_offset
+
+            if alignment is not None:
+                width = (pointer-start_offset) % alignment
+                if width:
+                    pointer += alignment - width
+
+
+    def update_deps( self, value, parent=None ):
+        count = property_get( self.count, parent )
+        length = property_get( self.length, parent )
+        if count is not None and count != len( value ):
+            property_set( self.count, parent, len( value ) )
+        if length is not None:
+            property_set( self.length, parent, self.get_size( value, parent ) )
+
+    def validate( self, value, parent=None ):
+        offset = property_get( self.offset, parent )
+        count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
+        is_array = stream or (count is not None)
+
+        if is_array:
+            try:
+                it = iter( value )
+            except TypeError:
+                raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
+            if count is not None and (not isinstance( self.count, Ref )) and (len( value ) != count):
+                raise FieldValidationError( 'Count defined as a constant, was expecting {} list entries but got {}!'.format( length, len( value ) ) )
+        else:
+            value = [value]
+
+    def get_element_size_calc( self, element, parent=None ):
+        pass
+
+    def get_start_offset( self, value, parent=None, index=None ):
+        offset = property_get( self.offset, parent )
+        count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
+        alignment = property_get( self.alignment, parent )
+        is_array = stream or (count is not None)
+
+        pointer = offset
+        if index is not None:
+            if not is_array:
+                raise IndexError( 'Can\'t use index for a non-array' )
+            elif index not in range( len( value ) ):
+                raise IndexError( 'Index {} is not within range( 0, {} )'.format( index, len( value ) ) )
+            for item in value[:index]:
+                start_offset = pointer
+                pointer += self.get_element_size_calc( element, parent )
+                # if an alignment is set, do some aligning
+                if alignment is not None:
+                    width = (pointer-start_offset) % alignment
+                    if width:
+                        pointer += alignment - width
+
+        return pointer
+
+    def get_size( self, value, parent=None, index=None ):
+        count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
+        is_array = stream or (count is not None)
+
+        if index is not None:
+            if not is_array:
+                raise IndexError( 'Can\'t use index for a non-array BlockField' )
+            elif index not in range( 0, count ):
+                raise IndexError( 'Index {} is not within range( 0, {} )'.format( index, count ) )
+            value = [value[index]]
+        else:
+            value = value if is_array else [value]
+
+        pointer = self.get_start_offset( value, parent, index )
+        start = pointer
+        for item in value:
+            pointer += get_element_size_calc( item, parent )
+            # if an alignment is set, do some aligning
+            if alignment is not None:
+                width = (pointer-start_offset) % alignment
+                if width:
+                    pointer += alignment - width
+        return pointer - start
+
+
+
 Chunk = collections.namedtuple( 'Chunk', ['id', 'obj'] )
 
 

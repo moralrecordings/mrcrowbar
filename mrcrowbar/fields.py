@@ -217,7 +217,7 @@ class StreamField( Field ):
             return result[0]
         return result
 
-    def update_buffer_with_element( self, offset, item, buffer, parent ):
+    def update_buffer_with_element( self, offset, element, buffer, parent ):
         pass
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
@@ -259,6 +259,9 @@ class StreamField( Field ):
         if length is not None:
             property_set( self.length, parent, self.get_size( value, parent ) )
 
+    def validate_element( self, element, parent=None ):
+        pass
+
     def validate( self, value, parent=None ):
         offset = property_get( self.offset, parent )
         count = property_get( self.count, parent )
@@ -274,6 +277,9 @@ class StreamField( Field ):
                 raise FieldValidationError( 'Count defined as a constant, was expecting {} list entries but got {}!'.format( length, len( value ) ) )
         else:
             value = [value]
+
+        for item in value:
+            self.validate_element( element, parent=None )
 
     def get_element_size_calc( self, element, parent=None ):
         pass

@@ -172,3 +172,16 @@ class EndOffset( Ref ):
     def set( self, instance, value ):
         raise AttributeError( "can't change the end offset of another field" )
 
+
+class Chain( Ref ):
+    def __init__( self ):
+        super().__init__( '_previous_attr' )
+
+    def get( self, instance ):
+        field_name = property_get( self.path, instance )
+        if field_name is None:
+            return 0
+        return instance.get_field_end_offset( self.path )
+
+    def set( self, instance, value ):
+        raise AttributeError( "can't change the end offset of another field" )

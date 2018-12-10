@@ -90,6 +90,7 @@ class BlockMeta( type ):
                 checks.update( base._checks )
 
         # Parse this class's attributes into meta structures
+        previous = None
         for key, value in attrs.items():
             if isinstance( value, Field ):
                 fields[key] = value
@@ -97,6 +98,8 @@ class BlockMeta( type ):
                 refs[key] = value
             elif isinstance( value, Check ):
                 checks[key] = value
+            value._previous_attr = previous
+            previous = key
 
         # Convert list of types into fields for new klass
         fields = OrderedDict( sorted( fields.items(), key=lambda i: i[1]._position_hint ) )

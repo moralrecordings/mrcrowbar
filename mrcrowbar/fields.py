@@ -6,7 +6,7 @@ import math
 import logging
 logger = logging.getLogger( __name__ )
 
-from mrcrowbar.refs import Ref, property_get, property_set
+from mrcrowbar.refs import Ref, Chain, property_get, property_set
 from mrcrowbar import utils, encoding
 
 _next_position_hint = itertools.count()
@@ -141,6 +141,7 @@ class Field( object ):
             Parent block object where this Field is defined. Used for e.g.
             evaluating Refs.
         """
+        return
 
     def validate( self, value, parent=None ):
         """Validate that a correctly-typed Python object meets the constraints for the field.
@@ -158,9 +159,38 @@ class Field( object ):
 
 
 class StreamField( Field ):
-    def __init__( self, offset=mrc.Chain(), count=None, length=None, stream=False,
+    def __init__( self, offset=Chain(), default=None, count=None, length=None, stream=False,
                     alignment=1, stream_end=None, stop_check=None, **kwargs ):
-        super().__init__( **kwargs )
+        """Base class for accessing one or more streamable elements.
+
+        offset
+            Position of data, relative to the start of the parent block. Defaults to
+            the end offset of the previous field.
+
+        default
+            Default value to emit in the case of e.g. creating an empty Block.
+
+        count
+            Load multiple elements. None implies a single value, non-negative
+            numbers will return a Python list.
+
+        length
+            Maximum size of the buffer to read in.
+
+        stream
+            Read elements continuously until a stop condition is met.
+
+        alignment
+            Number of bytes to align the start of each element to.
+
+        stream_end
+            Byte pattern to denote the end of the stream.
+
+        stop_check
+            A function that takes a data buffer and an offset; should return True if
+            the end of the data stream has been reached and False otherwise.
+        """
+        super().__init__( default=default, **kwargs )
         self.offset = offset
         self.count = count
         self.length = length
@@ -176,7 +206,7 @@ class StreamField( Field ):
 
     def get_from_buffer( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         alignment = property_get( self.alignment, parent )
@@ -203,8 +233,8 @@ class StreamField( Field ):
             if self.stream_end is not None and buffer[pointer:pointer+len( self.stream_end )] == self.stream_end:
                 break
 
-            item, end_offset = self.get_element_from_buffer( pointer, buffer, parent )
-            result.append( item )
+            element, end_offset = self.get_element_from_buffer( pointer, buffer, parent )
+            result.append( element )
             pointer = end_offset
 
             # if an alignment is set, do some aligning
@@ -217,12 +247,12 @@ class StreamField( Field ):
             return result[0]
         return result
 
-    def update_buffer_with_element( self, offset, element, buffer, parent ):
+    def update_buffer_with_element( self, offset, element, buffer, parent=None ):
         pass
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
         super().update_buffer_with_value( value, buffer, parent )
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         alignment = property_get( self.alignment, parent )
@@ -240,9 +270,9 @@ class StreamField( Field ):
             value = [value]
 
         pointer = offset
-        for item in value:
+        for element in value:
             start_offset = pointer
-            end_offset = self.update_buffer_with_element( self, pointer, item, buffer, parent )
+            end_offset = self.update_buffer_with_element( pointer, element, buffer, parent )
             pointer = end_offset
 
             if alignment is not None:
@@ -263,7 +293,7 @@ class StreamField( Field ):
         pass
 
     def validate( self, value, parent=None ):
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         is_array = stream or (count is not None)
@@ -278,14 +308,14 @@ class StreamField( Field ):
         else:
             value = [value]
 
-        for item in value:
+        for element in value:
             self.validate_element( element, parent=None )
 
-    def get_element_size_calc( self, element, parent=None ):
+    def get_element_size( self, element, parent=None ):
         pass
 
     def get_start_offset( self, value, parent=None, index=None ):
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         alignment = property_get( self.alignment, parent )
@@ -297,9 +327,9 @@ class StreamField( Field ):
                 raise IndexError( 'Can\'t use index for a non-array' )
             elif index not in range( len( value ) ):
                 raise IndexError( 'Index {} is not within range( 0, {} )'.format( index, len( value ) ) )
-            for item in value[:index]:
+            for element in value[:index]:
                 start_offset = pointer
-                pointer += self.get_element_size_calc( element, parent )
+                pointer += self.get_element_size( element, parent )
                 # if an alignment is set, do some aligning
                 if alignment is not None:
                     width = (pointer-start_offset) % alignment
@@ -311,6 +341,7 @@ class StreamField( Field ):
     def get_size( self, value, parent=None, index=None ):
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
+        alignment = property_get( self.alignment, parent )
         is_array = stream or (count is not None)
 
         if index is not None:
@@ -324,13 +355,15 @@ class StreamField( Field ):
 
         pointer = self.get_start_offset( value, parent, index )
         start = pointer
-        for item in value:
-            pointer += get_element_size_calc( item, parent )
+        for element in value:
+            start_offset = pointer
+            pointer += self.get_element_size( element, parent )
             # if an alignment is set, do some aligning
             if alignment is not None:
                 width = (pointer-start_offset) % alignment
                 if width:
                     pointer += alignment - width
+
         return pointer - start
 
 
@@ -987,8 +1020,8 @@ class CStringNStream( Field ):
         return size
 
 
-class NumberField( Field ):
-    def __init__( self, format_type, field_size, signedness, endian, format_range, offset, default=0, count=None, bitmask=None, range=None, enum=None, **kwargs ):
+class NumberField( StreamField ):
+    def __init__( self, format_type, field_size, signedness, endian, format_range, offset=Chain(), default=0, count=None, length=None, stream=False, alignment=1, stream_end=None, stop_check=None, bitmask=None, range=None, enum=None, **kwargs ):
         """Base class for numeric value Fields.
 
         format_type
@@ -1007,14 +1040,31 @@ class NumberField( Field ):
             Numeric bounds of format. Used for validation. (Usually defined by child class)
 
         offset
-            Position of data, relative to the start of the parent block.
+            Position of data, relative to the start of the parent block. Defaults to
+            the end offset of the previous field.
 
         default
-            Default value of field. Used for creating an empty block.
+            Default value to emit in the case of e.g. creating an empty Block.
 
         count
-            Interpret data as an array of this size. None implies a single value, non-negative
+            Load multiple numbers. None implies a single value, non-negative
             numbers will return a Python list.
+
+        length
+            Maximum size of the buffer to read in.
+
+        stream
+            Read elements continuously until a stop condition is met.
+
+        alignment
+            Number of bytes to align the start of each element to.
+
+        stream_end
+            Byte pattern to denote the end of the stream.
+
+        stop_check
+            A function that takes a data buffer and an offset; should return True if
+            the end of the data stream has been reached and False otherwise.
 
         bitmask
             Apply AND mask (bytes) to data before reading/writing. Used for demultiplexing
@@ -1026,123 +1076,96 @@ class NumberField( Field ):
         enum
             Restrict allowed values to those provided by a Python enum type. Used for validation.
         """
-        super().__init__( default=default, **kwargs )
+        super().__init__( offset=offset, default=default, count=count, length=length,
+                          stream=stream, alignment=alignment, stream_end=stream_end,
+                          stop_check=stop_check, **kwargs )
         self.format_type = format_type
         self.field_size = field_size
         self.signedness = signedness
         self.endian = endian
         self.format_range = format_range
-        self.offset = offset
         if bitmask:
             assert utils.is_bytes( bitmask )
             assert len( bitmask ) == field_size
-        self.count = count
         self.bitmask = bitmask
         self.range = range
         self.enum = enum
 
-    def get_from_buffer( self, buffer, parent=None ):
-        assert utils.is_bytes( buffer )
-        offset = property_get( self.offset, parent )
-        count = property_get( self.count, parent )
+    def get_element_from_buffer( self, offset, buffer, parent=None ):
+        format_type = property_get( self.format_type, parent )
+        field_size = property_get( self.field_size, parent )
+        signedness = property_get( self.signedness, parent )
         endian = property_get( self.endian, parent )
-        is_array = count is not None
-        count = count if is_array else 1
-        assert count >= 0
 
-        result = []
-        for i in range( count ):
-            start = offset+self.field_size*i
-            data = buffer[start:start+self.field_size]
-            assert len( data ) == self.field_size
-            if self.bitmask:
-                # if a bitmask is defined, AND with it first
-                data = (int.from_bytes( data, byteorder='big' ) & 
-                        int.from_bytes( self.bitmask, byteorder='big' )
-                        ).to_bytes( self.field_size, byteorder='big' )
+        data = buffer[offset:offset+self.field_size]
+        assert len( data ) == self.field_size
+        if self.bitmask:
+            # if a bitmask is defined, AND with it first
+            data = (int.from_bytes( data, byteorder='big' ) &
+                    int.from_bytes( self.bitmask, byteorder='big' )
+                    ).to_bytes( self.field_size, byteorder='big' )
 
-            # convert bytes to Python type
-            value = encoding.unpack( (self.format_type, self.field_size, self.signedness, endian), data )
-            # friendly warnings if the imported data fails the range check
-            if self.range and (value not in self.range):
-                logger.warning( '{}: value {} outside of range {}'.format( self, value, self.range ) )
+        # convert bytes to Python type
+        element = encoding.unpack( (format_type, field_size, signedness, endian), data )
+        # friendly warnings if the imported data fails the range check
+        if self.range and (element not in self.range):
+            logger.warning( '{}: value {} outside of range {}'.format( self, element, self.range ) )
 
-            # friendly warning if the imported data fails the enum check
-            if self.enum:
-                if (value not in [x.value for x in self.enum]):
-                    logger.warning( '{}: value {} not castable to {}'.format( self, value, self.enum ) )
-                else:
-                    # cast to enum because why not
-                    value = self.enum( value )
-
-            result.append( value )
-
-        if not is_array:
-            return result[0]
-        return result
-
-    def update_buffer_with_value( self, value, buffer, parent=None ):
-        super().update_buffer_with_value( value, buffer, parent )
-        offset = property_get( self.offset, parent )
-        count = property_get( self.count, parent )
-        endian = property_get( self.endian, parent )
-        is_array = count is not None
-        count = count if is_array else 1
-        assert count >= 0
-
-        if not is_array:
-            value = [value]
-
-        if (len( buffer ) < offset+self.field_size*count):
-            buffer.extend( b'\x00'*(offset+self.field_size*count-len( buffer )) )
-        for j in range( count ):
-            start = offset+self.field_size*j
-            item = value[j]
-            # cast via enum if required
-            if self.enum:
-                item = self.enum( item ).value
-            data = encoding.pack( (self.format_type, self.field_size, self.signedness, endian), item )
-            
-            # force check for no data loss in the value from bitmask
-            if self.bitmask:
-                assert (int.from_bytes( data, byteorder='big' ) & 
-                        int.from_bytes( self.bitmask, byteorder='big' ) ==
-                        int.from_bytes( data, byteorder='big' ))
-            
-                for i in range( self.field_size ):
-                    # set bitmasked areas of target to 0
-                    buffer[start+i] &= (self.bitmask[i] ^ 0xff)
-                    # OR target with replacement bitmasked portion
-                    buffer[start+i] |= (data[i] & self.bitmask[i])
+        # friendly warning if the imported data fails the enum check
+        if self.enum:
+            if (element not in [x.value for x in self.enum]):
+                logger.warning( '{}: value {} not castable to {}'.format( self, element, self.enum ) )
             else:
-                for i in range( self.field_size ):
-                    buffer[start+i] = data[i]
-        return
+                # cast to enum because why not
+                element = self.enum( element )
+
+        return element, offset+self.field_size
+
+    def update_buffer_with_element( self, offset, element, buffer, parent=None ):
+        field_size = property_get( self.field_size, parent )
+        format_type = property_get( self.format_type, parent )
+        field_size = property_get( self.field_size, parent )
+        signedness = property_get( self.signedness, parent )
+        endian = property_get( self.endian, parent )
+
+        data = encoding.pack( (format_type, field_size, signedness, endian), element )
+        # force check for no data loss in the value from bitmask
+        if self.bitmask:
+            assert (int.from_bytes( data, byteorder='big' ) &
+                    int.from_bytes( self.bitmask, byteorder='big' ) ==
+                    int.from_bytes( data, byteorder='big' ))
+
+            for i in range( field_size ):
+                # set bitmasked areas of target to 0
+                buffer[offset+i] &= (self.bitmask[i] ^ 0xff)
+                # OR target with replacement bitmasked portion
+                buffer[offset+i] |= (data[i] & self.bitmask[i])
+        else:
+            for i in range( field_size ):
+                buffer[offset+i] = data[i]
+        return offset+field_size
 
     def update_deps( self, value, parent=None ):
         count = property_get( self.count, parent )
         if count is not None and count != len( value ):
             property_set( self.count, parent, len( value ) )
 
-    def validate( self, value, parent=None ):
-        count = property_get( self.count, parent )
-        is_array = count is not None
-        count = count if is_array else 1
-        if not is_array:
-            value = [value]
-
-        for i in range( len( value ) ):
-            if self.enum:
-                if (value[i] not in [x.value for x in self.enum]):
-                    raise FieldValidationError( 'Value {} not castable to {}'.format( value, self.enum ) )
-                value[i] = self.enum( value[i] ).value
-            if (type( value[i] ) != self.format_type):
-                raise FieldValidationError( 'Expecting type {}, not {}'.format( self.format_type, type( value[i] ) ) )
-            if self.format_range and (value[i] not in self.format_range):
-                raise FieldValidationError( 'Value {} not in format range ({})'.format( value[i], self.format_range ) )
-            if self.range and (value[i] not in self.range):
-                raise FieldValidationError( 'Value {} not in range ({})'.format( value[i], self.range ) )
+    def validate_element( self, element, parent=None ):
+        if self.enum:
+            if (element not in [x.value for x in self.enum]):
+                raise FieldValidationError( 'Value {} not castable to {}'.format( element, self.enum ) )
+            element = self.enum( element ).value
+        if (type( element ) != self.format_type):
+            raise FieldValidationError( 'Expecting type {}, not {}'.format( self.format_type, type( element ) ) )
+        if self.format_range and (element not in self.format_range):
+            raise FieldValidationError( 'Value {} not in format range ({})'.format( element, self.format_range ) )
+        if self.range and (element not in self.range):
+            raise FieldValidationError( 'Value {} not in range ({})'.format( element, self.range ) )
         return
+
+    def get_element_size( self, element, parent=None ):
+        field_size = property_get( self.field_size, parent )
+        return field_size
 
     @property
     def repr( self ):
@@ -1155,17 +1178,6 @@ class NumberField( Field ):
             details += ', bitmask={}'.format( self.bitmask )
         return details
 
-    def get_start_offset( self, value, parent=None, index=None ):
-        assert index is None
-        offset = property_get( self.offset, parent )
-        return offset
-
-    def get_size( self, value, parent=None, index=None ):
-        assert index is None
-        count = property_get( self.count, parent )
-        if count:
-            return self.field_size*count
-        return self.field_size
 
 
 class Int8( NumberField ):

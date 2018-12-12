@@ -37,11 +37,11 @@ class FileSystem( Archive ):
 
     def _to_internal( self, path ):
         assert path.startswith( self.base_path )
-        return path[len( self.base_path ):]+os.path.sep
+        return '.'+path[len( self.base_path ):]+os.path.sep
 
     def _from_internal( self, path ):
-        assert path.startswith( os.path.sep )
-        return self.base_path + path
+        assert path.startswith( '.'+os.path.sep )
+        return self.base_path + path[1:]
 
     def list_paths( self, path=None, recurse=True ):
         results = []
@@ -69,7 +69,7 @@ class FileSystem( Archive ):
     
     def get_file( self, path ):
         # TODO: something nicer involving mmap?
-        return open( self._from_internal( path ), 'rb' ).read()
+        return open( self._from_internal( path ), 'r+b' )
 
 
 class Loader( object ):
@@ -92,7 +92,7 @@ class Loader( object ):
             for key, regex in self.file_re_map.items():
                 match = regex.search( f )
                 if match:
-                    self._files[full_path] = {
+                    self._files[f] = {
                         'klass': self.file_class_map[key],
                         're': key,
                         'match': match.groups()
@@ -184,7 +184,7 @@ class Loader( object ):
         logger.info( '{}: loading files'.format( self ) )
         for path in load_order:
             info = self._files[path]
-            with open( path, 'r+b' ) as f:
+            with self.fs.get_file( path ) as f:
                 data = mmap( f.fileno(), 0 )
                 logger.info( '{} => {}'.format( path, info['klass'] ) )
 

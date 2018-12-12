@@ -27,7 +27,7 @@ class Ref( object ):
         Called by the parent Block constructor."""
         pass
 
-    def get( self, instance ):
+    def get( self, instance, **kwargs ):
         """Return an attribute from an object using the Ref path.
 
         instance
@@ -38,7 +38,7 @@ class Ref( object ):
             target = getattr( target, attr )
         return target
 
-    def set( self, instance, value ):
+    def set( self, instance, value, **kwargs ):
         """Set an attribute on an object using the Ref path.
 
         instance
@@ -83,7 +83,7 @@ class ConstRef( Ref ):
         super().__init__( path, allow_write=False )
 
 
-def property_get( prop, instance ):
+def property_get( prop, instance, **kwargs ):
     """Wrapper for property reads which auto-dereferences Refs if required.
 
     prop
@@ -93,11 +93,11 @@ def property_get( prop, instance ):
         The context object used to dereference the Ref.
     """
     if isinstance( prop, Ref ):
-        return prop.get( instance )
+        return prop.get( instance, **kwargs )
     return prop
 
 
-def property_set( prop, instance, value ):
+def property_set( prop, instance, value, **kwargs ):
     """Wrapper for property writes which auto-deferences Refs.
 
     prop
@@ -113,7 +113,7 @@ def property_set( prop, instance, value ):
     """
 
     if isinstance( prop, Ref ):
-        return prop.set( instance, value )
+        return prop.set( instance, value, **kwargs )
     raise AttributeError( "can't change value of constant {} (context: {})".format( prop, instance ) )
 
 
@@ -177,11 +177,13 @@ class Chain( Ref ):
     def __init__( self ):
         super().__init__( '_previous_attr' )
 
-    def get( self, instance ):
-        field_name = property_get( self.path, instance )
+    def get( self, instance, caller=None, **kwargs ):
+        if caller is None:
+            return 0
+        field_name = getattr( caller, self.path[0] )
         if field_name is None:
             return 0
-        return instance.get_field_end_offset( self.path )
+        return instance.get_field_end_offset( field_name )
 
-    def set( self, instance, value ):
+    def set( self, instance, value, **kwargs ):
         raise AttributeError( "can't change the end offset of another field" )

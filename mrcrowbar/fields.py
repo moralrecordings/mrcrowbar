@@ -37,7 +37,6 @@ class Field( object ):
 
     repr = None
 
-
     def get_from_buffer( self, buffer, parent=None ):
         """Create a Python object from a byte string, using the field definition.
 
@@ -1169,7 +1168,7 @@ class NumberField( StreamField ):
 
     @property
     def repr( self ):
-        details = 'offset={}'.format( hex( self.offset ) )
+        details = 'offset={}'.format( hex( self.offset ) if type( self.offset ) == int else self.offset )
         if self.default:
             details += ', default={}'.format( self.default )
         if self.range:
@@ -1177,7 +1176,6 @@ class NumberField( StreamField ):
         if self.bitmask:
             details += ', bitmask={}'.format( self.bitmask )
         return details
-
 
 
 class Int8( NumberField ):
@@ -1191,7 +1189,7 @@ class UInt8( NumberField ):
 
 
 class Bits( NumberField ):
-    def __init__( self, offset, bits, default=0, size=1, enum=None, endian=None, *args, **kwargs ):
+    def __init__( self, offset=Chain(), bits=0, default=0, size=1, enum=None, endian=None, *args, **kwargs ):
         SIZES = {
             1: (int, 1, 'unsigned', None if endian is None else endian, range( 0, 1<<8 )),
             2: (int, 2, 'unsigned', 'big' if endian is None else endian, range( 0, 1<<16 )),
@@ -1206,48 +1204,70 @@ class Bits( NumberField ):
         self.mask_bits = bin( bits ).split( 'b', 1 )[1]
         self.bits = [(1<<i) for i, x in enumerate( reversed( self.mask_bits ) ) if x == '1']
         self.check_range = range( 0, 1<<len( self.bits ) )
+
+        # because we reinterpret the value of the element, we need a seperate enum evaluation
+        # compared to the base class
         self.enum_t = enum
         bitmask = encoding.pack( SIZES[size][:4], bits )
         super().__init__( *SIZES[size], offset, default=default, bitmask=bitmask, *args, **kwargs )
 
-    def get_from_buffer( self, buffer, parent=None ):
-        result = super().get_from_buffer( buffer, parent )
-        value = 0
+    def get_element_from_buffer( self, offset, buffer, parent=None ):
+        result, end_offset = super().get_element_from_buffer( offset, buffer, parent )
+        element = 0
         for i, x in enumerate( self.bits ):
-            value += (1 << i) if (result & x) else 0
+            element += (1 << i) if (result & x) else 0
         if self.enum_t:
-            if (value not in [x.value for x in self.enum_t]):
-                logger.warning( '{}: value {} not castable to {}'.format( self, value, self.enum_t ) )
+            if (element not in [x.value for x in self.enum_t]):
+                logger.warning( '{}: value {} not castable to {}'.format( self, element, self.enum_t ) )
             else:
                 # cast to enum because why not
-                value = self.enum_t( value )
-        return value
+                element = self.enum_t( element )
+        return element, end_offset
 
-    def update_buffer_with_value( self, value, buffer, parent=None ):
-        assert value in self.check_range
+    def update_buffer_with_element( self, offset, element, buffer, parent=None ):
+        assert element in self.check_range
         if self.enum_t:
-            value = self.enum_t( value ).value
+            element = self.enum_t( element ).value
         packed = 0
         for i, x in enumerate( self.bits ):
-            if (value & (1 << i)):
+            if (element & (1 << i)):
                 packed |= x
 
-        super().update_buffer_with_value( packed, buffer, parent )
-        return
+        return super().update_buffer_with_element( offset, packed, buffer, parent )
 
-    def validate( self, value, parent=None ):
+    def validate_element( self, value, parent=None ):
         if self.enum_t:
             if (value not in [x.value for x in self.enum_t]):
                 raise FieldValidationError( 'Value {} not castable to {}'.format( value, self.enum_t ) )
             value = self.enum_t( value ).value
-        super().validate( value, parent )
+        super().validate_element( value, parent )
 
     @property
     def repr( self ):
-        details = 'offset={}, bits=0b{}'.format( hex( self.offset ), self.mask_bits )
+        details = 'offset={}, bits=0b{}'.format( hex( self.offset ) if type( self.offset ) == int else self.offset, self.mask_bits )
         if self.default:
             details += ', default={}'.format( self.default )
-        details
+        return details
+
+
+class Bits8( Bits ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, size=1, **kwargs )
+
+
+class Bits16( Bits ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, size=2, **kwargs )
+
+
+class Bits32( Bits ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, size=4, **kwargs )
+
+
+class Bits64( Bits ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, size=8, **kwargs )
 
 
 class Int16_LE( NumberField ):

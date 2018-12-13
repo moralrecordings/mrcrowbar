@@ -187,3 +187,6 @@ class Chain( Ref ):
 
     def set( self, instance, value, **kwargs ):
         raise AttributeError( "can't change the end offset of another field" )
+
+    def __repr__( self ):
+        return '<Chain>'

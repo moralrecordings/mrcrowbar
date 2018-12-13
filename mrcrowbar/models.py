@@ -6,7 +6,8 @@ from mrcrowbar.refs import Ref, ConstRef, property_get, property_set, \
 from mrcrowbar.fields import ParseError, FieldValidationError, Field, \
                             ChunkField, BlockField, Bytes, \
                             CString, CStringN, CStringNStream, NumberField, \
-                            Int8, UInt8, Bits, \
+                            Int8, UInt8, Bits, Bits8, Bits16, \
+                            Bits32, Bits64, \
                             Int16_LE, Int32_LE, Int64_LE, \
                             UInt16_LE, UInt32_LE, UInt64_LE, \
                             Float32_LE, Float64_LE, \

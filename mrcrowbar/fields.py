@@ -177,7 +177,7 @@ class StreamField( Field ):
             Maximum size of the buffer to read in.
 
         stream
-            Read elements continuously until a stop condition is met.
+            Read elements continuously until a stop condition is met. Defaults to False.
 
         alignment
             Number of bytes to align the start of each element to.
@@ -370,47 +370,63 @@ class StreamField( Field ):
 Chunk = collections.namedtuple( 'Chunk', ['id', 'obj'] )
 
 
-class ChunkField( Field ):
-    """Field for inserting a tokenised Block stream into the parent class.
+class ChunkField( StreamField ):
+    def __init__( self, chunk_map, offset=Chain(), count=None, length=None, stream=True,
+                    alignment=1, stream_end=None, stop_check=None, default_klass=None,
+                    chunk_id_size=None, chunk_id_field=None, chunk_length_field=None, **kwargs ):
+        """Field for inserting a tokenised Block stream into the parent class.
     
-    chunk_map
-        A dict mapping between the chunk 
+        chunk_map
+            A dict mapping between the chunk ID and the Block class to interpret the payload as.
 
-    offset
-        Position of data, relative to the start of the parent block. Defaults to
-        the end offset of the previous field.
+        offset
+            Position of data, relative to the start of the parent block. Defaults to
+            the end offset of the previous field.
 
-    length
-        Maximum size of the buffer to read in.
+        count
+            Load multiple chunks. None implies a single value, non-negative
+            numbers will return a Python list.
 
-    default_klass
-        Fallback Block class to use if there's no match with the chunk_map mapping.
+        length
+            Maximum size of the buffer to read in.
 
-    chunk_id_size
-        Size in bytes of the Chunk ID.
+        stream
+            Read elements continuously until a stop condition is met. Defaults to True.
 
-    chunk_id_field
-        Field class used to parse Chunk ID. Defaults to Bytes.
+        alignment
+            Number of bytes to align the start of each Chunk to.
 
-    chunk_length_field
-        Field class used to parse the Chunk data length. For use when a Chunk consists of an ID followed by the size of the data.
-       
-    alignment
-        Number of bytes to align the start of each Chunk to.
-    """
-    def __init__( self, chunk_map, offset=Chain(), length=None, default_klass=None, chunk_id_size=None, chunk_id_field=None, chunk_length_field=None, alignment=1, **kwargs ):
-        super().__init__( **kwargs )
-        self.offset = offset
+        stream_end
+            Byte pattern to denote the end of the stream.
+
+        stop_check
+            A function that takes a data buffer and an offset; should return True if
+            the end of the data stream has been reached and False otherwise.
+
+        default_klass
+            Fallback Block class to use if there's no match with the chunk_map mapping.
+
+        chunk_id_size
+            Size in bytes of the Chunk ID.
+
+        chunk_id_field
+            Field class used to parse Chunk ID. Defaults to Bytes.
+
+        chunk_length_field
+            Field class used to parse the Chunk data length. For use when a Chunk consists of an ID followed by the size of the data.
+        """
+
+        super().__init__( offset=offset, default=default, count=count, length=length,
+                          stream=stream, alignment=alignment, stream_end=stream_end,
+                          stop_check=stop_check, **kwargs )
         self.chunk_map = chunk_map
-        self.length = length
-        self.alignment = alignment
         if chunk_length_field:
             assert issubclass( chunk_length_field, NumberField )
             self.chunk_length_field = chunk_length_field( 0x00 )
         else:
             self.chunk_length_field = None
         if chunk_id_field:
-            assert issubclass( chunk_id_field, NumberField )
+            assert issubclass( chunk_id_field, (NumberField) )
             self.chunk_id_field = chunk_id_field( 0x00 )
         else:
             self.chunk_id_field = None
@@ -418,58 +434,44 @@ class ChunkField( Field ):
         
         self.chunk_id_size = chunk_id_size
         
-    def get_from_buffer( self, buffer, parent=None ):
-        assert utils.is_bytes( buffer )
+    def get_element_from_buffer( self, offset, buffer, parent=None ):
         chunk_map = property_get( self.chunk_map, parent )
-        offset = property_get( self.offset, parent, caller=self )
-        length = property_get( self.length, parent )
-        data = buffer[offset:]
-        if length:
-            data = data[:length]
             
-        result = []
-        pointer = 0
-        while pointer < len( data ):
-            start_offset = pointer
-            chunk_id = None
-            if self.chunk_id_field:
-                chunk_id = self.chunk_id_field.get_from_buffer( data[pointer:], parent=parent )
-                pointer += self.chunk_id_field.field_size
-            elif self.chunk_id_size:
-                chunk_id = data[pointer:pointer+self.chunk_id_size]
-                pointer += len( chunk_id )
-            else:
-                for test_id in chunk_map:
-                    if data[pointer:].startswith( test_id ):
-                        chunk_id = test_id
-                        break
-                if not chunk_id:
-                    raise ParseError( 'Could not find matching chunk at offset {}'.format( pointer ) )
-                pointer += len( chunk_id )
+        pointer = offset
+        chunk_id = None
+        if self.chunk_id_field:
+            chunk_id = self.chunk_id_field.get_from_buffer( data[pointer:], parent=parent )
+            pointer += self.chunk_id_field.field_size
+        elif self.chunk_id_size:
+            chunk_id = data[pointer:pointer+self.chunk_id_size]
+            pointer += len( chunk_id )
+        else:
+            for test_id in chunk_map:
+                if data[pointer:].startswith( test_id ):
+                    chunk_id = test_id
+                    break
+            if not chunk_id:
+                raise ParseError( 'Could not find matching chunk at offset {}'.format( pointer ) )
+            pointer += len( chunk_id )
 
-            if chunk_id in chunk_map:
-                chunk_klass = chunk_map[chunk_id]
-            elif self.default_klass:
-                chunk_klass = self.default_klass
-            else:
-                raise ParseError( 'No chunk class match for ID {}'.format( chunk_id ) )
+        if chunk_id in chunk_map:
+            chunk_klass = chunk_map[chunk_id]
+        elif self.default_klass:
+            chunk_klass = self.default_klass
+        else:
+            raise ParseError( 'No chunk class match for ID {}'.format( chunk_id ) )
 
-            if self.chunk_length_field:
-                size = self.chunk_length_field.get_from_buffer( data[pointer:], parent=parent )
-                pointer += self.chunk_length_field.field_size
-                chunk = chunk_klass( data[pointer:pointer+size], parent=parent )
-                result.append( Chunk( id=chunk_id, obj=chunk ) )
-                pointer += size
-            else:
-                chunk = chunk_klass( data[pointer:], parent=parent )
-                result.append( Chunk( id=chunk_id, obj=chunk ) )
-                pointer += chunk.get_size()
-            if self.alignment:
-                width = (pointer-start_offset) % self.alignment
-                if width:
-                    pointer += self.alignment - width
+        if self.chunk_length_field:
+            size = self.chunk_length_field.get_from_buffer( data[pointer:], parent=parent )
+            pointer += self.chunk_length_field.field_size
+            chunk = chunk_klass( data[pointer:pointer+size], parent=parent )
+            pointer += size
+        else:
+            chunk = chunk_klass( data[pointer:], parent=parent )
+            pointer += chunk.get_size()
+        result = Chunk( id=chunk_id, obj=chunk )
 
-        return result
+        return result, pointer
     
     def update_buffer_with_value( self, value, buffer, parent=None ):
         super().update_buffer_with_value( value, buffer, parent )
@@ -561,23 +563,16 @@ class BlockField( StreamField ):
             the end of the data stream has been reached and False otherwise.
 
         """
-        super().__init__( **kwargs )
+        super().__init__( offset=offset, default=None, count=count, length=length,
+                          stream=stream, alignment=alignment, stream_end=stream_end,
+                          stop_check=stop_check, **kwargs )
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
         self.block_type = block_type
         # TODO: support different args if using a switch
-        self.offset = offset
-        self.count = count
         self.fill = fill
         self.default_klass = default_klass
-        self.length = length
-        self.stream = stream
-        self.alignment = alignment
         self.transform = transform
-        if stream_end is not None:
-            assert utils.is_bytes( stream_end )
-        self.stream_end = stream_end
-        self.stop_check = stop_check
 
     def get_element_from_buffer( self, offset, buffer, parent=None ):
         count = property_get( self.count, parent )
@@ -630,59 +625,23 @@ class BlockField( StreamField ):
         if count is not None and count != len( value ):
             property_set( self.count, parent, len( value ) )
 
-    def validate( self, value, parent=None ):
-        offset = property_get( self.offset, parent, caller=self )
-        count = property_get( self.count, parent )
-        stream = property_get( self.stream, parent )
+    def validate_element( self, element, parent=None ):
         klass = self.get_klass( parent )
-        is_array = stream or (count is not None)
+        if (element is not None) and (not isinstance( element, klass )):
+             raise FieldValidationError( 'Expecting block class {}, not {}'.format( klass, type( element ) ) )
 
-        if is_array:
-            try:
-                it = iter( value )
-            except TypeError:
-                raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
-            if count is not None and (not isinstance( self.count, Ref )) and (len( value ) != count):
-                raise FieldValidationError( 'Count defined as a constant, was expecting {} list entries but got {}!'.format( length, len( value ) ) )
+    def get_element_size( self, element, parent=None ):
+        fill = property_get( self.fill, parent )
+        if self.transform:
+            data = self.transform.export_data( element.export_data(), parent=parent ).payload
+            return len( data )
+        elif element is None:
+            if fill:
+                return len( fill )
+            else:
+                raise ParseError( 'A fill pattern needs to be specified to use None as a list entry' )
         else:
-            value = [value]
-        for b in value:
-            if (b is not None) and (not isinstance( b, klass )):
-                 raise FieldValidationError( 'Expecting block class {}, not {}'.format( klass, type( b ) ) )
-
-    def get_start_offset( self, value, parent=None, index=None ):
-        offset = property_get( self.offset, parent, caller=self )
-        count = property_get( self.count, parent )
-        stream = property_get( self.stream, parent )
-        is_array = stream or (count is not None)
-
-        if index is not None:
-            if not is_array:
-                raise IndexError( 'Can\'t use index for a non-array BlockField' )
-            elif index not in range( 0, count ):
-                raise IndexError( 'Index {} is not within range( 0, {} )'.format( index, count ) )
-            offset += self._size_calc( value[:index] )
-
-        return offset
-
-    def get_size( self, value, parent=None, index=None ):
-        count = property_get( self.count, parent )
-        stream = property_get( self.stream, parent )
-        is_array = stream or (count is not None)
-
-        if index is not None:
-            if not is_array:
-                raise IndexError( 'Can\'t use index for a non-array BlockField' )
-            elif index not in range( 0, count ):
-                raise IndexError( 'Index {} is not within range( 0, {} )'.format( index, count ) )
-            value = [value[index]]
-        else:
-            value = value if is_array else [value]
-
-        size = self._size_calc( value, parent )
-        if index is None and self.stream_end is not None:
-            size += len( self.stream_end )
-        return size
+            return element.get_size()
 
     def get_klass( self, parent=None ):
         block_klass = property_get( self.block_klass, parent )
@@ -695,23 +654,6 @@ class BlockField( StreamField ):
             else:
                 raise ParseError( 'No block klass match for type {}'.format( block_type ) )
         return block_klass
-
-    def _size_calc( self, value, parent=None ):
-        fill = property_get( self.fill, parent )
-
-        size = 0
-        for b in value:
-            if self.transform:
-                data = self.transform.export_data( b.export_data(), parent=parent ).payload
-                size += len( data )
-            elif b is None:
-                if fill:
-                    size += len( fill )
-                else:
-                    raise ParseError( 'A fill pattern needs to be specified to use None as a list entry' )
-            else:
-                size += b.get_size()
-        return size
 
 
 class Bytes( Field ):

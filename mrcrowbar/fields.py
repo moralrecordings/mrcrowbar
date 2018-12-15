@@ -377,7 +377,8 @@ class ChunkField( Field ):
         A dict mapping between the chunk 
 
     offset
-        Position of data, relative to the start of the parent block.
+        Position of data, relative to the start of the parent block. Defaults to
+        the end offset of the previous field.
 
     length
         Maximum size of the buffer to read in.
@@ -397,7 +398,7 @@ class ChunkField( Field ):
     alignment
         Number of bytes to align the start of each Chunk to.
     """
-    def __init__( self, chunk_map, offset, length=None, default_klass=None, chunk_id_size=None, chunk_id_field=None, chunk_length_field=None, alignment=1, **kwargs ):
+    def __init__( self, chunk_map, offset=Chain(), length=None, default_klass=None, chunk_id_size=None, chunk_id_field=None, chunk_length_field=None, alignment=1, **kwargs ):
         super().__init__( **kwargs )
         self.offset = offset
         self.chunk_map = chunk_map
@@ -420,7 +421,7 @@ class ChunkField( Field ):
     def get_from_buffer( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
         chunk_map = property_get( self.chunk_map, parent )
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
         data = buffer[offset:]
         if length:
@@ -473,7 +474,7 @@ class ChunkField( Field ):
     def update_buffer_with_value( self, value, buffer, parent=None ):
         super().update_buffer_with_value( value, buffer, parent )
         chunk_map = property_get( self.chunk_map, parent )
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
         
 
@@ -510,8 +511,8 @@ class ChunkField( Field ):
         return size
 
 
-class BlockField( Field ):
-    def __init__( self, block_klass, offset, block_kwargs=None, count=None, fill=None,
+class BlockField( StreamField ):
+    def __init__( self, block_klass, offset=Chain(), block_kwargs=None, count=None, fill=None,
                     block_type=None, default_klass=None, length=None, stream=False,
                     alignment=1, transform=None, stream_end=None, stop_check=None,
                     **kwargs ):
@@ -521,7 +522,8 @@ class BlockField( Field ):
             Block class to use, or a dict mapping between type and block class.
 
         offset
-            Position of data, relative to the start of the parent block.
+            Position of data, relative to the start of the parent block. Defaults to
+            the end offset of the previous field.
 
         block_kwargs
             Arguments to be passed to the constructor of the block class.
@@ -577,114 +579,51 @@ class BlockField( Field ):
         self.stream_end = stream_end
         self.stop_check = stop_check
 
-    def get_from_buffer( self, buffer, parent=None ):
-        assert utils.is_bytes( buffer )
-        offset = property_get( self.offset, parent )
+    def get_element_from_buffer( self, offset, buffer, parent=None ):
         count = property_get( self.count, parent )
-        fill = property_get( self.fill, parent )
         stream = property_get( self.stream, parent )
-
-        is_array = stream or (count is not None)
-        count = count if is_array else 1
-        if count is not None:
-            assert count >= 0
-        length = property_get( self.length, parent )
-        if length is not None:
-            buffer = buffer[:offset+length]
-
+        fill = property_get( self.fill, parent )
         klass = self.get_klass( parent )
-        pointer = offset
-        result = []
-        while pointer < len( buffer ):
-            start_offset = pointer
-            # stop if we've hit the maximum number of items
-            if not stream and (len( result ) == count):
-                break
-            # run the stop check (if exists): if it returns true, we've hit the end of the stream
-            if self.stop_check and (self.stop_check( buffer, pointer )):
-                break
-            # stop if we find the end of stream marker
-            if self.stream_end is not None and buffer[pointer:pointer+len( self.stream_end )] == self.stream_end:
-                break
-            # add an empty list entry if we find the fill pattern
-            if fill and buffer[pointer:pointer+len( fill )] == fill:
-                result.append( None )
-                pointer += len( fill )
-            # if we have an inline transform, apply it
-            elif self.transform:
-                data = self.transform.import_data( buffer[pointer:], parent=parent )
-                block = klass( source_data=data.payload, parent=parent, **self.block_kwargs )
-                result.append( block )
-                pointer += data.end_offset
-            # add block to results
-            else:
-                block = klass( source_data=buffer[pointer:], parent=parent, **self.block_kwargs )
-                size = block.get_size()
-                if size == 0:
-                    if stream:
-                        raise ParseError( 'Can\'t stream 0 byte Blocks ({}) from a BlockField'.format( klass ) )
-                    elif count > 1 and len( result ) == 0:
-                        logger.warning( '{}: copying 0 byte Blocks ({}) from a BlockField, this is probably not what you want'.format( self, klass ) )
 
-                result.append( block )
-                pointer += size
+        # add an empty list entry if we find the fill pattern
+        if fill and buffer[offset:offset+len( fill )] == fill:
+            return None, offset+len( fill )
+        # if we have an inline transform, apply it
+        elif self.transform:
+            data = self.transform.import_data( buffer[offset:], parent=parent )
+            block = klass( source_data=data.payload, parent=parent, **self.block_kwargs )
+            return block, offset+data.end_offset
+        # otherwise, create a block
+        block = klass( source_data=buffer[offset:], parent=parent, **self.block_kwargs )
+        size = block.get_size()
+        if size == 0:
+            if stream:
+                raise ParseError( 'Can\'t stream 0 byte Blocks ({}) from a BlockField'.format( klass ) )
+            elif count > 1 and len( result ) == 0:
+                logger.warning( '{}: copying 0 byte Blocks ({}) from a BlockField, this is probably not what you want'.format( self, klass ) )
 
-            # if an alignment is set, do some aligning
-            if self.alignment:
-                width = (pointer-start_offset) % self.alignment
-                if width:
-                    pointer += self.alignment - width
-
-        if not is_array:
-            return result[0]
-        return result
+        return block, offset+size
         
-    def update_buffer_with_value( self, value, buffer, parent=None ):
-        super().update_buffer_with_value( value, buffer, parent )
-        offset = property_get( self.offset, parent )
+    def update_buffer_with_element( self, offset, element, buffer, parent=None ):
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         fill = property_get( self.fill, parent )
 
         klass = self.get_klass( parent )
-        is_array = stream or (count is not None)
 
-        if is_array:
-            try:
-                it = iter( value )
-            except TypeError:
-                raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
-            if not stream:
-                assert len( value ) <= count
-        else:
-            value = [value]
-
-        block_data = bytearray()
-        for b in value:
-            # if an alignment is set, do some aligning
-            if self.alignment:
-                width = len( block_data ) % self.alignment
-                if width:
-                    block_data += b'\x00'*(self.alignment - width)
-
-            if b is None:
-                if fill:
-                    block_data += fill
-                else:
-                    raise ParseError( 'A fill pattern needs to be specified to use None as a list entry' )
+        if element is None:
+            if fill:
+                data = fill
             else:
-                data = b.export_data()
-                if self.transform:
-                    data = self.transform.export_data( data, parent=parent ).payload
-                block_data += data
-
-        if self.stream_end is not None:
-            block_data += self.stream_end
-
-        if len( buffer ) < offset+len( block_data ):
-            buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )
-        buffer[offset:offset+len( block_data )] = block_data
-        return
+                raise ParseError( 'A fill pattern needs to be specified to use None as a list entry' )
+        else:
+            data = element.export_data()
+            if self.transform:
+                data = self.transform.export_data( data, parent=parent ).payload
+        if len( buffer ) < offset+len( data ):
+            buffer.extend( b'\x00'*(offset+len( data )-len( buffer )) )
+        buffer[offset:offset+len( data )] = data
+        return offset+len( data )
 
     def update_deps( self, value, parent=None ):
         count = property_get( self.count, parent )
@@ -692,7 +631,7 @@ class BlockField( Field ):
             property_set( self.count, parent, len( value ) )
 
     def validate( self, value, parent=None ):
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         klass = self.get_klass( parent )
@@ -712,7 +651,7 @@ class BlockField( Field ):
                  raise FieldValidationError( 'Expecting block class {}, not {}'.format( klass, type( b ) ) )
 
     def get_start_offset( self, value, parent=None, index=None ):
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         is_array = stream or (count is not None)
@@ -776,11 +715,12 @@ class BlockField( Field ):
 
 
 class Bytes( Field ):
-    def __init__( self, offset, length=None, default=None, transform=None, stream_end=None, **kwargs ):
+    def __init__( self, offset=Chain(), length=None, default=None, transform=None, stream_end=None, **kwargs ):
         """Field class for raw byte data.
 
         offset
-            Position of data, relative to the start of the parent block.
+            Position of data, relative to the start of the parent block. Defaults to
+            the end offset of the previous field.
 
         length
             Maximum size of the data in bytes.
@@ -808,7 +748,7 @@ class Bytes( Field ):
 
     def get_from_buffer( self, buffer, parent=None, **kwargs ):
         assert utils.is_bytes( buffer )
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
 
         data = buffer[offset:]
@@ -826,7 +766,7 @@ class Bytes( Field ):
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
         super().update_buffer_with_value( value, buffer, parent )
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
 
         data = value
@@ -851,7 +791,7 @@ class Bytes( Field ):
             property_set( self.length, parent, len( value ) )
 
     def validate( self, value, parent=None ):
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
 
         if length is not None and (not isinstance( self.length, Ref )) and (len( value ) != length):
@@ -874,7 +814,7 @@ class Bytes( Field ):
 
     def get_start_offset( self, value, parent=None, index=None ):
         assert index is None
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         return offset
 
     def get_size( self, value, parent=None, index=None ):
@@ -896,13 +836,13 @@ class CString( Field ):
 
     def get_from_buffer( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
 
         return buffer[offset:].split( b'\x00', 1 )[0]
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
         super().update_buffer_with_value( value, buffer, parent )
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
 
         block_data = value + b'\x00'
         if len( buffer ) < offset+len( block_data ):
@@ -917,7 +857,7 @@ class CString( Field ):
 
     def get_start_offset( self, value, parent=None, index=None ):
         assert index is None
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         return offset
 
     def get_size( self, value, parent=None, index=None ):
@@ -934,14 +874,14 @@ class CStringN( Field ):
 
     def get_from_buffer( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
 
         return buffer[offset:offset+length].split( b'\x00', 1 )[0]
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
         super().update_buffer_with_value( value, buffer, parent )
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
 
         block_data = value + b'\x00'*(length - len( value ))
@@ -961,7 +901,7 @@ class CStringN( Field ):
     
     def get_start_offset( self, value, parent=None, index=None ):
         assert index is None
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         return offset
 
     def get_size( self, value, parent=None, index=None ):
@@ -979,7 +919,7 @@ class CStringNStream( Field ):
 
     def get_from_buffer( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         strings = []
 
         pointer = offset
@@ -992,7 +932,7 @@ class CStringNStream( Field ):
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
         super().update_buffer_with_value( value, buffer, parent )
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         length = self.length_field.field_size
 
         pointer = offset
@@ -1007,7 +947,7 @@ class CStringNStream( Field ):
 
     def get_start_offset( self, value, parent=None, index=None ):
         assert index is None
-        offset = property_get( self.offset, parent )
+        offset = property_get( self.offset, parent, caller=self )
         return offset
 
     def get_size( self, value, parent=None, index=None ):

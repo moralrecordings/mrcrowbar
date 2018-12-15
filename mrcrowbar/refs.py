@@ -158,7 +158,7 @@ class EndOffset( Ref ):
         self.neg = neg
         self.align = align
 
-    def get( self, instance ):
+    def get( self, instance, **kwargs ):
         target = instance
         align = property_get( self.align, instance )
         for attr in self.path[:-1]:
@@ -169,7 +169,7 @@ class EndOffset( Ref ):
             target *= -1
         return target
 
-    def set( self, instance, value ):
+    def set( self, instance, value, **kwargs ):
         raise AttributeError( "can't change the end offset of another field" )
 
 

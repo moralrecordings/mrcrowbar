@@ -308,7 +308,7 @@ class StreamField( Field ):
             value = [value]
 
         for element in value:
-            self.validate_element( element, parent=None )
+            self.validate_element( element, parent=parent )
 
     def get_element_size( self, element, parent=None ):
         pass
@@ -569,7 +569,7 @@ class BlockField( StreamField ):
         if size == 0:
             if stream:
                 raise ParseError( 'Can\'t stream 0 byte Blocks ({}) from a BlockField'.format( klass ) )
-            elif count > 1 and len( result ) == 0:
+            elif count and len( result ) == 0:
                 logger.warning( '{}: copying 0 byte Blocks ({}) from a BlockField, this is probably not what you want'.format( self, klass ) )
 
         return block, offset+size

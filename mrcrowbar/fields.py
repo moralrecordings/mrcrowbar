@@ -472,44 +472,19 @@ class ChunkField( StreamField ):
         result = Chunk( id=chunk_id, obj=chunk )
 
         return result, pointer
-    
-    def update_buffer_with_value( self, value, buffer, parent=None ):
-        super().update_buffer_with_value( value, buffer, parent )
-        chunk_map = property_get( self.chunk_map, parent )
-        offset = property_get( self.offset, parent, caller=self )
-        length = property_get( self.length, parent )
-        
 
-    def get_start_offset( self, value, parent=None, index=None ):
-        offset = property_get( self.offset, parent )
-        if index is not None:
-            offset += self._size_calc( value[:index] )
-        return offset
+    def validate_element( self, element, parent=None ):
+        assert issubclass( element, Chunk )
 
-    def get_size( self, value, parent=None, index=None ):
-        value = value if value else []
-        if index is not None:
-            value = [value[index]]
-        size = self._size_calc( value, parent )
-
-        return size
-
-    def _size_calc( self, value, parent=None ):
+    def get_element_size( self, element, parent=None ):
         size = 0
-        for key, b in value:
-            start_size = size
-            if self.chunk_id_field:
-                size += self.chunk_id_field.field_size
-            else:
-                size += len( key )
-            if self.chunk_length_field:
-                size += self.chunk_length_field.field_size
-            size += b.get_size()
-            if self.alignment:
-                width = (size-start_size) % self.alignment
-                if width:
-                    size += self.alignment - width
-
+        if self.chunk_id_field:
+            size += self.chunk_id_field.field_size
+        else:
+            size += len( element.id )
+        if self.chunk_length_field:
+            size += self.chunk_length_field.field_size
+        size += element.obj.get_size()
         return size
 
 
@@ -745,7 +720,7 @@ class Bytes( Field ):
 
     @property
     def repr( self ):
-        details = 'offset={}'.format( hex( self.offset ) )
+        details = 'offset={}'.format( hex( self.offset ) if type( self.offset ) == int else self.offset )
         if self.length:
             details += ', length={}'.format( self.length )
         if self.default:

@@ -60,6 +60,7 @@ ARGS_COMMON = {
 ARGS_DUMP = {
     'source': dict(
         metavar='FILE',
+        nargs='+',
         type=argparse.FileType( mode='rb' ),
         help='File to inspect',
     ),
@@ -124,6 +125,7 @@ ARGS_DIFF.update( ARGS_COMMON )
 ARGS_HIST = {
    'source': dict(
         metavar='FILE',
+        nargs='+',
         type=argparse.FileType( mode='rb' ),
         help='File to inspect',
     ),
@@ -177,20 +179,26 @@ def mrcdump():
         parser.add_argument( arg, **spec )
     raw_args = parser.parse_args()
 
-    source = mmap.mmap( raw_args.source.fileno(), 0, access=mmap.ACCESS_READ )
+    for i, src in enumerate( raw_args.source ):
+        if len( raw_args.source ) != 1:
+            print( src.name )
+        with mmap.mmap( src.fileno(), 0, access=mmap.ACCESS_READ ) as source:
 
-    if not raw_args.no_hexdump:
-        utils.hexdump(
-            source, start=raw_args.start, end=raw_args.end, length=raw_args.length,
-            major_len=raw_args.major_len, minor_len=raw_args.minor_len,
-            colour=raw_args.colour, address_base=raw_args.address_base,
-        )
-        print( '' )
+            if not raw_args.no_hexdump:
+                utils.hexdump(
+                    source, start=raw_args.start, end=raw_args.end, length=raw_args.length,
+                    major_len=raw_args.major_len, minor_len=raw_args.minor_len,
+                    colour=raw_args.colour, address_base=raw_args.address_base,
+                )
 
-    if not raw_args.no_stats:
-        print( 'Source stats:' )
-        utils.stats( source, raw_args.start, raw_args.end, raw_args.length, raw_args.hist_w, raw_args.hist_h )
+            if not raw_args.no_hexdump and not raw_args.no_stats:
+                print()
 
+            if not raw_args.no_stats:
+                print( 'Source stats:' )
+                utils.stats( source, raw_args.start, raw_args.end, raw_args.length, raw_args.hist_w, raw_args.hist_h )
+        if i != len( raw_args.source ) - 1:
+            print()
 
 def mrcdiff():
     parser = argparse.ArgumentParser( description='Compare the binary contents of two files.' )
@@ -216,9 +224,13 @@ def mrchist():
         parser.add_argument( arg, **spec )
     raw_args = parser.parse_args()
 
-    source = mmap.mmap( raw_args.source.fileno(), 0, access=mmap.ACCESS_READ )
-
-    utils.histdump( source, start=raw_args.start, end=raw_args.end, 
-        length=raw_args.length, samples=raw_args.samples, width=raw_args.width, 
-        address_base=raw_args.address_base,
-    )
+    for i, src in enumerate( raw_args.source ):
+        if len( raw_args.source ) != 1:
+            print( src.name )
+        with mmap.mmap( src.fileno(), 0, access=mmap.ACCESS_READ ) as source:
+            utils.histdump( source, start=raw_args.start, end=raw_args.end,
+                length=raw_args.length, samples=raw_args.samples, width=raw_args.width,
+                address_base=raw_args.address_base,
+            )
+        if i != len( raw_args.source ) - 1:
+            print()

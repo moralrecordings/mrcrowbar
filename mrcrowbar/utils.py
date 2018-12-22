@@ -191,16 +191,25 @@ def histdump( source, start=None, end=None, length=None, samples=0x10000, width=
 def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, colour=True,
         prefix='', highlight_addr=None, highlight_map=None, address_base_offset=0 ):
     def get_colour( index ):
-        if highlight_map:
-            if index in highlight_map:
-                return highlight_map[index]
-        return BYTE_COLOUR_MAP[source[index]]
+        if colour:
+            if highlight_map:
+                if index in highlight_map:
+                    return ansi_format_escape( highlight_map[index] )
+            return ansi_format_escape( BYTE_COLOUR_MAP[source[index]] )
+        return ''
 
     def get_glyph():
         b = source[offset:min( offset+major_len*minor_len, end )]
         letters = []
+        prev_colour = None
         for i in range( offset, min( offset+major_len*minor_len, end ) ):
-            letters.append( ansi_format_string( BYTE_GLYPH_MAP[source[i]], get_colour( i ) ) )
+            new_colour = get_colour( i )
+            if prev_colour != new_colour:
+                letters.append( new_colour )
+                prev_colour = new_colour
+            letters.append( BYTE_GLYPH_MAP[source[i]] )
+        if colour:
+            letters.append( ANSI_FORMAT_RESET )
         return ''.join( letters )
 
     if end is None:
@@ -209,14 +218,24 @@ def ansi_format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4
     digits = ('{}{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}').format( prefix, offset+address_base_offset )
 
     line = [ansi_format_string( digits, highlight_addr ), ' │  ']
+    prev_colour = None
     for major in range( major_len ):
         for minor in range( minor_len ):
             suboffset = offset+major*minor_len+minor
             if suboffset >= end:
                 line.append( '   ' )
                 continue
-            line.append( ansi_format_string( '{:02x} '.format( source[suboffset] ), get_colour( suboffset ) ) )
+            new_colour = get_colour( suboffset )
+            if prev_colour != new_colour:
+                line.append( new_colour )
+                prev_colour = new_colour
+            line.append( '{:02x} '.format( source[suboffset] ) )
+
         line.append( ' ' )
+
+    if colour:
+        line.append( ANSI_FORMAT_RESET )
+
     line.append( '│ {}'.format( get_glyph() ) )
     return ''.join( line )
 
@@ -616,12 +635,9 @@ def normalise_rgba( raw_colour ):
     raise ValueError( 'raw_colour must be either None, a Colour, or a tuple (RGB/RGBA)' )
 
 
-def ansi_format_string( string, foreground=None, background=None, reset=True, bold=False,
-    faint=False, italic=False, underline=False, blink=False, inverted=False ):
-    """Return the ANSI escape sequence to render a Unicode string.
-
-    string
-        String to format
+def ansi_format_escape( foreground=None, background=None, bold=False, faint=False,
+    italic=False, underline=False, blink=False, inverted=False ):
+    """Returns the ANSI escape sequence to set character formatting.
 
     foreground
         Foreground colour to use. Accepted types: None, int (xterm
@@ -630,9 +646,6 @@ def ansi_format_string( string, foreground=None, background=None, reset=True, bo
     background
         Background colour to use. Accepted types: None, int (xterm
         palette ID), tuple (RGB, RGBA), Colour
-
-    reset
-        Reset the formatting at the end (default: True)
 
     bold
         Enable bold text (default: False)
@@ -687,6 +700,47 @@ def ansi_format_string( string, foreground=None, background=None, reset=True, bo
         colour_format.append( ANSI_FORMAT_INVERTED_CMD )
 
     colour_format = ANSI_FORMAT_BASE.format( ';'.join( colour_format ) )
+    return colour_format
+
+
+def ansi_format_string( string, foreground=None, background=None, reset=True, bold=False,
+    faint=False, italic=False, underline=False, blink=False, inverted=False ):
+    """Returns a Unicode string formatted with an ANSI escape sequence.
+
+    string
+        String to format
+
+    foreground
+        Foreground colour to use. Accepted types: None, int (xterm
+        palette ID), tuple (RGB, RGBA), Colour
+
+    background
+        Background colour to use. Accepted types: None, int (xterm
+        palette ID), tuple (RGB, RGBA), Colour
+
+    reset
+        Reset the formatting at the end (default: True)
+
+    bold
+        Enable bold text (default: False)
+
+    faint
+        Enable faint text (default: False)
+
+    italic
+        Enable italic text (default: False)
+
+    underline
+        Enable underlined text (default: False)
+
+    blink
+        Enable blinky text (default: False)
+
+    inverted
+        Enable inverted text (default: False)
+    """
+    colour_format = ansi_format_escape( foreground, background, bold, faint,
+                                        italic, underline, blink, inverted )
     reset_format = '' if not reset else ANSI_FORMAT_RESET
 
     return '{}{}{}'.format( colour_format, string, reset_format )
@@ -861,23 +915,25 @@ def ansi_format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=3
     except TypeError:
         frames = [frame]
 
-    palette_cache = {}
-    def get_pixels( c1, c2 ):
-        slug = (c1.repr, c2.repr)
-        if slug not in palette_cache:
-            palette_cache[slug] = ansi_format_pixels( c1, c2 )
-        return palette_cache[slug]
-
     rows = math.ceil( len( frames )/columns )
     for r in range( rows ):
         for y in range( 0, height, 2*downsample ):
             result = []
             for c in range( min( (len( frames )-r*columns), columns ) ):
+                row = []
                 for x in range( 0, width, downsample ):
                     fr = frames[r*columns + c]
                     c1 = data_fetch( x_start+x, y_start+y, fr )
                     c2 = data_fetch( x_start+x, y_start+y+downsample, fr )
-                    result.append( get_pixels( c1, c2 ) )
+                    row.append( (c1, c2) )
+                prev_pixel = None
+                pointer = 0
+                while pointer < len( row ):
+                    start = pointer
+                    pixel = row[pointer]
+                    while pointer < len( row ) and (row[pointer] == pixel):
+                        pointer += 1
+                    result.append( ansi_format_pixels( pixel[0], pixel[1], repeat=pointer-start ) )
             yield ''.join( result )
     return
 

@@ -416,7 +416,7 @@ class ChunkField( StreamField ):
             Field class used to parse the Chunk data length. For use when a Chunk consists of an ID followed by the size of the data.
         """
 
-        super().__init__( offset=offset, default=default, count=count, length=length,
+        super().__init__( offset=offset, default=None, count=count, length=length,
                           stream=stream, alignment=alignment, stream_end=stream_end,
                           stop_check=stop_check, **kwargs )
         self.chunk_map = chunk_map
@@ -440,14 +440,14 @@ class ChunkField( StreamField ):
         pointer = offset
         chunk_id = None
         if self.chunk_id_field:
-            chunk_id = self.chunk_id_field.get_from_buffer( data[pointer:], parent=parent )
+            chunk_id = self.chunk_id_field.get_from_buffer( buffer[pointer:], parent=parent )
             pointer += self.chunk_id_field.field_size
         elif self.chunk_id_size:
-            chunk_id = data[pointer:pointer+self.chunk_id_size]
+            chunk_id = buffer[pointer:pointer+self.chunk_id_size]
             pointer += len( chunk_id )
         else:
             for test_id in chunk_map:
-                if data[pointer:].startswith( test_id ):
+                if buffer[pointer:].startswith( test_id ):
                     chunk_id = test_id
                     break
             if not chunk_id:
@@ -462,19 +462,52 @@ class ChunkField( StreamField ):
             raise ParseError( 'No chunk class match for ID {}'.format( chunk_id ) )
 
         if self.chunk_length_field:
-            size = self.chunk_length_field.get_from_buffer( data[pointer:], parent=parent )
+            size = self.chunk_length_field.get_from_buffer( buffer[pointer:], parent=parent )
             pointer += self.chunk_length_field.field_size
-            chunk = chunk_klass( data[pointer:pointer+size], parent=parent )
+            chunk = chunk_klass( buffer[pointer:pointer+size], parent=parent )
             pointer += size
         else:
-            chunk = chunk_klass( data[pointer:], parent=parent )
+            chunk = chunk_klass( buffer[pointer:], parent=parent )
             pointer += chunk.get_size()
         result = Chunk( id=chunk_id, obj=chunk )
 
         return result, pointer
 
+    def update_buffer_with_element( self, offset, element, buffer, parent=None ):
+        chunk_map = property_get( self.chunk_map, parent )
+
+        data = bytearray()
+        if self.chunk_id_field:
+            data.extend( b'\x00'*self.chunk_id_field.field_size )
+            self.chunk_id_field.update_buffer_with_value( element.id, data, parent=parent )
+        else:
+            data += element.id
+
+        payload = element.obj.export_data()
+        if self.chunk_length_field:
+            data.extend( b'\x00'*self.chunk_length_field.field_size )
+            self.chunk_length_field.update_buffer_with_value( len( payload ), data, parent=parent )
+
+        data += payload
+
+        if len( buffer ) < offset+len( data ):
+            buffer.extend( b'\x00'*(offset+len( data )-len( buffer )) )
+        buffer[offset:offset+len( data )] = data
+        return offset+len( data )
+
+
     def validate_element( self, element, parent=None ):
-        assert issubclass( element, Chunk )
+        chunk_map = property_get( self.chunk_map, parent )
+
+        assert isinstance( element, Chunk )
+        if element.id in chunk_map:
+            chunk_klass = chunk_map[element.id]
+        elif self.default_klass:
+            chunk_klass = self.default_klass
+
+        assert isinstance( element.obj, chunk_klass )
+        if self.chunk_id_size:
+            assert len( element.id ) == self.chunk_id_size
 
     def get_element_size( self, element, parent=None ):
         size = 0

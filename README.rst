@@ -119,7 +119,7 @@ Here's some code to edit a Lemmings level. (This will modify your game, so be su
     ll.load( '/path/to/copy/of/lemmings' )
 
     # pick the first level of Tricky
-    level = ll['/path/to/copy/of/lemmings/Level000.dat'].levels[0]   # <Level: This should be a doddle!>
+    level = ll['./Level000.dat'].levels[0]   # <Level: This should be a doddle!>
 
     # Level is a block type, which means we can peek at the bytes representation at any time
     bytes_orig = level.export_data()
@@ -137,7 +137,7 @@ Here's some code to edit a Lemmings level. (This will modify your game, so be su
     utils.hexdump_diff( bytes_orig, bytes_new )
 
     # finally, get the loader to save our changes back to the original file
-    ll.save_file( '/path/to/copy/of/lemmings/Level000.dat' )
+    ll.save_file( './Level000.dat' )
 
 Open up Lemmings and change the difficulty to "Tricky". 
 

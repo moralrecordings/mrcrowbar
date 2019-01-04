@@ -173,8 +173,46 @@ ARGS_HIST = {
     ),
 }
 
+ARGS_PIX = {
+   'source': dict(
+        metavar='FILE',
+        nargs='+',
+        type=argparse.FileType( mode='rb' ),
+        help='File to inspect',
+    ),
+    '--start': dict(
+        metavar='INT',
+        dest='start',
+        type=auto_int,
+        help='Start offset to read from (default: file start)',
+    ),
+    '--end': dict(
+        metavar='INT',
+        dest='end',
+        type=auto_int,
+        help='End offset to stop reading at (default: end)',
+    ),
+    '--length': dict(
+        metavar='INT',
+        dest='length',
+        type=auto_int,
+        help='Length to read in (optional replacement for --end)'
+    ),
+    '--width': dict(
+        metavar='INT',
+        dest='width',
+        type=auto_int,
+        default=64,
+        help='Image width (default: 64)'
+    ),
+    '--version': dict(
+        action='version',
+        version='%(prog)s {}'.format( __version__ )
+    ),
+}
+
 def mrcdump():
-    parser = argparse.ArgumentParser( description='Examine the binary contents of a file.' )
+    parser = argparse.ArgumentParser( description='Examine the contents of a file as hexadecimal.' )
     for arg, spec in ARGS_DUMP.items():
         parser.add_argument( arg, **spec )
     raw_args = parser.parse_args()
@@ -201,7 +239,7 @@ def mrcdump():
             print()
 
 def mrcdiff():
-    parser = argparse.ArgumentParser( description='Compare the binary contents of two files.' )
+    parser = argparse.ArgumentParser( description='Compare the contents of two files as hexadecimal.' )
     for arg, spec in ARGS_DIFF.items():
         parser.add_argument( arg, **spec )
     raw_args = parser.parse_args()
@@ -219,7 +257,7 @@ def mrcdiff():
     )
 
 def mrchist():
-    parser = argparse.ArgumentParser( description='Display the binary contents of a file as a histogram map.' )
+    parser = argparse.ArgumentParser( description='Display the contents of a file as a histogram map.' )
     for arg, spec in ARGS_HIST.items():
         parser.add_argument( arg, **spec )
     raw_args = parser.parse_args()
@@ -231,6 +269,22 @@ def mrchist():
             utils.histdump( source, start=raw_args.start, end=raw_args.end,
                 length=raw_args.length, samples=raw_args.samples, width=raw_args.width,
                 address_base=raw_args.address_base,
+            )
+        if i != len( raw_args.source ) - 1:
+            print()
+
+def mrcpix():
+    parser = argparse.ArgumentParser( description='Display the contents of a file as a 256 colour image.' )
+    for arg, spec in ARGS_PIX.items():
+        parser.add_argument( arg, **spec )
+    raw_args = parser.parse_args()
+
+    for i, src in enumerate( raw_args.source ):
+        if len( raw_args.source ) != 1:
+            print( src.name )
+        with mmap.mmap( src.fileno(), 0, access=mmap.ACCESS_READ ) as source:
+            utils.pixdump( source, start=raw_args.start, end=raw_args.end,
+                length=raw_args.length, width=raw_args.width,
             )
         if i != len( raw_args.source ) - 1:
             print()

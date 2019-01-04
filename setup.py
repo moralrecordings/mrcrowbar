@@ -41,6 +41,7 @@ setup(
             'mrcdiff = mrcrowbar.cli:mrcdiff',
             'mrcdump = mrcrowbar.cli:mrcdump',
             'mrchist = mrcrowbar.cli:mrchist',
+            'mrcpix = mrcrowbar.cli:mrcpix',
         ],
     },
 )

@@ -485,8 +485,9 @@ class ChunkField( StreamField ):
 
         payload = element.obj.export_data()
         if self.chunk_length_field:
-            data.extend( b'\x00'*self.chunk_length_field.field_size )
-            self.chunk_length_field.update_buffer_with_value( len( payload ), data, parent=parent )
+            length_buf = bytearray( b'\x00'*self.chunk_length_field.field_size )
+            self.chunk_length_field.update_buffer_with_value( len( payload ), length_buf, parent=parent )
+            data.extend( length_buf )
 
         data += payload
 

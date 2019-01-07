@@ -8,3 +8,4 @@ dist
 venv
 doc/build
 .coverage
+htmlcov

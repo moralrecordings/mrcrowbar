@@ -1,5 +1,6 @@
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.images import base as img
+from mrcrowbar.lib.audio import base as aud
 from mrcrowbar import utils
 
 # taken from KNPS.DLL at offset 0x13772 (1236:0372), len 0x400
@@ -91,8 +92,53 @@ class IMGFile( mrc.Block ):
     images_raw = mrc.Bytes( mrc.EndOffset( 'entries' ) )
 
     def __init__( self, *args, **kwargs ):
-        super().__init__( *args, **kwargs )
         self.images = mrc.Store( parent=self,
                                  source=mrc.Ref( 'images_raw' ),
                                  base_offset=mrc.EndOffset( 'entries', neg=True ) )
+        super().__init__( *args, **kwargs )
+
+
+class SoundData( mrc.Block ):
+    unk1 = mrc.UInt32_LE( 0x00 )
+    unk2 = mrc.UInt16_LE( 0x04 )
+    unk3 = mrc.UInt32_LE( 0x06 )
+    unk4 = mrc.Bytes( 0x0a, length=0x12 )
+    unk5 = mrc.UInt32_LE( 0x1c )
+    unk6 = mrc.UInt16_LE( 0x20 )
+    unk7 = mrc.UInt16_LE( 0x22 )
+    sample_rate = mrc.UInt32_LE( 0x24 )
+    playback_rate = mrc.UInt32_LE( 0x28 )
+    channels = mrc.UInt16_LE( 0x2c )
+    sample_bits = mrc.UInt16_LE( 0x2e )
+    data = mrc.Bytes( 0x30 )
+
+    @property
+    def sample_signedness( self ):
+        return 'unsigned' if self.sample_bits == 8 else 'signed'
+
+    @property
+    def sample_width( self ):
+        return self.sample_bits // 8
+
+    def __init__( self, *argc, **argv ):
+        self.audio = aud.Wave( self, mrc.Ref( 'data' ), mrc.Ref( 'channels' ), mrc.Ref( 'sample_rate' ), int, mrc.Ref( 'sample_width' ), mrc.Ref( 'sample_signedness' ), 'big' )
+        super().__init__( *argc, **argv )
+
+
+class SoundEntry( mrc.Block ):
+    offset = mrc.UInt32_LE( 0x00 )
+    size = mrc.UInt32_LE( 0x04 )
+    sound = mrc.StoreRef( SoundData, mrc.Ref( '_parent.sounds' ), mrc.Ref( 'offset' ), mrc.Ref( 'size' ) )
+
+
+class SNDFile( mrc.Block ):
+    count = mrc.UInt32_LE( 0x00 )
+    entries = mrc.BlockField( SoundEntry, 0x04, count=mrc.Ref( 'count' ) )
+    sound_raw = mrc.Bytes( mrc.EndOffset( 'entries' ) )
+
+    def __init__( self, *args, **kwargs ):
+        self.sounds = mrc.Store( parent=self,
+                                 source=mrc.Ref( 'sound_raw' ),
+                                 base_offset=mrc.EndOffset( 'entries', neg=True ) )
+        super().__init__( *args, **kwargs )
 

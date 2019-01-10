@@ -142,3 +142,26 @@ class SNDFile( mrc.Block ):
                                  base_offset=mrc.EndOffset( 'entries', neg=True ) )
         super().__init__( *args, **kwargs )
 
+
+
+class MusicData( mrc.Block ):
+    unk1 = mrc.Bytes( 0x00, length=0x20 )
+    midi = mrc.Bytes( 0x20 )
+
+
+class MusicEntry( mrc.Block ):
+    offset = mrc.UInt32_LE( 0x00 )
+    size = mrc.UInt32_LE( 0x04 )
+    music = mrc.StoreRef( MusicData, mrc.Ref( '_parent.tracks' ), mrc.Ref( 'offset' ), mrc.Ref( 'size' ) )
+
+
+class MUSFile( mrc.Block ):
+    count = mrc.UInt32_LE( 0x00 )
+    entries = mrc.BlockField( MusicEntry, 0x04, count=mrc.Ref( 'count' ) )
+    music_raw = mrc.Bytes( mrc.EndOffset( 'entries' ) )
+
+    def __init__( self, *args, **kwargs ):
+        self.tracks = mrc.Store( parent=self,
+                                 source=mrc.Ref( 'music_raw' ),
+                                 base_offset=mrc.EndOffset( 'entries', neg=True ) )
+        super().__init__( *args, **kwargs )

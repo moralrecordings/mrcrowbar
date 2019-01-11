@@ -382,14 +382,22 @@ class ScriptFunction( mrc.Block ):
 
 
 class ScriptV4( mrc.Block ):
+    unk1 = mrc.Bytes( 0x00, length=0x40 )
     functions_offset = mrc.UInt16_BE( 0x40 )
 
     functions_count = mrc.UInt16_BE( 0x48 )
+    
+    unk2 = mrc.UInt16_BE( 0x46 )
+    unk3 = mrc.UInt16_BE( 0x4c )
+
     consts_count = mrc.UInt16_BE( 0x4e )
 
     consts_offset = mrc.UInt16_BE( 0x52 )
 
+    unk4 = mrc.UInt16_BE( 0x56 )
     consts_base = mrc.UInt16_BE( 0x5a )
+    unk5 = mrc.Bytes( 0x5c, length=0xc )
+
 
     functions = mrc.BlockField( ScriptFunction, mrc.Ref( 'functions_offset' ), count=mrc.Ref( 'functions_count' ) )
     consts = mrc.BlockField( ScriptConstant, mrc.Ref( 'consts_offset' ), count=mrc.Ref( 'consts_count' ) )

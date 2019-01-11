@@ -35,6 +35,7 @@ Writing and using Blocks
 Here's a class for a level file used by the 1991 DOS game *Lemmings*, taken from mrcrowbar.lib.games.lemmings:
 
 .. code:: python
+
     from mrcrowbar import models as mrc
 
     class Level( mrc.Block ):
@@ -105,7 +106,7 @@ The above code is enough to create a two-way binding model for a Lemmings level.
     ll.load( '/path/to/copy/of/lemmings' )
 
     # pick the first level of Tricky
-    level = ll['/path/to/copy/of/lemmings/Level000.dat'].levels[0]   # <Level: This should be a doddle!>
+    level = ll['./Level000.dat'].levels[0]   # <Level: This should be a doddle!>
 
     # Level is a block type, which means we can peek at the bytes representation at any time
     bytes_orig = level.export_data()
@@ -123,7 +124,7 @@ The above code is enough to create a two-way binding model for a Lemmings level.
     utils.hexdump_diff( bytes_orig, bytes_new )
 
     # finally, get the loader to save our changes back to the original file
-    ll.save_file( '/path/to/copy/of/lemmings/Level000.dat' )
+    ll.save_file( './Level000.dat' )
 
 When we open up Lemmings and change the difficulty to "Tricky", we can see the changes. 
 

@@ -211,10 +211,19 @@ ARGS_PIX = {
     ),
 }
 
-def mrcdump():
-    parser = argparse.ArgumentParser( description='Examine the contents of a file as hexadecimal.' )
-    for arg, spec in ARGS_DUMP.items():
+def get_parser( description, args ):
+    parser = argparse.ArgumentParser( description=description )
+    for arg, spec in args.items():
         parser.add_argument( arg, **spec )
+    return parser
+
+mrcdump_parser = lambda: get_parser( description='Examine the contents of a file as hexadecimal.', args=ARGS_DUMP )
+mrcdiff_parser = lambda: get_parser( description='Compare the contents of two files as hexadecimal.', args=ARGS_DIFF )
+mrchist_parser = lambda: get_parser( description='Display the contents of a file as a histogram map.', args=ARGS_HIST )
+mrcpix_parser = lambda: get_parser( description='Display the contents of a file as a 256 colour image.', args=ARGS_PIX )
+
+def mrcdump():
+    parser = mrcdump_parser()
     raw_args = parser.parse_args()
 
     for i, src in enumerate( raw_args.source ):
@@ -239,9 +248,7 @@ def mrcdump():
             print()
 
 def mrcdiff():
-    parser = argparse.ArgumentParser( description='Compare the contents of two files as hexadecimal.' )
-    for arg, spec in ARGS_DIFF.items():
-        parser.add_argument( arg, **spec )
+    parser = mrcdiff_parser()
     raw_args = parser.parse_args()
 
     source1 = mmap.mmap( raw_args.source1.fileno(), 0, access=mmap.ACCESS_READ )
@@ -257,9 +264,7 @@ def mrcdiff():
     )
 
 def mrchist():
-    parser = argparse.ArgumentParser( description='Display the contents of a file as a histogram map.' )
-    for arg, spec in ARGS_HIST.items():
-        parser.add_argument( arg, **spec )
+    parser = mrchist_parser()
     raw_args = parser.parse_args()
 
     for i, src in enumerate( raw_args.source ):
@@ -274,9 +279,7 @@ def mrchist():
             print()
 
 def mrcpix():
-    parser = argparse.ArgumentParser( description='Display the contents of a file as a 256 colour image.' )
-    for arg, spec in ARGS_PIX.items():
-        parser.add_argument( arg, **spec )
+    parser = mrcpix_parser()
     raw_args = parser.parse_args()
 
     for i, src in enumerate( raw_args.source ):

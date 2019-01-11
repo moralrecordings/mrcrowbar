@@ -39,6 +39,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
+    'sphinxarg.ext',
 ]
 
 # show __init__ docstring instead of class one

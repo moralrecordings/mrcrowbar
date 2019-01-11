@@ -938,7 +938,7 @@ def ansi_format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=3
     return
 
 
-def pixdump_iter( source, start=None, end=None, length=None, width=64, palette=HEATMAP_COLOURS ):
+def pixdump_iter( source, start=None, end=None, length=None, width=64, palette=None ):
     """Return the contents of a byte string as a 256 colour image.
 
     source
@@ -960,6 +960,9 @@ def pixdump_iter( source, start=None, end=None, length=None, width=64, palette=H
         List of Colours to use (default: test palette)
     """
     assert is_bytes( source )
+
+    if not palette:
+        palette = HEATMAP_COLOURS
 
     start = 0 if (start is None) else start
     if (end is not None) and (length is not None):
@@ -987,7 +990,7 @@ def pixdump_iter( source, start=None, end=None, length=None, width=64, palette=H
     return ansi_format_image_iter( data_fetch, width=width, height=height )
 
 
-def pixdump( source, start=None, end=None, length=None, width=64, palette=HEATMAP_COLOURS ):
+def pixdump( source, start=None, end=None, length=None, width=64, palette=None ):
     """Print the contents of a byte string as a 256 colour image.
 
     source

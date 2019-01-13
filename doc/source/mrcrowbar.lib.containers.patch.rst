@@ -1,7 +1,7 @@
-mrcrowbar.lib.hardware.ibm\_pc module
+mrcrowbar.lib.containers.patch module
 =====================================
 
-.. automodule:: mrcrowbar.lib.hardware.ibm_pc
+.. automodule:: mrcrowbar.lib.containers.patch
     :members:
     :undoc-members:
     :show-inheritance:

@@ -15,9 +15,9 @@ Submodules
 
    mrcrowbar.blocks
    mrcrowbar.checks
+   mrcrowbar.encoding
    mrcrowbar.fields
    mrcrowbar.loaders
-   mrcrowbar.models
    mrcrowbar.refs
    mrcrowbar.transforms
    mrcrowbar.utils

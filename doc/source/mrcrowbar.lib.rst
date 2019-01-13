@@ -5,11 +5,15 @@ Subpackages
 -----------
 
 .. toctree::
+
+    mrcrowbar.lib.audio
     mrcrowbar.lib.compressors
+    mrcrowbar.lib.containers
     mrcrowbar.lib.games
     mrcrowbar.lib.hardware
     mrcrowbar.lib.images
     mrcrowbar.lib.os
+    mrcrowbar.lib.platforms
 
 Module contents
 ---------------

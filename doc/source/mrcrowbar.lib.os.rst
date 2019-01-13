@@ -7,6 +7,7 @@ Submodules
 .. toctree::
 
    mrcrowbar.lib.os.dos
+   mrcrowbar.lib.os.win16
 
 Module contents
 ---------------

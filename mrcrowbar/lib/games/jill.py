@@ -6,6 +6,7 @@ import itertools
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
+from mrcrowbar.lib.audio import base as aud
 from mrcrowbar import utils
 
 
@@ -24,24 +25,32 @@ PC_SPEAKER_NOTE_TABLE = [
 ]
 
 
-class SoundRef( mrc.Block ):
-    offset = mrc.UInt32_LE( 0x00 )
-    length = mrc.UInt16_LE( 0x04 )
-    playback_freq = mrc.UInt16_LE( 0x06 )
+class Sound( mrc.Block ):
+    sample_rate = 6000
+    raw_data = mrc.Bytes( 0x00 )
 
-
-class TextRef( mrc.Block ):
-    offset = mrc.UInt32_LE( 0x00 )
-    length = mrc.UInt16_LE( 0x04 )
+    def __init__( self, *argc, **argv ):
+        super().__init__( *argc, **argv )
+        self.wave = aud.Wave( self, mrc.Ref( 'raw_data' ), channels=1,
+                              sample_rate=mrc.Ref( 'sample_rate' ), format_type=int,
+                              field_size=1, signedness='unsigned', endian=None )
 
 
 class VCLFile( mrc.Block ):
+
     sound_offsets   = mrc.UInt32_LE( 0x00, count=50 )
-    sound_lengths   = mrc.UInt16_LE( 0xc8, count=50 )
+    sound_sizes     = mrc.UInt16_LE( 0xc8, count=50 )
     sound_freqs     = mrc.UInt16_LE( 0x12c, count=50 )
     text_offsets    = mrc.UInt32_LE( 0x190, count=40 )
     text_lengths    = mrc.UInt16_LE( 0x230, count=40 )
-    data            = mrc.Bytes( 0x280 )
+    raw_data        = mrc.Bytes( 0x280 )
+
+    def __init__( self, *argc, **argv ):
+        super().__init__( *argc, **argv )
+        self.sounds = mrc.LinearStore( self, mrc.Ref( 'raw_data' ), Sound,
+                                       offsets=mrc.Ref( 'sound_offsets' ),
+                                       sizes=mrc.Ref( 'sound_sizes' ),
+                                       base_offset=-0x280 )
 
 
 # source: http://www.shikadi.net/moddingwiki/SHA_Format

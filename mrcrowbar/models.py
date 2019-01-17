@@ -8,14 +8,14 @@ from mrcrowbar.fields import ParseError, FieldValidationError, Field, \
                             CString, CStringN, CStringNStream, NumberField, \
                             Int8, UInt8, Bits, Bits8, Bits16, \
                             Bits32, Bits64, \
-                            Int16_LE, Int32_LE, Int64_LE, \
-                            UInt16_LE, UInt32_LE, UInt64_LE, \
+                            Int16_LE, Int24_LE, Int32_LE, Int64_LE, \
+                            UInt16_LE, UInt24_LE, UInt32_LE, UInt64_LE, \
                             Float32_LE, Float64_LE, \
-                            Int16_BE, Int32_BE, Int64_BE, \
-                            UInt16_BE, UInt32_BE, UInt64_BE, \
+                            Int16_BE, Int24_BE, Int32_BE, Int64_BE, \
+                            UInt16_BE, UInt24_BE, UInt32_BE, UInt64_BE, \
                             Float32_BE, Float64_BE, \
-                            Int16_P, Int32_P, Int64_P, \
-                            UInt16_P, UInt32_P, UInt64_P, \
+                            Int16_P, Int24_P, Int32_P, Int64_P, \
+                            UInt16_P, UInt24_P, UInt32_P, UInt64_P, \
                             Float32_P, Float64_P
 from mrcrowbar.blocks import Block, Unknown
 from mrcrowbar.loaders import Loader

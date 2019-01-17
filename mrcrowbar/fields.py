@@ -1166,6 +1166,11 @@ class Int16_LE( NumberField ):
         super().__init__( int, 2, 'signed', 'little', range( -1<<15, 1<<15 ), *args, **kwargs )
 
 
+class Int24_LE( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( int, 3, 'signed', 'little', range( -1<<23, 1<<23 ), *args, **kwargs )
+
+
 class Int32_LE( NumberField ):
     def __init__( self, *args, **kwargs ):
         super().__init__( int, 4, 'signed', 'little', range( -1<<31, 1<<31 ), *args, **kwargs )
@@ -1179,6 +1184,11 @@ class Int64_LE( NumberField ):
 class UInt16_LE( NumberField ):
     def __init__( self, *args, **kwargs ):
         super().__init__( int, 2, 'unsigned', 'little', range( 0, 1<<16 ), *args, **kwargs )
+
+
+class UInt24_LE( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( int, 3, 'unsigned', 'little', range( 0, 1<<24 ), *args, **kwargs )
 
 
 class UInt32_LE( NumberField ):
@@ -1206,6 +1216,11 @@ class Int16_BE( NumberField ):
         super().__init__( int, 2, 'signed', 'big', range( -1<<15, 1<<15 ), *args, **kwargs )
 
 
+class Int24_BE( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( int, 3, 'signed', 'big', range( -1<<23, 1<<23 ), *args, **kwargs )
+
+
 class Int32_BE( NumberField ):
     def __init__( self, *args, **kwargs ):
         super().__init__( int, 4, 'signed', 'big', range( -1<<31, 1<<31 ), *args, **kwargs )
@@ -1219,6 +1234,11 @@ class Int64_BE( NumberField ):
 class UInt16_BE( NumberField ):
     def __init__( self, *args, **kwargs ):
         super().__init__( int, 2, 'unsigned', 'big', range( 0, 1<<16 ), *args, **kwargs )
+
+
+class UInt24_BE( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( int, 3, 'unsigned', 'big', range( 0, 1<<24 ), *args, **kwargs )
 
 
 class UInt32_BE( NumberField ):
@@ -1246,6 +1266,11 @@ class Int16_P( NumberField ):
         super().__init__( int, 2, 'signed', Ref( '_endian' ), range( -1<<15, 1<<15 ), *args, **kwargs )
 
 
+class Int24_P( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( int, 3, 'signed', Ref( '_endian' ), range( -1<<23, 1<<23 ), *args, **kwargs )
+
+
 class Int32_P( NumberField ):
     def __init__( self, *args, **kwargs ):
         super().__init__( int, 4, 'signed', Ref( '_endian' ), range( -1<<31, 1<<31 ), *args, **kwargs )
@@ -1259,6 +1284,11 @@ class Int64_P( NumberField ):
 class UInt16_P( NumberField ):
     def __init__( self, *args, **kwargs ):
         super().__init__( int, 2, 'unsigned', Ref( '_endian' ), range( 0, 1<<16 ), *args, **kwargs )
+
+
+class UInt24_P( NumberField ):
+    def __init__( self, *args, **kwargs ):
+        super().__init__( int, 3, 'unsigned', Ref( '_endian' ), range( 0, 1<<24 ), *args, **kwargs )
 
 
 class UInt32_P( NumberField ):

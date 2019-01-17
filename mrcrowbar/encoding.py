@@ -8,17 +8,21 @@ RAW_TYPE_NAME = {
     (int, 1, 'signed', None):       'int8',
     (int, 1, 'unsigned', None):     'uint8',
     (int, 2, 'signed', 'little'):   'int16_le',
+    (int, 3, 'signed', 'little'):   'int24_le',
     (int, 4, 'signed', 'little'):   'int32_le',
     (int, 8, 'signed', 'little'):   'int64_le',
     (int, 2, 'unsigned', 'little'): 'uint16_le',
+    (int, 3, 'unsigned', 'little'): 'uint24_le',
     (int, 4, 'unsigned', 'little'): 'uint32_le',
     (int, 8, 'unsigned', 'little'): 'uint64_le',
     (float, 4, 'signed', 'little'): 'float32_le',
     (float, 8, 'signed', 'little'): 'float64_le',
     (int, 2, 'signed', 'big'):      'int16_be',
+    (int, 3, 'signed', 'big'):      'int24_be',
     (int, 4, 'signed', 'big'):      'int32_be',
     (int, 8, 'signed', 'big'):      'int64_be',
     (int, 2, 'unsigned', 'big'):    'uint16_be',
+    (int, 3, 'unsigned', 'big'):    'uint24_be',
     (int, 4, 'unsigned', 'big'):    'uint32_be',
     (int, 8, 'unsigned', 'big'):    'uint64_be',
     (float, 4, 'signed', 'big'):    'float32_be',
@@ -38,6 +42,8 @@ RAW_TYPE_STRUCT = {
     (float, 4, 'signed'):   'f',
     (float, 8, 'signed'):   'd',
 }
+
+
 
 FROM_RAW_TYPE = {}
 TO_RAW_TYPE = {}
@@ -99,6 +105,24 @@ def _to_raw_type_array( type_id ):
     return result
 
 
+def _from_generic_array( type_id, from_raw ):
+    result = lambda buffer: [from_raw( buffer[i:i+type_id[1]] ) for i in range( 0, len( buffer ), type_id[1] )]
+    result.__doc__ = 'Convert a {0} byte string to a Python list of {1}s.'.format(
+        *get_raw_type_description( *type_id )
+    )
+    return result
+
+
+def _to_generic_array( type_id, to_raw ):
+    result = lambda value_list: b''.join( [to_raw( value ) for value in value_list] ) 
+    result.__doc__ = 'Convert a Python list of {1}s to a {0} byte string.'.format(
+        *get_raw_type_description( *type_id )
+    )
+    return result
+
+
+
+# autogenerate conversion methods based on struct
 for format_type, field_size, signedness in RAW_TYPE_STRUCT:
     endian_choices = [None, 'little', 'big'] if field_size == 1 else ['little', 'big']
     for endian in endian_choices:
@@ -107,6 +131,56 @@ for format_type, field_size, signedness in RAW_TYPE_STRUCT:
         TO_RAW_TYPE[type_id] = _to_raw_type( type_id )
         FROM_RAW_TYPE_ARRAY[type_id] = _from_raw_type_array( type_id )
         TO_RAW_TYPE_ARRAY[type_id] = _to_raw_type_array( type_id )
+
+# 24-bit types
+
+RAW_24 = ['int24_le', 'uint24_le', 'int24_be', 'uint24_be']
+
+def _from_raw_24( type_id ):
+    format_type, field_size, signedness, endian = type_id
+    assert format_type == int
+    assert field_size == 3
+    assert endian in ('little', 'big')
+    def result( buffer ):
+        if endian == 'little':
+            buffer = buffer + (b'\xff' if (signedness and buffer[2] >= 0x80) else b'\x00')
+        elif endian == 'big':
+            buffer = (b'\xff' if (signedness and buffer[0] >= 0x80) else b'\x00') + buffer
+        return FROM_RAW_TYPE[(format_type, 4, signedness, endian)]( buffer )
+    result.__doc__ = 'Convert a {0} byte string to a Python {1}.'.format(
+        *get_raw_type_description( *type_id )
+    )
+    return result
+
+
+def _to_raw_24( type_id ):
+    format_type, field_size, signedness, endian = type_id
+    assert format_type == int
+    assert field_size == 3
+    assert endian in ('little', 'big')
+    def result( value ):
+        if signedness:
+            assert value in range( -1<<23, 1<<23 )
+        else:
+            assert value in range( 0, 1<<24 )
+        output = TO_RAW_TYPE[(format_type, 4, signedness, endian)]( value )
+        if endian == 'little':
+            output = output[:3]
+        elif endian == 'big':
+            output = output[1:]
+        return output
+    result.__doc__ = 'Convert a Python {1} to a {0} byte string.'.format(
+        *get_raw_type_description( *type_id )
+    )
+    return result
+
+
+for code in RAW_24:
+    type_id = RAW_TYPE_NAME_REVERSE[code]
+    FROM_RAW_TYPE[type_id] = _from_raw_24( type_id )
+    TO_RAW_TYPE[type_id] = _to_raw_24( type_id )
+    FROM_RAW_TYPE_ARRAY[type_id] = _from_generic_array( type_id, FROM_RAW_TYPE[type_id] )
+    TO_RAW_TYPE_ARRAY[type_id] = _to_generic_array( type_id, TO_RAW_TYPE[type_id] )
 
 
 def _load_raw_types():

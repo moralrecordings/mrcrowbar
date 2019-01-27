@@ -111,7 +111,7 @@ class SoundV4( mrc.Block ):
         return 'unsigned' if self.sample_bits == 8 else 'signed'
 
     def __init__( self, *argc, **argv ):
-        self.audio = aud.Wave( self, mrc.Ref( 'data' ), mrc.Ref( 'channels' ), mrc.Ref( 'sample_rate' ), int, mrc.Ref( 'sample_width' ), mrc.Ref( 'sample_signedness' ), 'big' )
+        self.audio = aud.Wave( self, mrc.Ref( 'data' ), channels=mrc.Ref( 'channels' ), sample_rate=mrc.Ref( 'sample_rate' ), format_type=int, field_size=mrc.Ref( 'sample_width' ), signedness=mrc.Ref( 'sample_signedness' ), endian='big' )
         super().__init__( *argc, **argv )
 
     @property

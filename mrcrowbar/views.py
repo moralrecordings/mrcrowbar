@@ -27,7 +27,7 @@ class Store( View ):
     base_offset = view_property( '_base_offset' )
     align = view_property( '_align' )
 
-    def cache_object( self, instance, offset, size, block_klass, block_kwargs=None ):
+    def cache_object( self, instance, offset, size, block_klass, block_kwargs=None, transform=None ):
         # key is the combination of:
         # instance, offset ref, size ref
         key = (instance, offset, size)
@@ -36,7 +36,8 @@ class Store( View ):
             'offset': offset,
             'size': size,
             'block_klass': block_klass,
-            'block_kwargs': block_kwargs if block_kwargs else {}
+            'block_kwargs': block_kwargs if block_kwargs else {},
+            'transform': transform,
         }
 
     def get_object( self, instance, offset, size ):
@@ -45,18 +46,6 @@ class Store( View ):
         key = (instance, offset, size)
 
         return self.items[key]
-        offset = property_get( offset, instance )
-        size = property_get( size, instance )
-        block_kwargs = self.refs[key]['block_klass']
-
-        if key not in self.refs:
-            source_data = self.source[self.base_offset+offset:]
-            if size is not None:
-                source_data = source_data[:size]
-            else:
-                logger.warning( '{}: loading from StoreRef without a size!'.format( self ) )
-            self.items[key] = block_klass( source_data=source_data, parent=instance, **block_kwargs )
-        return self.refs[key]
 
     def set_object( self, instance, offset, size, value ):
         key = (instance, offset, size)
@@ -77,14 +66,22 @@ class Store( View ):
                 block_kwargs = data['block_kwargs']
                 offset = property_get( data['offset'], instance )
                 size = property_get( data['size'], instance )
-                self.items[key] = block_klass( source_data=self.source[self.base_offset+offset:][:size], parent=instance, **block_kwargs )
+                transform = data['transform']
+
+                buffer = self.source[self.base_offset+offset:][:size]
+                if transform:
+                    buffer = transform.import_data( buffer, parent=instance ).payload
+                self.items[key] = block_klass( source_data=buffer, parent=instance, **block_kwargs )
 
     def save( self ):
         pointer = 0
         result = bytearray()
         for key, block in self.items.items():
             instance, offset, size = key
+            transform = self.refs[key]['transform']
             data = block.export_data()
+            if transform:
+                data = transform.export_data( data ).payload
             property_set( offset, instance, pointer-self.base_offset )
             if size is not None:
                 property_set( size, instance, len( data ) )
@@ -98,13 +95,15 @@ class Store( View ):
 
 
 class LinearStore( View ):
-    def __init__( self, parent, source, block_klass, offsets=None, sizes=None, base_offset=0, fill=b'\x00', **kwargs ):
+    def __init__( self, parent, source, block_klass, offsets=None, sizes=None, base_offset=0, fill=b'\x00', block_kwargs=None, transform=None, **kwargs ):
         super().__init__( parent, **kwargs )
         self._source = source
         self._offsets = offsets
         self._sizes = sizes
         self._base_offset = base_offset
         self.block_klass = block_klass
+        self.block_kwargs = block_kwargs
+        self.transform = transform
         self._items = None
 
     source = view_property( '_source' )
@@ -143,7 +142,10 @@ class LinearStore( View ):
             sizes.append( len( self.source ) - offsets[-1] )
         elif not offsets:
             offsets = [sum( sizes[:i] ) for i in range( len( sizes ) )]
-        self._items = [self.block_klass( self.source[self.base_offset+offsets[i]:][:sizes[i]], parent=self.parent ) for i in range( len( sizes ) )]
+        buffer = self.source[self.base_offset+offsets[i]:][:sizes[i]]
+        if self.transform:
+            buffer = self.transform.import_data( buffer, parent=self.parent ).payload
+        self._items = [self.block_klass( buffer, parent=self.parent, **self.block_kwargs ) for i in range( len( sizes ) )]
 
     def save( self ):
         self.validate()
@@ -158,6 +160,8 @@ class LinearStore( View ):
 
         for item in self.items:
             entry = item.export_data()
+            if self.transform:
+                entry = self.transform.export_data( entry, parent=self.parent ).payload
             offsets.append( pointer - self.base_offset )
             sizes.append( len( entry ) )
             result += entry
@@ -212,17 +216,18 @@ class LinearStore( View ):
 
 
 class StoreRef( Ref ):
-    def __init__( self, block_klass, store, offset, size, count=None, block_kwargs=None ):
+    def __init__( self, block_klass, store, offset, size, count=None, block_kwargs=None, transform=None ):
         self.block_klass = block_klass
         self.store = store
         self.offset = offset
         self.size = size
         self.count = count 
         self.block_kwargs = block_kwargs
+        self.transform = transform
 
     def cache( self, instance ):
         store = property_get( self.store, instance )
-        store.cache_object( instance, self.offset, self.size, self.block_klass, self.block_kwargs )
+        store.cache_object( instance, self.offset, self.size, self.block_klass, self.block_kwargs, self.transform )
 
     def get( self, instance ):
         store = property_get( self.store, instance )

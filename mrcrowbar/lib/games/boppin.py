@@ -121,6 +121,31 @@ BOPPIN_SND_FILENAMES = [
 ]
 
 
+class BoppinCompressor( mrc.Transform ):
+    def import_data( self, buffer, parent=None ):
+        if len( buffer ) == 0:
+            return mrc.TransformResult()
+
+        lc = lzss.LZSSCompressor()
+        size_comp = utils.from_uint32_le( buffer[0:4] )
+
+        if size_comp != len( buffer ):
+            logger.info( '{}: File not compressed'.format( self ) )
+            return mrc.TransformResult( payload=buffer, end_offset=len( buffer ) )
+
+        size_raw = utils.from_uint32_le( buffer[4:8] )
+        result = lc.import_data( buffer[8:] )
+        if len( result.payload ) != size_raw:
+            logger.warning( '{}: Was expecting a decompressed size of {}, got {}!'.format( self, size_raw, len( result.payload ) ) )
+
+        return result
+
+    def export_data( self, buffer, parent=None ):
+        # no header, no compression!
+        return mrc.TransformResult( payload=buffer )
+
+
+
 # levels can pick:
 # - 6 banks of 16x tiles
 # - 2 banks of 6x bopping blocks 
@@ -144,9 +169,11 @@ class Colour( img.Colour ):
     unknown_3 =     mrc.UInt8( 0x05 )
 
 
-class Lookup( mrc.Block ):
+class FileLookup( mrc.Block ):
     offset =        mrc.UInt32_LE( 0x00 )
     size =          mrc.UInt32_LE( 0x04 )
+
+    file = mrc.StoreRef( mrc.Unknown, store=mrc.Ref( '_parent.files_store' ), offset=mrc.Ref( 'offset' ), size=mrc.Ref( 'size' ), transform=BoppinCompressor() )
 
 
 # stop looking for more lookup-table entries once we hit the first result that references the end of the file
@@ -171,34 +198,15 @@ def resource_stop_check( buffer, offset ):
 
 
 class Resource( mrc.Block ):
-    lookup_table =  mrc.BlockField( Lookup, 0x00, stride=0x08, count=64, stop_check=resource_stop_check, fill=b'\xff\xff\xff\xff\x00\x00\x00\x00' )
-    files_raw = mrc.Bytes( mrc.EndOffset( 'lookup_table' ) )
+    files =  mrc.BlockField( FileLookup, 0x00, stride=0x08, stream=True, stop_check=resource_stop_check, fill=b'\xff\xff\xff\xff\x00\x00\x00\x00' )
+    files_raw = mrc.Bytes( mrc.EndOffset( 'files' ) )
     
     def __init__( self, *args, **kwargs ):
+        self.files_store = mrc.Store( parent=self, source=mrc.Ref( 'files_raw' ), base_offset=mrc.EndOffset( 'files', neg=True ) )
         super().__init__( *args, **kwargs )
-        self.files = mrc.Store( parent=self, source=mrc.Ref( 'files_raw' ), base_offset=mrc.EndOffset( 'lookup_table', neg=True ) )
 
 
 
-class BoppinCompressor( mrc.Transform ):
-    
-    def import_data( self, buffer, parent=None ):
-        if len( buffer ) == 0:
-            return mrc.TransformResult()
-
-        lc = lzss.LZSSCompressor()
-        size_comp = utils.from_uint32_le( buffer[0:4] )
-
-        if size_comp != len( buffer ):
-            logger.info( '{}: File not compressed'.format( self ) )
-            return mrc.TransformResult( payload=buffer, end_offset=len( buffer ) )
-        
-        size_raw = utils.from_uint32_le( buffer[4:8] )
-        result = lc.import_data( buffer[8:][:size_comp] )
-        if len( result.payload ) != size_raw:
-            logger.warning( '{}: Was expecting a decompressed size of {}, got {}!'.format( self, size_raw, len( result.payload ) ) )
-
-        return result
 
 
 class Loader( mrc.Loader ):

@@ -1,8 +1,4 @@
-#!/usr/bin/python3
-
 from mrcrowbar import models as mrc
-from mrcrowbar.utils import BitReader, BitWriter
-
 
 
 # source: http://dev.gameres.com/Program/Other/LZSS.C

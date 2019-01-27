@@ -18,7 +18,8 @@ class B800Char( mrc.Block ):
     _palette =      ibm_pc.EGA_DEFAULT_PALETTE
 
     code_point =    mrc.UInt8( 0x00 )
-    bg_colour =     mrc.Bits( 0x01, 0b11110000 )
+    fg_blink =      mrc.Bits( 0x01, 0b10000000 )
+    bg_colour =     mrc.Bits( 0x01, 0b01110000 )
     fg_colour =     mrc.Bits( 0x01, 0b00001111 )
 
     @property
@@ -27,7 +28,7 @@ class B800Char( mrc.Block ):
 
     def ansi_format( self ):
         return utils.ansi_format_string( 
-            self.char, self._palette[self.fg_colour], self._palette[self.bg_colour] 
+            self.char, self._palette[self.fg_colour], self._palette[self.bg_colour], blink=self.fg_blink
         )
 
     def __str__( self ):

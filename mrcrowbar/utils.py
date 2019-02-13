@@ -6,6 +6,7 @@ import io
 import mmap
 import logging
 from collections import Counter
+import time
 logger = logging.getLogger( __name__ )
 
 from mrcrowbar import encoding
@@ -595,7 +596,12 @@ HEATMAP_LINES = (
     (0x00, 0x34, 0x6c, 0xb0, 0xec),
     (0x00, 0x00, 0x00, 0x40, 0xa0),
 )
-HEATMAP_COLOURS = [[round( mix_line( HEATMAP_LINES[j], i/255 ) ) for j in range( 3 )] for i in range( 256 )]
+
+def generate_heatmap( start=0, end=256, lines=HEATMAP_LINES ):
+    alpha = [max( 0.0, min( 1.0, (i-start)/max( end-start, 1 ) ) ) for i in range( 256 )]
+    return [[round( mix_line( HEATMAP_LINES[j], a ) ) for j in range( 3 )] for a in alpha]
+
+HEATMAP_COLOURS = generate_heatmap()
 
 #: ANSI escape sequence container
 ANSI_FORMAT_BASE = '\x1b[{}m'
@@ -938,7 +944,7 @@ def ansi_format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=3
     return
 
 
-def pixdump_iter( source, start=None, end=None, length=None, width=64, palette=None ):
+def pixdump_iter( source, start=None, end=None, length=None, width=64, height=None, palette=None ):
     """Return the contents of a byte string as a 256 colour image.
 
     source
@@ -955,6 +961,9 @@ def pixdump_iter( source, start=None, end=None, length=None, width=64, palette=N
 
     width
         Width of image to render in pixels (default: 64)
+
+    height
+        Height of image to render in pixels (default: auto)
 
     palette
         List of Colours to use (default: test palette)
@@ -977,9 +986,10 @@ def pixdump_iter( source, start=None, end=None, length=None, width=64, palette=N
     start = max( start, 0 )
     end = min( end, len( source ) )
     if len( source ) == 0 or (start == end == 0):
-        return
+        return iter(())
 
-    height = math.ceil( (end-start)/width )
+    if height is None:
+        height = math.ceil( (end-start)/width )
 
     def data_fetch( x_pos, y_pos, frame ):
         index = y_pos*width + x_pos + start
@@ -990,7 +1000,7 @@ def pixdump_iter( source, start=None, end=None, length=None, width=64, palette=N
     return ansi_format_image_iter( data_fetch, width=width, height=height )
 
 
-def pixdump( source, start=None, end=None, length=None, width=64, palette=None ):
+def pixdump( source, start=None, end=None, length=None, width=64, height=None, palette=None ):
     """Print the contents of a byte string as a 256 colour image.
 
     source
@@ -1008,12 +1018,25 @@ def pixdump( source, start=None, end=None, length=None, width=64, palette=None )
     width
         Width of image to render in pixels (default: 64)
 
+    height
+        Height of image to render in pixels (default: auto)
+
     palette
         List of Colours to use (default: test palette)
     """
 
-    for line in pixdump_iter( source, start, end, length, width, palette ):
+    for line in pixdump_iter( source, start, end, length, width, height, palette ):
         print( line )
+
+
+def pixdump_sweep( source, range=(64,), delay=None, start=None, end=None, length=None, height=None, palette=None ):
+    for w in range:
+        print( w )
+        for line in pixdump_iter( source, start, end, length, w, height, palette ):
+            print( line )
+        print()
+        if delay is not None:
+            time.sleep( delay )
 
 
 class BitReader( object ):

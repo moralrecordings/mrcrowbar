@@ -666,7 +666,7 @@ class BlockField( StreamField ):
 
 
 class Bytes( Field ):
-    def __init__( self, offset=Chain(), length=None, default=None, transform=None, stream_end=None, **kwargs ):
+    def __init__( self, offset=Chain(), length=None, default=None, transform=None, stream_end=None, alignment=1, **kwargs ):
         """Field class for raw byte data.
 
         offset
@@ -684,6 +684,9 @@ class Bytes( Field ):
 
         stream_end
             Byte string to indicate the end of the data.
+
+        alignment
+            Number of bytes to align the start of the next element to.
         """
         if default is not None:
             assert utils.is_bytes( default )
@@ -696,6 +699,7 @@ class Bytes( Field ):
         if stream_end is not None:
             assert utils.is_bytes( stream_end )
         self.stream_end = stream_end
+        self.alignment = alignment
 
     def get_from_buffer( self, buffer, parent=None, **kwargs ):
         assert utils.is_bytes( buffer )
@@ -719,6 +723,7 @@ class Bytes( Field ):
         super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
+        alignment = property_get( self.alignment, parent )
 
         data = value
         if self.transform:
@@ -727,13 +732,18 @@ class Bytes( Field ):
         new_size = offset+len( data )
         if self.stream_end is not None:
             new_size += len( self.stream_end )
+        if alignment is not None:
+            width = new_size % alignment
+            if width:
+                new_size += alignment-width
 
         if len( buffer ) < new_size:
             buffer.extend( b'\x00'*(new_size-len( buffer )) )
 
         buffer[offset:offset+len( data )] = data
         if self.stream_end is not None:
-            buffer[offset+len( data ):new_size] = self.stream_end
+            buffer[offset+len( data ):offset+len( data )+len( self.stream_end )] = self.stream_end
+
         return
 
     def update_deps( self, value, parent=None ):

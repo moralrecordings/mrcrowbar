@@ -323,35 +323,141 @@ class ScriptConstantType( IntEnum ):
     FLOAT =     0x0009
 
 
+class ScriptInstruction( IntEnum ):
+    EXIT =  0x01
+    PUSH_0 = 0x03
+    MULT = 0x04
+    ADD = 0x05
+    SUB = 0x06
+    DIV = 0x07
+    MOD = 0x08
+    NEG = 0x09
+    CONCAT = 0x0a
+    CONCAT_SP = 0x0b
+    LT = 0x0c
+    LTE = 0x0d
+    NEQ = 0x0e
+    EQ = 0x0f
+    GT = 0x10
+    GTE = 0x11
+    AND = 0x12
+    OR = 0x13
+    NOT = 0x14
+    CONTAINS = 0x15
+    STARTS = 0x16
+    SLICE = 0x17
+    HILITE = 0x18
+    SPRITE_INTERSECTS = 0x19
+    SPRITE_WITHIN = 0x1a
+    FIELD = 0x1b
+    EXEC = 0x1c
+    EXEC_END = 0x1d
+    UNK1 = 0x1e
+    DICT = 0x1f
+
+    # 1 byte payload
+    PUSH = 0x41
+    TUPLE = 0x42
+    LIST = 0x43
+    PUSH_CONST = 0x44
+    PUSH_SYMBOL = 0x45
+    PUSH_OBJECT = 0x46
+    
+    PUSH_GLOBAL = 0x49
+    PUSH_PROPERTY = 0x4a
+    PUSH_PARAM = 0x4b
+    PUSH_LOCAL = 0x4c
+    
+    POP_GLOBAL = 0x4f
+    POP_PROPERTY = 0x50
+    POP_PARAM = 0x51
+    POP_LOCAL = 0x52
+
+    JUMP_BACK = 0x54
+
+    CALL = 0x56
+    CALL_EXTERNAL = 0x57
+    CALL_METHOD = 0x58
+    POP_VALUE1 = 0x59
+    POP_VALUE2 = 0x5a
+    SLICE_DEL = 0x5b
+    
+    KERNEL_CALL = 0x5c
+    KERNEL_SET = 0x5d
+
+    PUSH_PROPERTY_CTX = 0x5f
+    POP_PROPERTY_CTX = 0x60
+    PUSH_PROPERTY_OBJ = 0x61
+    POP_PROPERTY_OBJ = 0x62
+    CALL_EXTERNAL_OBJ = 0x63
+    PUSH_FROM_STACK = 0x64
+    POP_FROM_STACK = 0x65
+    PUSH_PATH = 0x66
+
+    # 2 byte payload
+    PUSH_U16 = 0x81
+    TUPLE_U16 = 0x82
+    LIST_U16 = 0x83
+    PUSH_CONST_U16 = 0x84
+
+    PUSH_GLOBAL_U16 = 0x89
+    
+    POP_GLOBAL_U16 = 0x8f
+    POP_PROPERTY_U16 = 0x90
+
+    JUMP = 0x93
+    
+    JUMP_IF = 0x95
+    
+    POP_PROPERTY_CTX_U16 = 0xa0
+    PUSH_PROPERTY_OBJ_U16 = 0xa1
+    POP_PROPERTY_OBJ_U16 = 0xa2
+
+    PUSH_PATH_U16 = 0xa6
+
+
+
+
+
+
 class ScriptString( mrc.Block ):
     length = mrc.UInt32_BE( 0x00 )
     value = mrc.CStringN( 0x04, length=mrc.Ref( 'length' ) )
 
+    @property
     def repr( self ):
-        return value.decode( 'utf-8' )
-
+        return self.value.decode( 'utf-8' )
 
 class ScriptConstantString( mrc.Block ):
     offset = mrc.UInt32_BE( 0x00 )
     value = mrc.StoreRef( ScriptString, mrc.Ref( '_parent._parent.consts_store' ), offset=mrc.Ref( 'offset' ), size=None )
 
+    @property
+    def repr( self ):
+        return self.value.repr
 
 class ScriptConstantUInt32( mrc.Block ):
     value = mrc.UInt32_BE( 0x00 )
 
+    @property
     def repr( self ):
-        return '{}'.format( value )
-
+        return '{}'.format( self.value )
 
 class ScriptFloat( mrc.Block ):
     length = mrc.UInt32_BE( 0x00 ),
     data = mrc.Bytes( 0x04, length=mrc.Ref( 'length' ) )
 
+    @property
+    def repr( self ):
+        return self.data.hex()
 
 class ScriptConstantFloat( mrc.Block ):
     offset = mrc.UInt32_BE( 0x00 )
     value = mrc.StoreRef( ScriptFloat, mrc.Ref( '_parent._parent.consts_store' ), offset=mrc.Ref( 'offset' ), size=None )
 
+    @property
+    def repr( self ):
+        return self.value.repr
 
 class ScriptConstant( mrc.Block ):
     SCRIPT_CONSTANT_TYPES = {
@@ -362,6 +468,10 @@ class ScriptConstant( mrc.Block ):
 
     const_type = mrc.UInt16_BE( 0x00, enum=ScriptConstantType )
     const = mrc.BlockField( SCRIPT_CONSTANT_TYPES, 0x02, block_type=mrc.Ref( 'const_type' ) )
+
+    @property
+    def repr( self ):
+        return '{}: {}'.format( self.const_type, self.const.repr )
 
 
 class ScriptFunction( mrc.Block ):
@@ -380,24 +490,43 @@ class ScriptFunction( mrc.Block ):
     count4 = mrc.UInt16_BE( 0x24 )
     unk7 = mrc.UInt32_BE( 0x26 )
 
+    code = mrc.StoreRef( mrc.Unknown, mrc.Ref( '_parent.code_store' ), offset=mrc.Ref( 'offset' ), size=mrc.Ref( 'length' ) )
+
 
 class ScriptV4( mrc.Block ):
-    unk1 = mrc.Bytes( 0x00, length=0x40 )
+    unk1 = mrc.Bytes( 0x00, length=0x10 )
+    code_store_offset = mrc.UInt16_BE( 0x10 )
+    unk2 = mrc.Bytes( 0x12, length=0x2e )
+
     functions_offset = mrc.UInt16_BE( 0x40 )
 
+    unk3 = mrc.Bytes( 0x42, length=6 )
     functions_count = mrc.UInt16_BE( 0x48 )
+    unk4 = mrc.UInt16_BE( 0x4a )
     
-    unk2 = mrc.UInt16_BE( 0x46 )
-    unk3 = mrc.UInt16_BE( 0x4c )
+    unk5 = mrc.UInt16_BE( 0x4c )
 
     consts_count = mrc.UInt16_BE( 0x4e )
 
     consts_offset = mrc.UInt16_BE( 0x52 )
-
-    unk4 = mrc.UInt16_BE( 0x56 )
+    consts_unk = mrc.UInt16_BE( 0x56 )
     consts_base = mrc.UInt16_BE( 0x5a )
-    unk5 = mrc.Bytes( 0x5c, length=0xc )
 
+    unk6 = mrc.Bytes( 0x5c, length=0xc )
+
+    @property
+    def code_store_size( self ):
+        return self.functions_offset - self.code_store_offset
+
+    @code_store_size.setter
+    def code_store_size( self, value ):
+        self.functions_offset = value + self.code_store_offset
+    
+    @property
+    def code_store_base( self ):
+        return -self.code_store_offset
+
+    code_store_raw = mrc.Bytes( mrc.Ref( 'code_store_offset' ), length=mrc.Ref( 'code_store_size' ) )
 
     functions = mrc.BlockField( ScriptFunction, mrc.Ref( 'functions_offset' ), count=mrc.Ref( 'functions_count' ) )
     consts = mrc.BlockField( ScriptConstant, mrc.Ref( 'consts_offset' ), count=mrc.Ref( 'consts_count' ) )
@@ -410,6 +539,9 @@ class ScriptV4( mrc.Block ):
     def __init__( self, *args, **kwargs ):
         self.consts_store = mrc.Store( self, mrc.Ref( 'consts_raw' ),
                                         base_offset=mrc.Ref( 'consts_store_offset' ) )
+        self.code_store = mrc.Store( self, mrc.Ref( 'code_store_raw' ),
+                                        base_offset=mrc.Ref( 'code_store_base' ) )
+
         super().__init__( *args, **kwargs )
 
 

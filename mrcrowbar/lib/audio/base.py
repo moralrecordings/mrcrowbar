@@ -70,6 +70,32 @@ def resample_audio( norm_source, sample_rate, interpolation ):
 
 class Wave( mrc.View ):
     def __init__( self, parent, source, channels, sample_rate, format_type, field_size, signedness, endian ):
+        """View for for accessing PCM wave audio.
+
+        parent
+            Parent object.
+
+        source
+            Raw audio data, in bytes.
+
+        channels
+            Number of audio channels.
+
+        sample_rate
+            Playback sample rate, in Hz.
+
+        format_type
+            Python type corresponding to the sample format. Either int or float.
+
+        field_size
+            Number of bytes per sample.
+
+        signedness
+            Signedness of sample format. Either 'signed' or 'unsigned'.
+
+        endian
+            Endianness of sample format. Either 'big', 'little' or None.
+        """
         super().__init__( parent )
         self._source = source
         self._channels = channels

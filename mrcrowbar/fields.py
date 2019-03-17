@@ -279,6 +279,15 @@ class StreamField( Field ):
                 if width:
                     pointer += alignment - width
 
+        new_size = pointer
+        if self.stream_end is not None:
+            new_size += len( self.stream_end )
+
+        if len( buffer ) < new_size:
+            buffer.extend( b'\x00'*(new_size-len( buffer )) )
+
+        if self.stream_end is not None:
+            buffer[new_size-len( self.stream_end ):new_size] = self.stream_end
 
     def update_deps( self, value, parent=None ):
         count = property_get( self.count, parent )
@@ -631,8 +640,18 @@ class BlockField( StreamField ):
 
     def update_deps( self, value, parent=None ):
         count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
+
+        is_array = stream or (count is not None)
+
         if count is not None and count != len( value ):
             property_set( self.count, parent, len( value ) )
+
+        if not is_array:
+            value = [value]
+
+        for element in value:
+            element.update_deps()
 
     def validate_element( self, element, parent=None ):
         klass = self.get_klass( parent )

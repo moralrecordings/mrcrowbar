@@ -261,8 +261,7 @@ class Block( object, metaclass=BlockMeta ):
             self.scrub_field( name )
             self.validate_field( name )
 
-        for name in klass._fields:
-            self.update_deps_on_field( name )
+        self.update_deps()
 
         for name in klass._fields:
             klass._fields[name].update_buffer_with_value(

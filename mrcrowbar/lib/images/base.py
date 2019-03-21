@@ -62,6 +62,13 @@ class Colour( mrc.Block ):
         self.a_8 = a_8
         return self
 
+    def set_rgba( self, r_8, g_8, b_8, a_8 ):
+        self.r_8 = r_8
+        self.g_8 = g_8
+        self.b_8 = b_8
+        self.a_8 = a_8
+        return self
+
     def clone_data( self, source ):
         assert isinstance( source, Colour )
         self.r_8 = source.r_8
@@ -131,14 +138,27 @@ class Image( mrc.View ):
     frame_count = mrc.view_property( '_frame_count' )
 
 
-def to_palette_bytes( palette ):
-    return itertools.chain( *((c.r_8, c.g_8, c.b_8) for c in palette) )
+def to_palette_bytes( palette, stride=3, order=(0, 1, 2) ):
+    assert stride >= max( order )
+    assert min( order ) >= 0
+    blanks = tuple((0 for i in range( stride-max( order )-1 )))
+    ORDER_MAP = {0: 'r_8', 1: 'g_8', 2: 'b_8', 3: 'a_8'}
+    channel = lambda c, o: getattr( c, ORDER_MAP[o] )
+    return bytes( itertools.chain( *(tuple((channel( c, o ) for o in order))+blanks for c in palette) ) )
 
 
 def from_palette_bytes( palette_bytes, stride=3, order=(0, 1, 2) ):
+    assert stride >= max( order )
+    assert min( order ) >= 0
+    assert len( order ) in (1, 3, 4)
     result = []
     for i in range( math.floor( len( palette_bytes )/stride ) ):
-        colour = Colour().set_rgb( palette_bytes[stride*i+order[0]], palette_bytes[stride*i+order[1]], palette_bytes[stride*i+order[2]] )
+        if len( order ) == 1:
+            colour = Colour().set_rgb( palette_bytes[stride*i+order[0]], palette_bytes[stride*i+order[0]], palette_bytes[stride*i+order[0]] )
+        elif len( order ) == 3:
+            colour = Colour().set_rgb( palette_bytes[stride*i+order[0]], palette_bytes[stride*i+order[1]], palette_bytes[stride*i+order[2]] )
+        elif len( order ) == 4:
+            colour = Colour().set_rgba( palette_bytes[stride*i+order[0]], palette_bytes[stride*i+order[1]], palette_bytes[stride*i+order[2]], palette_bytes[stride*i+order[3]] )
         result.append( colour )
     return result
 

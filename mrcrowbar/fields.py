@@ -651,7 +651,8 @@ class BlockField( StreamField ):
             value = [value]
 
         for element in value:
-            element.update_deps()
+            if element is not None:
+                element.update_deps()
 
     def validate_element( self, element, parent=None ):
         klass = self.get_klass( parent )

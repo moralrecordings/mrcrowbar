@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from mrcrowbar import models as mrc, utils
+from mrcrowbar import models as mrc, ansi, utils
 from mrcrowbar.lib.hardware import ibm_pc
 
 # map of DOS code page 437 to Unicode
@@ -27,7 +27,7 @@ class B800Char( mrc.Block ):
         return CP437[self.code_point]
 
     def ansi_format( self ):
-        return utils.ansi_format_string( 
+        return ansi.format_string( 
             self.char, self._palette[self.fg_colour], self._palette[self.bg_colour], blink=self.fg_blink
         )
 

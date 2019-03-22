@@ -1,5 +1,5 @@
 from mrcrowbar import models as mrc
-from mrcrowbar import utils, encoding
+from mrcrowbar import ansi, encoding
 
 from array import array
 from enum import IntEnum
@@ -119,7 +119,7 @@ class Wave( mrc.View ):
     def ansi_format( self, width=64, height=12 ):
         audio = self.normalised()
         result = []
-        for line in utils.ansi_format_bar_graph_iter( audio, width=width, height=height, y_min=-1, y_max=1 ):
+        for line in ansi.format_bar_graph_iter( audio, width=width, height=height, y_min=-1, y_max=1 ):
             result.append( '{}\n'.format( line ) )
         return ''.join( result )
 

@@ -36,13 +36,15 @@ def read( fp ):
     try:
         region = mmap.mmap( fp.fileno(), 0, access=mmap.ACCESS_READ )
     except:
-        region = fp.read()
-        def enter( self, *args ):
-            return self
-        def exit( self, *args ):
-            return
-        region.__enter__ = enter
-        region.__exit__ = exit
+        data = fp.read()
+
+        # add a fake context manager so "with" statements still work
+        @contextlib.contextmanager
+        def ctx():
+            yield data
+
+        region = ctx()
+
     return region
 
 

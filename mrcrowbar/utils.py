@@ -1,6 +1,7 @@
 """General utility functions useful for reverse engineering."""
 
 import math
+import contextlib
 import io
 import mmap
 import logging
@@ -30,6 +31,19 @@ def is_bytes( obj ):
     """Returns whether obj is an acceptable Python byte string."""
     return isinstance( obj, (bytes, bytearray, mmap.mmap, memoryview) )
 
+
+def read( fp ):
+    try:
+        region = mmap.mmap( fp.fileno(), 0, access=mmap.ACCESS_READ )
+    except:
+        region = fp.read()
+        def enter( self, *args ):
+            return self
+        def exit( self, *args ):
+            return
+        region.__enter__ = enter
+        region.__exit__ = exit
+    return region
 
 
 BYTE_REVERSE = bytes.fromhex( '008040c020a060e0109050d030b070f0'\
@@ -425,13 +439,6 @@ def pack_bits( longbits ):
     return byte
 
 
-#: Shorthand for ansi.format_string()
-colour = ansi.format_string
-
-#: Shorthand for ansi.format_pixels()
-pixels = ansi.format_pixels
-
-
 def pixdump_iter( source, start=None, end=None, length=None, width=64, height=None, palette=None ):
     """Return the contents of a byte string as a 256 colour image.
 
@@ -459,7 +466,7 @@ def pixdump_iter( source, start=None, end=None, length=None, width=64, height=No
     assert is_bytes( source )
 
     if not palette:
-        palette = colours.TEST_PALETTE
+        palette = colour.TEST_PALETTE
 
     start = 0 if (start is None) else start
     if (end is not None) and (length is not None):

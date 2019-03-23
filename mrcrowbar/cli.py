@@ -2,8 +2,6 @@ from mrcrowbar import utils
 from mrcrowbar.version import __version__
 
 import argparse
-import mmap
-import os
 
 auto_int = lambda s: int( s, base=0 )
 
@@ -229,7 +227,7 @@ def mrcdump():
     for i, src in enumerate( raw_args.source ):
         if len( raw_args.source ) != 1:
             print( src.name )
-        with mmap.mmap( src.fileno(), 0, access=mmap.ACCESS_READ ) as source:
+        with utils.read( src ) as source:
 
             if not raw_args.no_hexdump:
                 utils.hexdump(
@@ -251,17 +249,16 @@ def mrcdiff():
     parser = mrcdiff_parser()
     raw_args = parser.parse_args()
 
-    source1 = mmap.mmap( raw_args.source1.fileno(), 0, access=mmap.ACCESS_READ )
-    source2 = mmap.mmap( raw_args.source2.fileno(), 0, access=mmap.ACCESS_READ )
     before = raw_args.before if not raw_args.show_all else None
     after = raw_args.after if not raw_args.show_all else None
 
-    utils.hexdump_diff(
-        source1, source2, start=raw_args.start, end=raw_args.end,
-        length=raw_args.length, major_len=raw_args.major_len,
-        minor_len=raw_args.minor_len, colour=raw_args.colour,
-        before=before, after=after, address_base=raw_args.address_base,
-    )
+    with utils.read( raw_args.source1 ) as source1, utils.read( raw_args.source2 ) as source2:
+        utils.hexdump_diff(
+            source1, source2, start=raw_args.start, end=raw_args.end,
+            length=raw_args.length, major_len=raw_args.major_len,
+            minor_len=raw_args.minor_len, colour=raw_args.colour,
+            before=before, after=after, address_base=raw_args.address_base,
+        )
 
 def mrchist():
     parser = mrchist_parser()
@@ -270,7 +267,7 @@ def mrchist():
     for i, src in enumerate( raw_args.source ):
         if len( raw_args.source ) != 1:
             print( src.name )
-        with mmap.mmap( src.fileno(), 0, access=mmap.ACCESS_READ ) as source:
+        with utils.read( src ) as source:
             utils.histdump( source, start=raw_args.start, end=raw_args.end,
                 length=raw_args.length, samples=raw_args.samples, width=raw_args.width,
                 address_base=raw_args.address_base,
@@ -285,7 +282,7 @@ def mrcpix():
     for i, src in enumerate( raw_args.source ):
         if len( raw_args.source ) != 1:
             print( src.name )
-        with mmap.mmap( src.fileno(), 0, access=mmap.ACCESS_READ ) as source:
+        with utils.read( src ) as source:
             utils.pixdump( source, start=raw_args.start, end=raw_args.end,
                 length=raw_args.length, width=raw_args.width,
             )

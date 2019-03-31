@@ -1,14 +1,15 @@
 """General utility functions useful for reverse engineering."""
 
 import math
-import contextlib
 import io
 import mmap
 import logging
 import time
 logger = logging.getLogger( __name__ )
 
-from mrcrowbar import ansi, colour, encoding, statistics
+from mrcrowbar import ansi, colour, encoding, statistics, sound
+from mrcrowbar.common import is_bytes, read, bounds
+
 globals().update( encoding._load_raw_types() )
 
 def enable_logging( level='WARNING' ):
@@ -25,27 +26,6 @@ def enable_logging( level='WARNING' ):
     form = logging.Formatter( '[%(levelname)s] %(name)s - %(message)s' )
     out.setFormatter( form )
     log.addHandler( out )
-
-
-def is_bytes( obj ):
-    """Returns whether obj is an acceptable Python byte string."""
-    return isinstance( obj, (bytes, bytearray, mmap.mmap, memoryview) )
-
-
-def read( fp ):
-    try:
-        region = mmap.mmap( fp.fileno(), 0, access=mmap.ACCESS_READ )
-    except:
-        data = fp.read()
-
-        # add a fake context manager so "with" statements still work
-        @contextlib.contextmanager
-        def ctx():
-            yield data
-
-        region = ctx()
-
-    return region
 
 
 BYTE_REVERSE = bytes.fromhex( '008040c020a060e0109050d030b070f0'\
@@ -65,10 +45,7 @@ BYTE_REVERSE = bytes.fromhex( '008040c020a060e0109050d030b070f0'\
                               '078747c727a767e7179757d737b777f7'\
                               '0f8f4fcf2faf6fef1f9f5fdf3fbf7fff' )
 
-
-
 DIFF_COLOUR_MAP = (9, 10)
-
 
 
 def find_all_iter( source, substring, start=None, end=None, overlap=False ):
@@ -162,16 +139,7 @@ def basic_diff( source1, source2, start=None, end=None ):
 
 def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, width=64, address_base=None ):
     assert is_bytes( source )
-
-    start = 0 if (start is None) else start
-    if (end is not None) and (length is not None):
-        raise ValueError( 'Can\'t define both an end and a length!' )
-    elif (length is not None):
-        end = start+length
-    elif (end is not None):
-        pass
-    else:
-        end = len( source )
+    start, end = bounds( start, end, length, len( source ) )
 
     start = max( start, 0 )
     end = min( end, len( source ) )
@@ -187,7 +155,6 @@ def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, w
 def histdump( source, start=None, end=None, length=None, samples=0x10000, width=64, address_base=None ):
     for line in histdump_iter( source, start, end, length, samples, width, address_base ):
         print( line )
-
 
 
 def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None ):
@@ -220,16 +187,7 @@ def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_
     Raises ValueError if both end and length are defined.
     """
     assert is_bytes( source )
-
-    start = 0 if (start is None) else start
-    if (end is not None) and (length is not None):
-        raise ValueError( 'Can\'t define both an end and a length!' )
-    elif (length is not None):
-        end = start+length
-    elif (end is not None):
-        pass
-    else:
-        end = len( source ) 
+    start, end = bounds( start, end, length, len( source ) )
 
     start = max( start, 0 )
     end = min( end, len( source ) )
@@ -409,15 +367,7 @@ def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len
 
 
 def stats( source, start=None, end=None, length=None, width=64, height=12 ):
-    start = 0 if (start is None) else start
-    if (end is not None) and (length is not None):
-        raise ValueError( 'Can\'t define both an end and a length!' )
-    elif (length is not None):
-        end = start+length
-    elif (end is not None):
-        pass
-    else:
-        end = len( source )
+    start, end = bounds( start, end, length, len( source ) )
 
     stat = statistics.Stats( source[start:end] )
     stat.print( width=width, height=height )

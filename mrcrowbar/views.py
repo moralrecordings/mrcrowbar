@@ -102,7 +102,7 @@ class LinearStore( View ):
         self._sizes = sizes
         self._base_offset = base_offset
         self.block_klass = block_klass
-        self.block_kwargs = block_kwargs
+        self.block_kwargs = block_kwargs if block_kwargs else {}
         self.transform = transform
         self._items = None
 
@@ -142,10 +142,10 @@ class LinearStore( View ):
             sizes.append( len( self.source ) - offsets[-1] )
         elif not offsets:
             offsets = [sum( sizes[:i] ) for i in range( len( sizes ) )]
-        buffer = self.source[self.base_offset+offsets[i]:][:sizes[i]]
+        buffers = [self.source[self.base_offset+offsets[i]:][:sizes[i]] for i in range( len( offsets ) )]
         if self.transform:
-            buffer = self.transform.import_data( buffer, parent=self.parent ).payload
-        self._items = [self.block_klass( buffer, parent=self.parent, **self.block_kwargs ) for i in range( len( sizes ) )]
+            buffers = [self.transform.import_data( x, parent=self.parent ).payload for x in buffers]
+        self._items = [self.block_klass( x, parent=self.parent, **self.block_kwargs ) for x in buffers]
 
     def save( self ):
         self.validate()

@@ -75,8 +75,8 @@ class SHAFile( mrc.Block ):
     tilesets        = mrc.StoreRef( Tileset, mrc.Ref( 'store' ), mrc.Ref( 'tileset_offsets' ), mrc.Ref( 'tileset_sizes' ), count=128 )
 
     def __init__( self, *args, **kwargs ):
-        mrc.Block.__init__( self, *args, **kwargs )
         self.store = mrc.Store( self, mrc.Ref( 'tileset_data' ) )
+        mrc.Block.__init__( self, *args, **kwargs )
 
 
 class JillLoader( mrc.Loader ):

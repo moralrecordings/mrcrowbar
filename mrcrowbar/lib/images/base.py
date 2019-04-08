@@ -1,6 +1,6 @@
 from mrcrowbar import models as mrc
 from mrcrowbar import ansi, utils
-from mrcrowbar.colour import BaseColour, Black, White, Transparent
+from mrcrowbar.colour import BaseColour, Black, White, Transparent, from_palette_bytes, to_palette_bytes
 
 try:
     from PIL import Image as PILImage

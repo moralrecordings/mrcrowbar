@@ -7,9 +7,9 @@ logger = logging.getLogger( __name__ )
 from mrcrowbar.fields import Field, Bytes
 from mrcrowbar.refs import Ref
 from mrcrowbar.checks import Check
+from mrcrowbar.common import is_bytes
+
 from mrcrowbar import utils
-
-
 
 class FieldDescriptor( object ):
     def __init__( self, name ):
@@ -206,7 +206,7 @@ class Block( object, metaclass=BlockMeta ):
         """
         klass = self.__class__
         if raw_buffer:
-            assert utils.is_bytes( raw_buffer )
+            assert is_bytes( raw_buffer )
 #            raw_buffer = memoryview( raw_buffer )
 
         self._field_data = {}

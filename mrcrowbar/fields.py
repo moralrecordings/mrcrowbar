@@ -189,6 +189,8 @@ class StreamField( Field ):
             A function that takes a data buffer and an offset; should return True if
             the end of the data stream has been reached and False otherwise.
         """
+        if count is not None and default is None:
+            default = []
         super().__init__( default=default, **kwargs )
         self.offset = offset
         self.count = count
@@ -382,7 +384,8 @@ Chunk = collections.namedtuple( 'Chunk', ['id', 'obj'] )
 class ChunkField( StreamField ):
     def __init__( self, chunk_map, offset=Chain(), count=None, length=None, stream=True,
                     alignment=1, stream_end=None, stop_check=None, default_klass=None,
-                    chunk_id_size=None, chunk_id_field=None, chunk_length_field=None, **kwargs ):
+                    chunk_id_size=None, chunk_id_field=None, chunk_length_field=None,
+                    fill=None, **kwargs ):
         """Field for inserting a tokenised Block stream into the parent class.
     
         chunk_map
@@ -423,6 +426,9 @@ class ChunkField( StreamField ):
 
         chunk_length_field
             Field class used to parse the Chunk data length. For use when a Chunk consists of an ID followed by the size of the data.
+
+        fill
+            Exact byte sequence that denotes an empty Chunk object.
         """
 
         super().__init__( offset=offset, default=None, count=count, length=length,
@@ -440,12 +446,14 @@ class ChunkField( StreamField ):
         else:
             self.chunk_id_field = None
         self.default_klass = default_klass
-        
+
         self.chunk_id_size = chunk_id_size
-        
+        self.fill = fill
+
     def get_element_from_buffer( self, offset, buffer, parent=None ):
         chunk_map = property_get( self.chunk_map, parent )
-            
+        fill = property_get( self.fill, parent )
+
         pointer = offset
         chunk_id = None
         if self.chunk_id_field:
@@ -473,8 +481,12 @@ class ChunkField( StreamField ):
         if self.chunk_length_field:
             size = self.chunk_length_field.get_from_buffer( buffer[pointer:], parent=parent )
             pointer += self.chunk_length_field.field_size
-            chunk = chunk_klass( buffer[pointer:pointer+size], parent=parent )
+            chunk_buffer = buffer[pointer:pointer+size]
             pointer += size
+            if chunk_buffer == fill:
+                result = Chunk( id=chunk_id, obj=None )
+                return result, pointer
+            chunk = chunk_klass( chunk_buffer, parent=parent )
         else:
             chunk = chunk_klass( buffer[pointer:], parent=parent )
             pointer += chunk.get_size()
@@ -484,6 +496,7 @@ class ChunkField( StreamField ):
 
     def update_buffer_with_element( self, offset, element, buffer, parent=None ):
         chunk_map = property_get( self.chunk_map, parent )
+        fill = property_get( self.fill, parent )
 
         data = bytearray()
         if self.chunk_id_field:
@@ -492,7 +505,14 @@ class ChunkField( StreamField ):
         else:
             data += element.id
 
-        payload = element.obj.export_data()
+        if element.obj is None:
+            if fill is not None:
+                payload = fill
+            else:
+                raise ValueError( 'Object part of Chunk can\'t be None unless there\'s a fill set' )
+        else:
+            payload = element.obj.export_data()
+
         if self.chunk_length_field:
             length_buf = bytearray( b'\x00'*self.chunk_length_field.field_size )
             self.chunk_length_field.update_buffer_with_value( len( payload ), length_buf, parent=parent )
@@ -508,6 +528,7 @@ class ChunkField( StreamField ):
 
     def validate_element( self, element, parent=None ):
         chunk_map = property_get( self.chunk_map, parent )
+        fill = property_get( self.fill, parent )
 
         assert isinstance( element, Chunk )
         if element.id in chunk_map:
@@ -515,11 +536,17 @@ class ChunkField( StreamField ):
         elif self.default_klass:
             chunk_klass = self.default_klass
 
-        assert isinstance( element.obj, chunk_klass )
+        if element.obj is None:
+            assert fill is not None
+        else:
+            assert isinstance( element.obj, chunk_klass )
+
         if self.chunk_id_size:
             assert len( element.id ) == self.chunk_id_size
 
     def get_element_size( self, element, parent=None ):
+        fill = property_get( self.fill, parent )
+
         size = 0
         if self.chunk_id_field:
             size += self.chunk_id_field.field_size
@@ -527,7 +554,10 @@ class ChunkField( StreamField ):
             size += len( element.id )
         if self.chunk_length_field:
             size += self.chunk_length_field.field_size
-        size += element.obj.get_size()
+        if element.obj is None:
+            size += len( fill )
+        else:
+            size += element.obj.get_size()
         return size
 
 

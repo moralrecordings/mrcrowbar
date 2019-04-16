@@ -19,6 +19,7 @@ class RIFXMap( mrc.Block ):
     stream = mrc.ChunkField( mrc.Ref( 'CHUNK_MAP' ), 0x04,
                              chunk_id_field=mrc.UInt32_P,
                              chunk_length_field=mrc.UInt32_P, alignment=2,
+                             fill=b'',
                              default_klass=mrc.Unknown )
 
 

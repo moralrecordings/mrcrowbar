@@ -286,6 +286,24 @@ class MMapEntry( mrc.Block ):
         return 'chunk_id: {}, length: 0x{:08x}, offset: 0x{:08x}, flags: {}'.format( riff.TagB( self.chunk_id ), self.length, self.offset, self.flags )
 
 
+# rough idea of the layout of a Director file
+# imap chunk
+# - dunno what this does
+# mmap chunk
+# - this is a list of all of the chunks in the director file, including lengths and offsets
+# - main bodge mechanism used to allow append-only editing of director files!
+# - when another bit of the file is referring to a chunk with an index, it's usually against this thing
+# KEY* chunk
+# - slightly different; this is a list containing mappings between CASt chunks and the referenced data
+# - index is for the mmap list
+# CAS* chunk
+# - ordered list of CASt objects
+# - matches the ordering in the Director UI
+# - index is for the mmap list
+# Sord chunk
+# - sets some sort of order for cast members???
+# - index appears to be for the CAS* list
+
 class MMapV4( mrc.Block ):
     unk1 =      mrc.Bytes( 0x00, length=8 )
     entries_max = mrc.UInt32_P( 0x04 )
@@ -298,13 +316,16 @@ class MMapV4( mrc.Block ):
     def repr( self ):
         return 'entries_max: {}, entries_used: {}'.format( self.entries_max, self.entries_used )
 
-
-class Sord( mrc.Block ):
+class SordV4( mrc.Block ):
     unk1 = mrc.Bytes( 0x00, size=0xc )
     count = mrc.UInt32_BE( 0x0c )
     unk2 = mrc.UInt16_BE( 0x10 )
     unk3 = mrc.UInt16_BE( 0x12 )
     index = mrc.UInt16_BE( 0x14, count=mrc.Ref( 'count' ) )
+
+
+class CastListV4( mrc.Block ):
+    index = mrc.UInt32_BE( 0x00, stream=True )
 
 
 class TextV4( mrc.Block ):
@@ -335,11 +356,11 @@ class ScriptInstruction( IntEnum ):
     CONCAT = 0x0a
     CONCAT_SP = 0x0b
     LT = 0x0c
-    LTE = 0x0d
+    LE = 0x0d
     NEQ = 0x0e
     EQ = 0x0f
     GT = 0x10
-    GTE = 0x11
+    GE = 0x11
     AND = 0x12
     OR = 0x13
     NOT = 0x14
@@ -512,7 +533,7 @@ class ScriptV4( mrc.Block ):
     consts_unk = mrc.UInt16_BE( 0x56 )
     consts_base = mrc.UInt16_BE( 0x5a )
 
-    unk6 = mrc.Bytes( 0x5c, length=0xc )
+    #unk6 = mrc.Bytes( 0x5c, length=0xc )
 
     @property
     def code_store_size( self ):
@@ -536,6 +557,8 @@ class ScriptV4( mrc.Block ):
     def consts_store_offset( self ):
         return self.consts_base-self.get_field_end_offset( 'consts' )
 
+    #test = mrc.Bytes( 0x00 )
+
     def __init__( self, *args, **kwargs ):
         self.consts_store = mrc.Store( self, mrc.Ref( 'consts_raw' ),
                                         base_offset=mrc.Ref( 'consts_store_offset' ) )
@@ -549,7 +572,8 @@ class DirectorV4Map( riff.RIFXMap ):
     CHUNK_MAP = {
         riff.Tag( b'mmap' ): MMapV4,
         riff.Tag( b'KEY*' ): KeyV4,
-        riff.Tag( b'Sord' ): Sord,
+        riff.Tag( b'Sord' ): SordV4,
+        riff.Tag( b'CAS*' ): CastListV4,
         riff.Tag( b'CASt' ): CastV4,
         riff.Tag( b'snd ' ): SoundV4,
         riff.Tag( b'BITD' ): BitmapV4,

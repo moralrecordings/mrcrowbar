@@ -29,8 +29,8 @@ class Sound( mrc.Block ):
     sample_rate = 6000
     raw_data = mrc.Bytes( 0x00 )
 
-    def __init__( self, *argc, **argv ):
-        super().__init__( *argc, **argv )
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, **kwargs )
         self.wave = aud.Wave( self, mrc.Ref( 'raw_data' ), channels=1,
                               sample_rate=mrc.Ref( 'sample_rate' ), format_type=int,
                               field_size=1, signedness='unsigned', endian=None )
@@ -45,8 +45,8 @@ class VCLFile( mrc.Block ):
     text_lengths    = mrc.UInt16_LE( 0x230, count=40 )
     raw_data        = mrc.Bytes( 0x280 )
 
-    def __init__( self, *argc, **argv ):
-        super().__init__( *argc, **argv )
+    def __init__( self, *args, **kwargs ):
+        super().__init__( *args, **kwargs )
         self.sounds = mrc.LinearStore( self, mrc.Ref( 'raw_data' ), Sound,
                                        offsets=mrc.Ref( 'sound_offsets' ),
                                        sizes=mrc.Ref( 'sound_sizes' ),
@@ -76,7 +76,7 @@ class SHAFile( mrc.Block ):
 
     def __init__( self, *args, **kwargs ):
         self.store = mrc.Store( self, mrc.Ref( 'tileset_data' ) )
-        mrc.Block.__init__( self, *args, **kwargs )
+        super().__init__( *args, **kwargs )
 
 
 class JillLoader( mrc.Loader ):

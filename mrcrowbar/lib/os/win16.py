@@ -285,7 +285,7 @@ class ModuleReference( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'name={}'.format( name )
+        return 'name={}'.format( self.name )
 
 
 class NEBase( mrc.Block ):

@@ -33,3 +33,7 @@ def bounds( start, end, length, src_size ):
     else:
         end = src_size
     return start, end
+
+
+def serial( obj, fields ):
+    return (obj.__class__, tuple((x, getattr( obj, x )) for x in fields ))

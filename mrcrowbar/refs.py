@@ -1,5 +1,8 @@
 """Definition classes for cross-references."""
 
+from mrcrowbar import common
+
+
 class Ref( object ):
     """Base class for defining cross-references."""
 
@@ -18,8 +21,8 @@ class Ref( object ):
         # very simple path syntax for now: walk down the chain of properties
         if not type( path ) == str:
             raise TypeError( 'path argument to Ref() should be a string' )
-        self.path = path.split( '.' )
-        self.allow_write = allow_write
+        self._path = tuple( path.split( '.' ) )
+        self._allow_write = allow_write
 
     def cache( self, instance, name ):
         """Signal to the source to pre-load information.
@@ -34,7 +37,7 @@ class Ref( object ):
             The object instance to traverse.
         """
         target = instance
-        for attr in self.path:
+        for attr in self._path:
             target = getattr( target, attr )
         return target
 
@@ -49,12 +52,12 @@ class Ref( object ):
 
         Throws AttributeError if allow_write is False.
         """
-        if not self.allow_write:
+        if not self._allow_write:
             raise AttributeError( "can't set Ref directly, allow_write is disabled" )
         target = instance
-        for attr in self.path[:-1]:
+        for attr in self._path[:-1]:
             target = getattr( target, attr )
-        setattr( target, self.path[-1], value )
+        setattr( target, self._path[-1], value )
         return
 
     def __repr__( self ):
@@ -65,7 +68,17 @@ class Ref( object ):
 
     @property
     def repr( self ):
-        return '.'.join( self.path )
+        return '{} ({})'.format( '.'.join( self._path ), 'rw' if self._allow_write else 'r' )
+
+    @property
+    def serial( self ):
+        return common.serial( self, ('_path', '_allow_write') )
+
+    def __hash__( self ):
+        return hash( self.serial )
+
+    def __eq__( self, other ):
+        return self.serial == other.serial
 
 
 class ConstRef( Ref ):
@@ -155,22 +168,26 @@ class EndOffset( Ref ):
             Round up the result to the nearest multiple of this value.
         """
         super().__init__( path )
-        self.neg = neg
-        self.align = align
+        self._neg = neg
+        self._align = align
 
     def get( self, instance, **kwargs ):
         target = instance
-        align = property_get( self.align, instance )
-        for attr in self.path[:-1]:
+        align = property_get( self._align, instance )
+        for attr in self._path[:-1]:
             target = getattr( target, attr )
-        target = target.get_field_end_offset( self.path[-1] )
+        target = target.get_field_end_offset( self._path[-1] )
         target -= (target % -align)
-        if self.neg:
+        if self._neg:
             target *= -1
         return target
 
     def set( self, instance, value, **kwargs ):
         raise AttributeError( "can't change the end offset of another field" )
+
+    @property
+    def serial( self ):
+        return common.serial( self, ('_path', '_allow_write', '_neg', '_align') )
 
 
 class Chain( Ref ):
@@ -180,7 +197,7 @@ class Chain( Ref ):
     def get( self, instance, caller=None, **kwargs ):
         if caller is None:
             return 0
-        field_name = getattr( caller, self.path[0] )
+        field_name = getattr( caller, self._path[0] )
         if field_name is None:
             return 0
         return instance.get_field_end_offset( field_name )

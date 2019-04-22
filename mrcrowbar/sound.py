@@ -50,17 +50,17 @@ def normalise_audio( source, format_type, field_size, signedness, endian, start=
     return array( 'f' )
 
 
-def normalise_audio_iter( source, format_type, field_size, signedness, endian, start=None, end=None, length=None, overlap=False, chunk_size=NORMALIZE_BUFFER ):
+def normalise_audio_iter( source, format_type, field_size, signedness, endian, start=None, end=None, length=None, overlap=0, chunk_size=NORMALIZE_BUFFER ):
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
-    increment = chunk_size+1 if overlap else chunk_size
+    increment = chunk_size+overlap
 
     for i in range( start, end, chunk_size ):
         yield normalise_audio( source, format_type, field_size, signedness, endian, start=i, end=None, length=increment )
 
 
-def resample_audio_iter( source, format_type, field_size, signedness, endian, sample_rate, start=None, end=None, length=None, interpolation=AudioInterpolation.LINEAR, output_rate=RESAMPLE_RATE ):
+def resample_audio_iter( source, format_type, field_size, signedness, endian, channels, sample_rate, start=None, end=None, length=None, interpolation=AudioInterpolation.LINEAR, output_rate=RESAMPLE_RATE ):
     if sample_rate == 0:
         yield array( 'f' )
         return
@@ -74,10 +74,10 @@ def resample_audio_iter( source, format_type, field_size, signedness, endian, sa
 
     new_len = (end-start)*output_rate//sample_rate
 
-    src_iter = normalise_audio_iter( source, format_type, field_size, signedness, endian, start, end, overlap=True, chunk_size=NORMALIZE_BUFFER )
+    src_iter = normalise_audio_iter( source, format_type, field_size, signedness, endian, start, end, overlap=channels, chunk_size=NORMALIZE_BUFFER*channels )
     src = next( src_iter, None )
-    src_bound = NORMALIZE_BUFFER
-    src_inc = NORMALIZE_BUFFER
+    src_bound = NORMALIZE_BUFFER*channels
+    src_inc = NORMALIZE_BUFFER*channels
 
     for index_base in range( 0, new_len, RESAMPLE_BUFFER ):
         buffer = array( 'f', (0.0 for i in range( RESAMPLE_BUFFER )))
@@ -85,7 +85,7 @@ def resample_audio_iter( source, format_type, field_size, signedness, endian, sa
         for index in range( RESAMPLE_BUFFER ):
             tgt_pos = index_base + index
             src_pos = sample_rate*tgt_pos/output_rate
-            samp_index = math.floor( src_pos ) % NORMALIZE_BUFFER
+            samp_index = math.floor( src_pos ) % NORMALIZE_BUFFER*channels
             alpha = math.fmod( src_pos, 1.0 )
 
             if src_pos > src_bound:
@@ -96,7 +96,7 @@ def resample_audio_iter( source, format_type, field_size, signedness, endian, sa
                 break
 
             a = 0.0 if samp_index >= len( src ) else src[samp_index]
-            b = 0.0 if samp_index+1 >= len( src ) else src[samp_index+1]
+            b = 0.0 if samp_index+channels >= len( src ) else src[samp_index+channels]
 
             buffer[index % RESAMPLE_BUFFER] = mixer( a, b, alpha )
 
@@ -113,7 +113,7 @@ def play_pcm( source, channels, sample_rate, format_type, field_size, signedness
     format = getattr( pyaudio, PYAUDIO_NORMALISE_TYPE )
     rate = sample_rate
 
-    samp_iter = resample_audio_iter( source, format_type, field_size, signedness, endian, sample_rate, start, end, output_rate=RESAMPLE_RATE )
+    samp_iter = resample_audio_iter( source, format_type, field_size, signedness, endian, channels, sample_rate, start, end, output_rate=RESAMPLE_RATE )
 
     stream = audio.open(
         format=format,

@@ -68,17 +68,19 @@ class Ref( object ):
 
     @property
     def repr( self ):
+        """Plaintext summary of the object."""
         return '{} ({})'.format( '.'.join( self._path ), 'rw' if self._allow_write else 'r' )
 
     @property
-    def serial( self ):
-        return common.serial( self, ('_path', '_allow_write') )
+    def serialised( self ):
+        """Tuple containing the contents of the object."""
+        return common.serialise( self, ('_path', '_allow_write') )
 
     def __hash__( self ):
-        return hash( self.serial )
+        return hash( self.serialised )
 
     def __eq__( self, other ):
-        return self.serial == other.serial
+        return self.serialised == other.serialised
 
 
 class ConstRef( Ref ):
@@ -186,8 +188,8 @@ class EndOffset( Ref ):
         raise AttributeError( "can't change the end offset of another field" )
 
     @property
-    def serial( self ):
-        return common.serial( self, ('_path', '_allow_write', '_neg', '_align') )
+    def serialised( self ):
+        return common.serialise( self, ('_path', '_allow_write', '_neg', '_align') )
 
 
 class Chain( Ref ):

@@ -7,9 +7,8 @@ logger = logging.getLogger( __name__ )
 from mrcrowbar.fields import Field, Bytes
 from mrcrowbar.refs import Ref
 from mrcrowbar.checks import Check
-from mrcrowbar.common import is_bytes
 
-from mrcrowbar import utils
+from mrcrowbar import common, utils
 
 class FieldDescriptor( object ):
     def __init__( self, name ):
@@ -136,7 +135,6 @@ class BlockMeta( type ):
 class Block( object, metaclass=BlockMeta ):
     _parent = None
     _endian = None
-    repr = None
 
     def __init__( self, source_data=None, parent=None, preload_attrs=None, endian=None ):
         """Base class for Blocks.
@@ -186,6 +184,17 @@ class Block( object, metaclass=BlockMeta ):
             desc = self.repr
         return '<{}: {}>'.format( self.__class__.__name__, desc )
 
+    @property
+    def repr( self ):
+        """Plaintext summary of the Block."""
+        return None
+
+    @property
+    def serialised( self ):
+        """Tuple containing the contents of the Block."""
+        klass = self.__class__
+        return ((klass.__module__, klass.__name__), tuple( (name, field.serialise( self._field_data[name], parent=self ) ) for name, field in klass._fields.items()))
+
     def clone_data( self, source ):
         """Clone data from another Block.
 
@@ -206,7 +215,7 @@ class Block( object, metaclass=BlockMeta ):
         """
         klass = self.__class__
         if raw_buffer:
-            assert is_bytes( raw_buffer )
+            assert common.is_bytes( raw_buffer )
 #            raw_buffer = memoryview( raw_buffer )
 
         self._field_data = {}

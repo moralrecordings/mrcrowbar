@@ -7,7 +7,7 @@ import logging
 logger = logging.getLogger( __name__ )
 
 from mrcrowbar.refs import Ref, Chain, property_get, property_set
-from mrcrowbar import utils, encoding
+from mrcrowbar import common, encoding
 
 _next_position_hint = itertools.count()
 
@@ -82,7 +82,7 @@ class Field( object ):
             Parent block object where this Field is defined. Used for e.g.
             evaluating Refs.
         """
-        assert utils.is_bytes( buffer )
+        assert common.is_bytes( buffer )
         self.validate( value, parent )
         return
     
@@ -230,7 +230,7 @@ class StreamField( Field ):
         self.stream = stream
         self.alignment = alignment
         if stream_end is not None:
-            assert utils.is_bytes( stream_end )
+            assert common.is_bytes( stream_end )
         self.stream_end = stream_end
         self.stop_check = stop_check
 
@@ -238,7 +238,7 @@ class StreamField( Field ):
         pass
 
     def get_from_buffer( self, buffer, parent=None ):
-        assert utils.is_bytes( buffer )
+        assert common.is_bytes( buffer )
         offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
@@ -557,7 +557,6 @@ class ChunkField( StreamField ):
         buffer[offset:offset+len( data )] = data
         return offset+len( data )
 
-
     def validate_element( self, element, parent=None ):
         chunk_map = property_get( self.chunk_map, parent )
         fill = property_get( self.fill, parent )
@@ -591,6 +590,15 @@ class ChunkField( StreamField ):
         else:
             size += element.obj.get_size()
         return size
+
+    def serialise( self, value, parent=None ):
+        self.validate( value, parent )
+        count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
+        is_array = stream or (count is not None)
+        if is_array:
+            return tuple( (a, b.serialised if b is not None else None) for a, b in value )
+        return (value[0], value[1].serialised if value is not None else None)
 
 
 class BlockField( StreamField ):
@@ -746,6 +754,15 @@ class BlockField( StreamField ):
                 raise ParseError( 'No block klass match for type {}'.format( block_type ) )
         return block_klass
 
+    def serialise( self, value, parent=None ):
+        self.validate( value, parent )
+        count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
+        is_array = stream or (count is not None)
+        if is_array:
+            return tuple( x.serialised if x is not None else None for x in value )
+        return value.serialised if value is not None else None
+
 
 class Bytes( Field ):
     def __init__( self, offset=Chain(), length=None, default=None, transform=None, stream_end=None, alignment=1, zero_pad=False, encoding=None, **kwargs ):
@@ -777,7 +794,7 @@ class Bytes( Field ):
             Python string encoding to use for output, as accepted by bytes.decode().
         """
         if default is not None:
-            assert utils.is_bytes( default )
+            assert common.is_bytes( default )
         else:
             default = b''
         super().__init__( default=default, **kwargs )
@@ -785,7 +802,7 @@ class Bytes( Field ):
         self.length = length
         self.transform = transform
         if stream_end is not None:
-            assert utils.is_bytes( stream_end )
+            assert common.is_bytes( stream_end )
         self.stream_end = stream_end
         self.alignment = alignment
         if zero_pad:
@@ -806,7 +823,7 @@ class Bytes( Field ):
         return data
 
     def get_from_buffer( self, buffer, parent=None, **kwargs ):
-        assert utils.is_bytes( buffer )
+        assert common.is_bytes( buffer )
         offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
         encoding = property_get( self.encoding, parent )
@@ -868,7 +885,7 @@ class Bytes( Field ):
         if encoding:
             # try to encode string, throw UnicodeEncodeError if fails
             value = value.encode( encoding )
-        elif not utils.is_bytes( value ):
+        elif not common.is_bytes( value ):
             raise FieldValidationError( 'Expecting bytes, not {}'.format( type( value ) ) )
 
         calc_length = len( value )
@@ -904,7 +921,11 @@ class Bytes( Field ):
         if length is None:
             return len( self._scrub_bytes( value, parent ) )
         return length
-    
+
+    def serialise( self, value, parent=None ):
+        self.validate( value, parent )
+        return value
+
 
 class CString( Bytes ):
     def __init__( self, offset=Chain(), **kwargs ):
@@ -913,13 +934,13 @@ class CString( Bytes ):
 
 class CStringN( Field ):
     def __init__( self, offset, length, default=b'', **kwargs ):
-        assert utils.is_bytes( default )
+        assert common.is_bytes( default )
         super().__init__( default=default, **kwargs )
         self.offset = offset
         self.length = length
 
     def get_from_buffer( self, buffer, parent=None ):
-        assert utils.is_bytes( buffer )
+        assert common.is_bytes( buffer )
         offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
 
@@ -964,7 +985,7 @@ class CStringNStream( Field ):
         self.length_field = length_field( 0x00 )
 
     def get_from_buffer( self, buffer, parent=None ):
-        assert utils.is_bytes( buffer )
+        assert common.is_bytes( buffer )
         offset = property_get( self.offset, parent, caller=self )
         strings = []
 
@@ -983,7 +1004,7 @@ class CStringNStream( Field ):
 
         pointer = offset
         for s in value:
-            assert utils.is_bytes( s )
+            assert common.is_bytes( s )
             string_data = s+b'\x00'
             self.length_field.offset = pointer
             self.length_field.update_buffer_with_value( len( string_data ), buffer )
@@ -1070,7 +1091,7 @@ class NumberField( StreamField ):
         self.endian = endian
         self.format_range = format_range
         if bitmask:
-            assert utils.is_bytes( bitmask )
+            assert common.is_bytes( bitmask )
             assert len( bitmask ) == field_size
         self.bitmask = bitmask
         self.range = range
@@ -1168,13 +1189,13 @@ class NumberField( StreamField ):
         return common.serialise( self, ('offset', 'default', 'count', 'length', 'stream', 'alignment', 'stream_end', 'stop_check', 'format_type', 'field_size', 'signedness', 'endian', 'format_range', 'bitmask', 'range', 'enum') )
 
     def serialise( self, value, parent=None ):
-        self.validate()
+        self.validate( value, parent )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         is_array = stream or (count is not None)
         if is_array:
-            return tuple( self.value )
-        return self.value
+            return tuple( value )
+        return value
 
 
 class Int8( NumberField ):

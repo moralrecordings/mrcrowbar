@@ -35,7 +35,22 @@ class Field( object ):
             desc = self.repr
         return '<{}: {}>'.format( self.__class__.__name__, desc )
 
-    repr = None
+    @property
+    def repr( self ):
+        """Plaintext summary of the object."""
+        return None
+
+    @property
+    def serialised( self ):
+        """Tuple containing the contents of the object."""
+        return common.serialise( self, ('default',) )
+
+    def __hash__( self ):
+        return hash( self.serialised )
+
+    def __eq__( self, other ):
+        return self.serialised == other.serialised
+
 
     def get_from_buffer( self, buffer, parent=None ):
         """Create a Python object from a byte string, using the field definition.
@@ -155,6 +170,18 @@ class Field( object ):
         Throws FieldValidationError if a constraint fails.
         """
         pass 
+
+    def serialise( self, value, parent=None ):
+        """Return the contents of this field as basic Python types.
+
+        value
+            Input Python object to process.
+
+        parent
+            Parent block object where this Field is defined. Used for e.g.
+            evaluating Refs.
+        """
+        return None
 
 
 class StreamField( Field ):
@@ -375,7 +402,6 @@ class StreamField( Field ):
                     pointer += alignment - width
 
         return pointer - start
-
 
 
 Chunk = collections.namedtuple( 'Chunk', ['id', 'obj'] )
@@ -716,7 +742,7 @@ class BlockField( StreamField ):
 
 
 class Bytes( Field ):
-    def __init__( self, offset=Chain(), length=None, default=None, transform=None, stream_end=None, alignment=1, **kwargs ):
+    def __init__( self, offset=Chain(), length=None, default=None, transform=None, stream_end=None, alignment=1, zero_pad=False, encoding=None, **kwargs ):
         """Field class for raw byte data.
 
         offset
@@ -737,6 +763,12 @@ class Bytes( Field ):
 
         alignment
             Number of bytes to align the start of the next element to.
+
+        zero_pad
+            Pad the data with zeros to match the length. If enabled, the data size must be up to or equal to the length.
+
+        encoding
+            Python string encoding to use for output, as accepted by bytes.decode().
         """
         if default is not None:
             assert utils.is_bytes( default )
@@ -750,11 +782,28 @@ class Bytes( Field ):
             assert utils.is_bytes( stream_end )
         self.stream_end = stream_end
         self.alignment = alignment
+        if zero_pad:
+            assert self.length is not None
+        self.zero_pad = zero_pad
+        self.encoding = encoding
+
+    def _scrub_bytes( self, value, parent=None ):
+        encoding = property_get( self.encoding, parent )
+        data = value
+
+        if encoding:
+            data = data.encode( encoding )
+        if self.transform:
+            data = self.transform.export_data( data, parent=parent ).payload
+        if self.stream_end is not None:
+            data += self.stream_end
+        return data
 
     def get_from_buffer( self, buffer, parent=None, **kwargs ):
         assert utils.is_bytes( buffer )
         offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
+        encoding = property_get( self.encoding, parent )
 
         data = buffer[offset:]
         if self.stream_end is not None:
@@ -767,6 +816,9 @@ class Bytes( Field ):
         if self.transform:
             data = self.transform.import_data( data, parent=parent ).payload
     
+        if encoding:
+            data = data.decode( encoding )
+
         return data
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
@@ -774,14 +826,11 @@ class Bytes( Field ):
         offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
         alignment = property_get( self.alignment, parent )
+        encoding = property_get( self.encoding, parent )
 
-        data = value
-        if self.transform:
-            data = self.transform.export_data( data, parent=parent ).payload
+        data = self._scrub_bytes( value, parent=None )
 
         new_size = offset+len( data )
-        if self.stream_end is not None:
-            new_size += len( self.stream_end )
         if alignment is not None:
             width = new_size % alignment
             if width:
@@ -791,25 +840,39 @@ class Bytes( Field ):
             buffer.extend( b'\x00'*(new_size-len( buffer )) )
 
         buffer[offset:offset+len( data )] = data
-        if self.stream_end is not None:
-            buffer[offset+len( data ):offset+len( data )+len( self.stream_end )] = self.stream_end
-
         return
 
     def update_deps( self, value, parent=None ):
         length = property_get( self.length, parent )
-        if length is not None and length != len( value ):
-            property_set( self.length, parent, len( value ) )
+        zero_pad = property_get( self.zero_pad, parent )
+        encoding = property_get( self.encoding, parent )
+
+        value = self._scrub_bytes( value, parent=None )
+        test_length = len( value )
+
+        if length is not None and not zero_pad and length != test_length:
+            property_set( self.length, parent, test_length )
 
     def validate( self, value, parent=None ):
         offset = property_get( self.offset, parent, caller=self )
         length = property_get( self.length, parent )
+        zero_pad = property_get( self.zero_pad, parent )
+        encoding = property_get( self.encoding, parent )
 
-        if length is not None and (not isinstance( self.length, Ref )) and (len( value ) != length):
-            raise FieldValidationError( 'Length defined as a constant, was expecting {} bytes but got {}!'.format( length, len( value ) ) )
-
-        if not utils.is_bytes( value ):
+        if encoding:
+            # try to encode string, throw UnicodeEncodeError if fails
+            value = value.encode( encoding )
+        elif not utils.is_bytes( value ):
             raise FieldValidationError( 'Expecting bytes, not {}'.format( type( value ) ) )
+
+        calc_length = len( value )
+
+        if length is not None:
+            if (not isinstance( self.length, Ref )) and (calc_length != length):
+                raise FieldValidationError( 'Length defined as a constant, was expecting {} bytes but got {}!'.format( length, calc_length ) )
+            elif zero_pad and calc_length > length:
+                raise FieldValidationError( 'Content of {} bytes is greater than expected length of {} bytes!'.format( calc_length, length ) )
+
         return
 
     @property
@@ -831,49 +894,15 @@ class Bytes( Field ):
     def get_size( self, value, parent=None, index=None ):
         assert index is None
         length = property_get( self.length, parent )
+        encoding = property_get( self.encoding, parent )
         if length is None:
-            if self.transform:
-                data = self.transform.export_data( value, parent=parent ).payload
-                return len( data )
-            return len( value )
+            return len( self._scrub_bytes( value, parent ) )
         return length
     
 
-class CString( Field ):
-    def __init__( self, offset, default=b'', **kwargs ):
-        assert utils.is_bytes( default )
-        super().__init__( default=default, **kwargs )
-        self.offset = offset
-
-    def get_from_buffer( self, buffer, parent=None ):
-        assert utils.is_bytes( buffer )
-        offset = property_get( self.offset, parent, caller=self )
-
-        return buffer[offset:].split( b'\x00', 1 )[0]
-
-    def update_buffer_with_value( self, value, buffer, parent=None ):
-        super().update_buffer_with_value( value, buffer, parent )
-        offset = property_get( self.offset, parent, caller=self )
-
-        block_data = value + b'\x00'
-        if len( buffer ) < offset+len( block_data ):
-            buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )    
-        buffer[offset:offset+len( block_data )] = block_data
-        return
-
-    def validate( self, value, parent=None ):
-        if not utils.is_bytes( value ):
-            raise FieldValidationError( 'Expecting bytes, not {}'.format( type( value ) ) )
-        return 
-
-    def get_start_offset( self, value, parent=None, index=None ):
-        assert index is None
-        offset = property_get( self.offset, parent, caller=self )
-        return offset
-
-    def get_size( self, value, parent=None, index=None ):
-        assert index is None
-        return len( value )
+class CString( Bytes ):
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( offset=offset, stream_end=b'\x00', **kwargs )
 
 
 class CStringN( Field ):
@@ -1128,6 +1157,19 @@ class NumberField( StreamField ):
             details += ', bitmask={}'.format( self.bitmask )
         return details
 
+    @property
+    def serialised( self ):
+        return common.serialise( self, ('offset', 'default', 'count', 'length', 'stream', 'alignment', 'stream_end', 'stop_check', 'format_type', 'field_size', 'signedness', 'endian', 'format_range', 'bitmask', 'range', 'enum') )
+
+    def serialise( self, value, parent=None ):
+        self.validate()
+        count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
+        is_array = stream or (count is not None)
+        if is_array:
+            return tuple( self.value )
+        return self.value
+
 
 class Int8( NumberField ):
     def __init__( self, *args, **kwargs ):
@@ -1199,6 +1241,10 @@ class Bits( NumberField ):
         if self.default:
             details += ', default={}'.format( self.default )
         return details
+
+    @property
+    def serialised( self ):
+        return common.serialise( self, ('offset', 'default', 'bits', 'size', 'enum', 'endian') )
 
 
 class Bits8( Bits ):

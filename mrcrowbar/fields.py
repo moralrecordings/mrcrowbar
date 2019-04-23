@@ -37,20 +37,25 @@ class Field( object ):
 
     @property
     def repr( self ):
-        """Plaintext summary of the object."""
+        """Plaintext summary of the Field."""
         return None
 
     @property
     def serialised( self ):
-        """Tuple containing the contents of the object."""
-        return common.serialise( self, ('default',) )
+        """Tuple containing the contents of the Field."""
+        return None
 
     def __hash__( self ):
+        serial = self.serialised
+        if serial is None:
+            return super().__hash__()
         return hash( self.serialised )
 
     def __eq__( self, other ):
+        serial = self.serialised
+        if serial is None:
+            return super().__eq__( other )
         return self.serialised == other.serialised
-
 
     def get_from_buffer( self, buffer, parent=None ):
         """Create a Python object from a byte string, using the field definition.
@@ -172,7 +177,7 @@ class Field( object ):
         pass 
 
     def serialise( self, value, parent=None ):
-        """Return the contents of this field as basic Python types.
+        """Return a value as basic Python types.
 
         value
             Input Python object to process.
@@ -402,6 +407,7 @@ class StreamField( Field ):
                     pointer += alignment - width
 
         return pointer - start
+
 
 
 Chunk = collections.namedtuple( 'Chunk', ['id', 'obj'] )

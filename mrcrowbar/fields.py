@@ -597,7 +597,7 @@ class ChunkField( StreamField ):
         stream = property_get( self.stream, parent )
         is_array = stream or (count is not None)
         if is_array:
-            return tuple( (a, b.serialised if b is not None else None) for a, b in value )
+            return (('builtins', 'list'), tuple( (a, b.serialised if b is not None else None) for a, b in value ))
         return (value[0], value[1].serialised if value is not None else None)
 
 
@@ -760,7 +760,7 @@ class BlockField( StreamField ):
         stream = property_get( self.stream, parent )
         is_array = stream or (count is not None)
         if is_array:
-            return tuple( x.serialised if x is not None else None for x in value )
+            return (('builtins', 'list'), tuple( x.serialised if x is not None else None for x in value ))
         return value.serialised if value is not None else None
 
 
@@ -1194,7 +1194,7 @@ class NumberField( StreamField ):
         stream = property_get( self.stream, parent )
         is_array = stream or (count is not None)
         if is_array:
-            return tuple( value )
+            return (('builtins', 'list'), tuple( value ))
         return value
 
 

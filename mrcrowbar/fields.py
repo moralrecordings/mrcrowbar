@@ -410,7 +410,13 @@ class StreamField( Field ):
 
 
 
-Chunk = collections.namedtuple( 'Chunk', ['id', 'obj'] )
+ChunkBase = collections.namedtuple( 'Chunk', ['id', 'obj'] )
+class Chunk( ChunkBase ):
+    @property
+    def serialised( self ):
+        """Tuple containing the contents of the Chunk."""
+        klass = self.__class__
+        return ((klass.__module__, klass.__name__), (('id', self.id), ('obj', self.obj.serialised if self.obj is not None else None)))
 
 
 class ChunkField( StreamField ):

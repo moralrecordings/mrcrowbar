@@ -165,11 +165,6 @@ def mix_colour_line( points, alpha ):
         math.fmod( alpha*count, 1 )
     )
 
-
-def gradient_to_palette( points ):
-    return [mix_colour_line( points, i/255 ) for i in range( 256 )]
-
-
 TEST_PALETTE_POINTS = [
     BaseColour().set_rgb( 0x00, 0x00, 0x00 ),
     BaseColour().set_rgb( 0x70, 0x34, 0x00 ),
@@ -178,4 +173,8 @@ TEST_PALETTE_POINTS = [
     BaseColour().set_rgb( 0xf8, 0xec, 0xa0 ),
 ]
 
-TEST_PALETTE = gradient_to_palette( TEST_PALETTE_POINTS )
+def gradient_to_palette( points=TEST_PALETTE_POINTS, size=256 ):
+    return [mix_colour_line( points, i/max(size-1, 1) ) for i in range( size )]
+
+
+TEST_PALETTE = gradient_to_palette()

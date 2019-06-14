@@ -537,6 +537,32 @@ def pixdump( source, start=None, end=None, length=None, width=64, height=None, p
 
 
 def pixdump_sweep( source, range=(64,), delay=None, start=None, end=None, length=None, height=None, palette=None ):
+    """Test printing the contents of a byte string as a 256 colour image for a range of widths.
+
+    source
+        The byte string to print.
+
+    range
+        List of widths to render (default: [64])
+
+    delay
+        Number of seconds to wait between each print (default: 0)
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    height
+        Height of image to render in pixels (default: auto)
+
+    palette
+        List of Colours to use (default: test palette)
+    """
     for w in range:
         print( w )
         for line in pixdump_iter( source, start, end, length, w, height, palette ):

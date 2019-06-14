@@ -141,11 +141,12 @@ def _from_raw_24( type_id ):
     assert format_type == int
     assert field_size == 3
     assert endian in ('little', 'big')
+    assert signedness in ('signed', 'unsigned')
     def result( buffer ):
         if endian == 'little':
-            buffer = buffer + (b'\xff' if (signedness and buffer[2] >= 0x80) else b'\x00')
+            buffer = buffer + (b'\xff' if (signedness == 'signed' and buffer[2] >= 0x80) else b'\x00')
         elif endian == 'big':
-            buffer = (b'\xff' if (signedness and buffer[0] >= 0x80) else b'\x00') + buffer
+            buffer = (b'\xff' if (signedness == 'signed' and buffer[0] >= 0x80) else b'\x00') + buffer
         return FROM_RAW_TYPE[(format_type, 4, signedness, endian)]( buffer )
     result.__doc__ = 'Convert a {0} byte string to a Python {1}.'.format(
         *get_raw_type_description( *type_id )
@@ -158,8 +159,9 @@ def _to_raw_24( type_id ):
     assert format_type == int
     assert field_size == 3
     assert endian in ('little', 'big')
+    assert signedness in ('signed', 'unsigned')
     def result( value ):
-        if signedness:
+        if signedness == 'signed':
             assert value in range( -1<<23, 1<<23 )
         else:
             assert value in range( 0, 1<<24 )

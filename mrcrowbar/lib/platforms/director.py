@@ -145,6 +145,7 @@ class ScriptCastV4( mrc.Block ):
     unk4_size   = mrc.UInt16_BE( 0x16 )
     unk3        = mrc.UInt32_BE( 0x18 )
     unk4        = mrc.UInt32_BE( 0x1c, count=mrc.Ref( 'unk4_size' ) )
+    extra       = mrc.Bytes( mrc.EndOffset( 'unk4' ) )
 
     @property
     def repr( self ):
@@ -317,7 +318,7 @@ class MMapV4( mrc.Block ):
         return 'entries_max: {}, entries_used: {}'.format( self.entries_max, self.entries_used )
 
 class SordV4( mrc.Block ):
-    unk1 = mrc.Bytes( 0x00, size=0xc )
+    unk1 = mrc.Bytes( 0x00, length=0xc )
     count = mrc.UInt32_BE( 0x0c )
     unk2 = mrc.UInt16_BE( 0x10 )
     unk3 = mrc.UInt16_BE( 0x12 )
@@ -334,6 +335,33 @@ class TextV4( mrc.Block ):
     unk2 = mrc.UInt32_BE( 0x08 )
     data = mrc.Bytes( 0xc, length=mrc.Ref( 'length' ) )
     unk3 = mrc.Bytes( mrc.EndOffset( 'data' ) )
+
+
+
+class ScriptContextEntry( mrc.Block ):
+    data = mrc.Bytes( 0x00, length=12 )
+
+
+class ScriptNamesV4( mrc.Block ):
+    # used to store the names of functions invoked with CALL_EXTERNAL
+    unk1 = mrc.UInt32_BE( 0x00 )
+    unk2 = mrc.UInt32_BE( 0x04 )
+    unk3 = mrc.UInt32_BE( 0x08 )
+    unk4 = mrc.UInt32_BE( 0x0c )
+    unk5 = mrc.UInt16_BE( 0x10 )
+    count = mrc.UInt16_BE( 0x12 )
+
+
+class ScriptContextV4( mrc.Block ):
+    #test = mrc.Bytes()
+    unk1 = mrc.Bytes( 0x00, length=0x8 )
+    list_count = mrc.UInt32_BE( 0x08 )
+    list_count_2 = mrc.UInt32_BE( 0x0c )
+    list_offset = mrc.UInt16_BE( 0x10 )
+    unk2 = mrc.UInt16_BE( 0x12 )
+    unk3 = mrc.Bytes( 0x14, length=22 )
+
+    entries = mrc.BlockField( ScriptContextEntry, mrc.Ref( 'list_offset' ), count=mrc.Ref( 'list_count' ) )
 
 
 # source: http://fileformats.archiveteam.org/wiki/Lingo_bytecode#Header
@@ -437,10 +465,6 @@ class ScriptInstruction( IntEnum ):
     PUSH_PATH_U16 = 0xa6
 
 
-
-
-
-
 class ScriptString( mrc.Block ):
     length = mrc.UInt32_BE( 0x00 )
     value = mrc.CStringN( 0x04, length=mrc.Ref( 'length' ) )
@@ -465,7 +489,7 @@ class ScriptConstantUInt32( mrc.Block ):
         return '{}'.format( self.value )
 
 class ScriptFloat( mrc.Block ):
-    length = mrc.UInt32_BE( 0x00 ),
+    length = mrc.UInt32_BE( 0x00 )
     data = mrc.Bytes( 0x04, length=mrc.Ref( 'length' ) )
 
     @property
@@ -579,6 +603,8 @@ class DirectorV4Map( riff.RIFXMap ):
         riff.Tag( b'BITD' ): BitmapV4,
         riff.Tag( b'STXT' ): TextV4,
         riff.Tag( b'Lscr' ): ScriptV4,
+        riff.Tag( b'Lnam' ): ScriptNamesV4,
+        riff.Tag( b'Lctx' ): ScriptContextV4,
     }
 DirectorV4Map.CHUNK_MAP[riff.Tag( b'RIFX' )] = DirectorV4Map
 

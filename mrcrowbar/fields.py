@@ -406,6 +406,9 @@ class StreamField( Field ):
                 if width:
                     pointer += alignment - width
 
+        if self.stream_end is not None:
+            pointer += len( self.stream_end )
+
         return pointer - start
 
 
@@ -931,6 +934,142 @@ class Bytes( Field ):
     def serialise( self, value, parent=None ):
         self.validate( value, parent )
         return value
+
+
+class StringField( StreamField ):
+    def __init__( self, offset=Chain(), default=None, count=None, length=None,
+                    stream=False, alignment=1, stream_end=None, stop_check=None,
+                    zero_pad=False, encoding=False, length_field=None, fill=None,
+                    element_length=None, element_end=None,
+                    **kwargs ):
+        super().__init__( ofset=offset, default=default, count=count, length=length,
+                          stream=stream, alignment=alignment, stream_end=stream_end,
+                          stop_check=stop_check, **kwargs )
+        if length_field:
+            assert element_length is None
+            assert issubclass( length_field, NumberField )
+            self.length_field = length_field( 0x00 )
+        else:
+            if count is not None or stream:
+                assert element_length is not None
+            if count is not None:
+                assert not stream
+            elif stream:
+                assert count is None
+            self.length_field = None
+
+        if zero_pad:
+            assert (self.length_field is not None) or (element_length is not None)
+        self.zero_pad = zero_pad
+        self.encoding = encoding
+        self.fill = fill
+        self.element_length = element_length
+
+    def _scrub_bytes( self, value, parent=None ):
+        encoding = property_get( self.encoding, parent )
+        data = value
+
+        if encoding:
+            data = data.encode( encoding )
+        return data
+
+    def get_element_from_buffer( self, offset, buffer, parent=None ):
+        fill = property_get( self.fill, parent )
+        encoding = property_get( self.encoding, parent )
+        element_length = property_get( self.element_length, parent )
+        zero_pad = property_get( self.zero_pad, parent )
+
+        pointer = offset
+        if self.length_field:
+            size = self.length_field.get_from_buffer( buffer[pointer:], parent=parent )
+            pointer += self.length_field.field_size
+            data = buffer[pointer:pointer+size]
+            pointer += size
+        elif element_length:
+            data = buffer[pointer:pointer+element_length]
+            pointer += element_length
+        else:
+            # no element size hints, assume it's the whole thing
+            data = buffer[pointer:]
+            pointer += len( data )
+
+        if data == fill:
+            return None, pointer
+
+        if zero_pad:
+            index = data.find( b'\x00' )
+            if index >= 0:
+                data = data[:index]
+
+        if encoding:
+            data = data.decode( encoding )
+
+        return data, pointer
+
+    def update_buffer_with_element( self, offset, element, buffer, parent=None ):
+        fill = property_get( self.fill, parent )
+        encoding = property_get( self.encoding, parent )
+        element_length = property_get( self.element_length, parent )
+        zero_pad = property_get( self.zero_pad, parent )
+
+        data = bytearray()
+
+        if encoding:
+            element = element.encode( encoding )
+
+        if self.length_field:
+            data.extend( b'\x00'*self.length_field.field_size )
+            self.length_field.update_buffer_with_value( len( element ) )
+        elif element_length is not None:
+            if element_length != len( element ):
+                if zero_pad and len( element ) < element_length:
+                    element += b'\x00'*(element_length-len( element ))
+
+        data.extend( element )
+
+        if len( buffer ) < offset+len( data ):
+            buffer.extend( b'\x00'*(offset+len( data )-len( buffer )) )
+        buffer[offset:offset+len( data )] = data
+        return offset+len( data )
+
+    def validate_element( self, element, parent=None ):
+        fill = property_get( self.fill, parent )
+        zero_pad = property_get( self.zero_pad, parent )
+        encoding = property_get( self.encoding, parent )
+        element_length = property_get( self.element_length, parent )
+
+        if element is None:
+            assert fill is not None
+
+        if encoding:
+            # try to encode string, throw UnicodeEncodeError if fails
+            element = element.encode( encoding )
+        elif not common.is_bytes( element ):
+            raise FieldValidationError( 'Expecting bytes, not {}'.format( type( value ) ) )
+
+        if element_length is not None:
+            if not zero_pad and element_length < len( element ):
+                raise FieldValidationError( 'Elements must have a size of {} but found {}!'.format( element_length, len( element ) ) )
+
+
+    def get_element_size( self, element, parent=None ):
+        fill = property_get( self.fill, parent )
+
+        size = 0
+        if self.length_field:
+            size += self.length_field.field_size
+        size += len( self._scrub_bytes( element ) )
+        return size
+
+    def serialise( self, value, parent=None ):
+        self.validate( value, parent )
+        count = property_get( self.count, parent )
+        stream = property_get( self.stream, parent )
+        is_array = stream or (count is not None)
+        if is_array:
+            return (('builtins', 'list'), tuple( (v for v in value) ))
+        return value
+
 
 
 class CString( Bytes ):

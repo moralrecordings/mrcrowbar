@@ -54,7 +54,7 @@ def normalise_audio_iter( source, format_type, field_size, signedness, endian, s
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
-    increment = chunk_size+overlap
+    increment = (chunk_size+overlap*field_size)
 
     for i in range( start, end, chunk_size ):
         yield normalise_audio( source, format_type, field_size, signedness, endian, start=i, end=None, length=increment )
@@ -74,10 +74,11 @@ def resample_audio_iter( source, format_type, field_size, signedness, endian, ch
 
     new_len = (end-start)*output_rate//sample_rate
 
-    src_iter = normalise_audio_iter( source, format_type, field_size, signedness, endian, start, end, overlap=channels, chunk_size=NORMALIZE_BUFFER*channels )
+    src_inc = NORMALIZE_BUFFER
+    chunk_size=src_inc*channels
+    src_iter = normalise_audio_iter( source, format_type, field_size, signedness, endian, start, end, overlap=channels, chunk_size=chunk_size )
     src = next( src_iter, None )
-    src_bound = NORMALIZE_BUFFER*channels
-    src_inc = NORMALIZE_BUFFER*channels
+    src_bound = src_inc
 
     for index_base in range( 0, new_len, RESAMPLE_BUFFER ):
         buffer = array( 'f', (0.0 for i in range( RESAMPLE_BUFFER )))
@@ -85,7 +86,7 @@ def resample_audio_iter( source, format_type, field_size, signedness, endian, ch
         for index in range( RESAMPLE_BUFFER ):
             tgt_pos = index_base + index
             src_pos = sample_rate*tgt_pos/output_rate
-            samp_index = math.floor( src_pos ) % NORMALIZE_BUFFER*channels
+            samp_index = math.floor( src_pos ) % src_inc
             alpha = math.fmod( src_pos, 1.0 )
 
             if src_pos > src_bound:
@@ -98,7 +99,7 @@ def resample_audio_iter( source, format_type, field_size, signedness, endian, ch
             a = 0.0 if samp_index >= len( src ) else src[samp_index]
             b = 0.0 if samp_index+channels >= len( src ) else src[samp_index+channels]
 
-            buffer[index % RESAMPLE_BUFFER] = mixer( a, b, alpha )
+            buffer[index] = mixer( a, b, alpha )
 
         yield buffer
 

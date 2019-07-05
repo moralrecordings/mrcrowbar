@@ -5,7 +5,7 @@ python:
   - "3.6"
   - "3.7"
 install:
-  - pip install -e . --use-mirrors
+  - pip install -e .
 script:
   - coverage run mrcrowbar/tests.py
 after_success:

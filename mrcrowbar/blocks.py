@@ -91,7 +91,7 @@ class BlockMeta( type ):
         # Parse this class's attributes into meta structures
         previous = None
         # Python 3.6+ uses an ordered dict for class attributes; prior to that we cheat
-        attrs_compat = OrderedDict( sorted( attrs.items(), key=lambda i: getattr(i[1], 'position_hint', 0) ) )
+        attrs_compat = OrderedDict( sorted( attrs.items(), key=lambda i: getattr(i[1], '_position_hint', 0) ) )
         for key, value in attrs_compat.items():
             if isinstance( value, Field ):
                 fields[key] = value

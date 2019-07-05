@@ -1380,7 +1380,10 @@ class Bits( NumberField ):
         # compared to the base class
         self.enum_t = enum
         bitmask = encoding.pack( SIZES[size][:4], bits )
-        super().__init__( *SIZES[size], offset, *args, default=default, bitmask=bitmask, **kwargs )
+
+        # Python 3.4 compat
+        inner_args = list( SIZES[size] ) + [offset] + list( args )
+        super().__init__( *inner_args, default=default, bitmask=bitmask, **kwargs )
 
     def get_element_from_buffer( self, offset, buffer, parent=None ):
         result, end_offset = super().get_element_from_buffer( offset, buffer, parent )

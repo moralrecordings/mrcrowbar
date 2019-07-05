@@ -1,5 +1,9 @@
+import itertools
 import contextlib
 import mmap
+
+next_position_hint = itertools.count()
+
 
 def is_bytes( obj ):
     """Returns whether obj is an acceptable Python byte string."""

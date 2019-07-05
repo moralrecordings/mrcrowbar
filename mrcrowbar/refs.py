@@ -18,6 +18,7 @@ class Ref( object ):
         allow_write
             Allow modification of the target with the set() method.
         """
+        self._position_hint = next( common.next_position_hint )
         # very simple path syntax for now: walk down the chain of properties
         if not type( path ) == str:
             raise TypeError( 'path argument to Ref() should be a string' )

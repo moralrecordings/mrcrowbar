@@ -1,15 +1,12 @@
 """Definition classes for common fields in binary formats."""
 
 import collections
-import itertools 
 import math
 import logging
 logger = logging.getLogger( __name__ )
 
 from mrcrowbar.refs import Ref, Chain, property_get, property_set
 from mrcrowbar import common, encoding
-
-_next_position_hint = itertools.count()
 
 
 class ParseError( Exception ):
@@ -26,7 +23,7 @@ class Field( object ):
         default
             Default value to emit in the case of e.g. creating an empty Block.
         """
-        self._position_hint = next( _next_position_hint )
+        self._position_hint = next( common.next_position_hint )
         self.default = default
 
     def __repr__( self ):

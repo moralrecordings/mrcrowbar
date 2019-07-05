@@ -3,7 +3,7 @@ logger = logging.getLogger( __name__ )
 
 from mrcrowbar.fields import Field
 from mrcrowbar.refs import Ref, property_get, property_set
-from mrcrowbar import utils
+from mrcrowbar import common, utils
 
 
 class CheckException( Exception ):
@@ -11,6 +11,7 @@ class CheckException( Exception ):
 
 class Check( object ):
     def __init__( self, raise_exception=False ):
+        self._position_hint = next( common.next_position_hint )
         self.raise_exception = raise_exception
 
     def check_buffer( self, buffer, parent=None ):

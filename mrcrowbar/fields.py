@@ -945,21 +945,27 @@ class StringField( StreamField ):
         super().__init__( ofset=offset, default=default, count=count, length=length,
                           stream=stream, alignment=alignment, stream_end=stream_end,
                           stop_check=stop_check, **kwargs )
+
+        if count is not None:
+            assert not stream
+            assert (element_length is not None) or (length_field is not None) or (element_end is not None)
+
+        elif stream:
+            assert (element_length is not None) or (length_field is not None) or (element_end is not None)
+
+        else: # single element
+            pass
+
+        if zero_pad:
+            assert element_length is not None
+
         if length_field:
             assert element_length is None
             assert issubclass( length_field, NumberField )
             self.length_field = length_field( 0x00 )
         else:
-            if count is not None or stream:
-                assert element_length is not None
-            if count is not None:
-                assert not stream
-            elif stream:
-                assert count is None
             self.length_field = None
 
-        if zero_pad:
-            assert (self.length_field is not None) or (element_length is not None)
         self.zero_pad = zero_pad
         self.encoding = encoding
         self.fill = fill

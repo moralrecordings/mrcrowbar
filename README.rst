@@ -1,5 +1,13 @@
 Mr. Crowbar
 ###########
+|pypi| |tests| |coverage|
+
+.. |pypi| .. image:: https://img.shields.io/pypi/v/mrcrowbar.svg
+    :target: https://pypi.org/project/mrcrowbar
+.. |tests| .. image:: https://travis-ci.org/moralrecordings/mrcrowbar.svg?branch=master
+    :target: https://travis-ci.org/moralrecordings/mrcrowbar
+.. |coverage| .. image:: https://coveralls.io/repos/github/moralrecordings/mrcrowbar/badge.svg?branch=master
+    :target: https://coveralls.io/github/moralrecordings/mrcrowbar?branch=master
 
 .. image:: doc/source/_static/mrcrowbar.png
 

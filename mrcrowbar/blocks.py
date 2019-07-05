@@ -95,10 +95,22 @@ class BlockMeta( type ):
                 fields[key] = value
                 value._previous_attr = previous
                 previous = key
-            elif isinstance( value, Ref ):
+            if isinstance( value, Ref ):
                 refs[key] = value
-            elif isinstance( value, Check ):
+            if isinstance( value, Check ):
                 checks[key] = value
+                check_fields = value.get_fields()
+                if isinstance( check_fields, dict ):
+                    for field_id, field in value.get_fields().items():
+                        sub_key = '{}__{}'.format(key, field_id)
+                        fields[sub_key] = field
+                        field._previous_attr = previous
+                        previous = sub_key
+                elif isinstance( check_fields, Field ):
+                    fields[key] = check_fields
+                    check_fields._previous_attr = previous
+                    previous = key
+
 
         # Convert list of types into fields for new klass
         fields = OrderedDict( sorted( fields.items(), key=lambda i: i[1]._position_hint ) )

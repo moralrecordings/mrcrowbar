@@ -25,6 +25,10 @@ class Check( object ):
             desc = self.repr
         return '<{}: {}>'.format( self.__class__.__name__, desc )
 
+    def get_fields( self ):
+        """Return None, a single field, or a dictionary of Fields embedded within the Check."""
+        return None
+
     def get_start_offset( self, parent=None ):
         """Return the start offset of where the Check inspects the Block."""
         return 0
@@ -46,6 +50,9 @@ class Const( Check ):
         super().__init__( *args, **kwargs )
         self.field = field
         self.value = value
+
+    def get_fields( self ):
+        return self.field
 
     def check_buffer( self, buffer, parent=None ):
         test = self.field.get_from_buffer( buffer, parent )

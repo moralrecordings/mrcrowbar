@@ -7,6 +7,7 @@ Submodules
 .. toctree::
 
    mrcrowbar.lib.audio.base
+   mrcrowbar.lib.audio.voc
 
 Module contents
 ---------------

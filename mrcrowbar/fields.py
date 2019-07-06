@@ -1311,9 +1311,10 @@ class NumberField( StreamField ):
             element = self.enum( element ).value
         if (type( element ) != self.format_type):
             raise FieldValidationError( 'Expecting type {}, not {}'.format( self.format_type, type( element ) ) )
-        if self.format_range and (element not in self.format_range):
+
+        if self.format_range is not None and (element not in self.format_range):
             raise FieldValidationError( 'Value {} not in format range ({})'.format( element, self.format_range ) )
-        if self.range and (element not in self.range):
+        if self.range is not None and (element not in self.range):
             raise FieldValidationError( 'Value {} not in range ({})'.format( element, self.range ) )
         return
 

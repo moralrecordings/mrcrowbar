@@ -50,7 +50,7 @@ class STUP( mrc.Block ):
 
 class SNDS( mrc.Block ):
     unknown1 =  mrc.Int16_LE( 0x00 )
-    files =     mrc.CStringNStream( 0x02, mrc.UInt16_LE )
+    files =     mrc.CString( 0x02, length_field=mrc.UInt16_LE, stream=True )
 
 
 # 1, 1, 1, 0 - player sprites

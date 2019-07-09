@@ -138,6 +138,17 @@ class TestStringField( unittest.TestCase ):
         self.assertEqual( test.field[2], b'mn' )
         self.assertEqual( test.export_data(), payload )
 
+    def test_stream( self ):
+        payload = b'abcd\x00ef\x00gh\x00'
+
+        class Test( mrc.Block ):
+            field = mrc.StringField( stream=True, element_end=b'\x00' )
+        test = Test( payload )
+        self.assertEqual( test.field[0], b'abcd' )
+        self.assertEqual( test.field[1], b'ef' )
+        self.assertEqual( test.field[2], b'gh' )
+        self.assertEqual( test.export_data(), payload )
+
 
 class TestNumberFields( unittest.TestCase ):
 

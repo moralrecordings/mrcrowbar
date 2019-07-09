@@ -90,7 +90,7 @@ Here's a class for a level file used by the 1991 DOS game *Lemmings*, taken from
         #: List of SteelArea object references (32 slots).
         steel_areas =       mrc.BlockField( SteelArea, 0x0760, count=32, fill=b'\x00' )
         #: Name of the level (ASCII string).
-        name =              mrc.Bytes( 0x07e0, 32, default=b'                                ' )
+        name =              mrc.Bytes( 0x07e0, length=32, default=b'                                ' )
 
         @property
         def camera_x( self ):

@@ -4,11 +4,10 @@ from mrcrowbar.version import __version__
 from mrcrowbar.refs import Ref, ConstRef, property_get, property_set, \
                             view_property, EndOffset, Chain
 from mrcrowbar.fields import ParseError, FieldValidationError, Field, \
-                            Chunk, ChunkField, BlockField, Bytes, \
-                            CString, CStringN, CStringNStream, \
-                            StringField, NumberField, \
-                            Int8, UInt8, Bits, Bits8, Bits16, \
-                            Bits32, Bits64, \
+                            Chunk, ChunkField, BlockField, \
+                            StringField, Bytes, CString, PString, \
+                            NumberField, Int8, UInt8, Bits, Bits8, \
+                            Bits16, Bits32, Bits64, \
                             Int16_LE, Int24_LE, Int32_LE, Int64_LE, \
                             UInt16_LE, UInt24_LE, UInt32_LE, UInt64_LE, \
                             Float32_LE, Float64_LE, \

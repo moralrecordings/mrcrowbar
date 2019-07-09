@@ -121,7 +121,7 @@ class SoundV4( mrc.Block ):
 
 class SoundCastV4Extra( mrc.Block ):
     name_size = mrc.UInt8( 0x00 )
-    name = mrc.CStringN( 0x01, length=mrc.Ref( 'name_size' ) )
+    name = mrc.CString( 0x01, length=mrc.Ref( 'name_size' ) )
 
     @property
     def repr( self ):
@@ -467,7 +467,7 @@ class ScriptInstruction( IntEnum ):
 
 class ScriptString( mrc.Block ):
     length = mrc.UInt32_BE( 0x00 )
-    value = mrc.CStringN( 0x04, length=mrc.Ref( 'length' ) )
+    value = mrc.CString( 0x04, length=mrc.Ref( 'length' ) )
 
     @property
     def repr( self ):

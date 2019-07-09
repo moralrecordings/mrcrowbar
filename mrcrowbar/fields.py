@@ -325,8 +325,9 @@ class StreamField( Field ):
         length = property_get( self.length, parent )
         if count is not None and count != len( value ):
             property_set( self.count, parent, len( value ) )
-        if length is not None:
-            property_set( self.length, parent, self.get_size( value, parent ) )
+        target_length = self.get_size( value, parent )
+        if length is not None and length != target_length:
+            property_set( self.length, parent, target_length )
 
     def validate_element( self, element, parent=None ):
         pass
@@ -647,7 +648,8 @@ class BlockField( StreamField ):
             Number of bytes to align the start of each Block to.
 
         transform
-            Transform class to use for preprocessing the data before creating each Block.
+            Transform class to use for preprocessing the data before importing or
+            exporting each Block.
 
         stream_end
             Byte pattern to denote the end of the stream.
@@ -770,176 +772,68 @@ class BlockField( StreamField ):
         return value.serialised if value is not None else None
 
 
-class Bytes( Field ):
-    def __init__( self, offset=Chain(), length=None, default=None, transform=None, stream_end=None, alignment=1, zero_pad=False, encoding=None, **kwargs ):
-        """Field class for raw byte data.
+class StringField( StreamField ):
+    def __init__( self, offset=Chain(), default=None, count=None, length=None,
+                    stream=False, alignment=1, stream_end=None, stop_check=None,
+                    transform=None, encoding=False, length_field=None,
+                    fill=None, element_length=None, element_end=None, zero_pad=False,
+                    **kwargs ):
+        """Field class for string data.
 
         offset
             Position of data, relative to the start of the parent block. Defaults to
             the end offset of the previous field.
 
-        length
-            Maximum size of the data in bytes.
-
         default
-            Default byte data. Used for creating an empty block.
+            Default value to emit in the case of e.g. creating an empty block.
 
-        transform
-            A Transform to process the data before import/export.
+        count
+            Load multiple strings. None implies a single value, non-negative
+            numbers will return a Python list.
 
-        stream_end
-            Byte string to indicate the end of the data.
+        length
+            Maximum size of the buffer to read in.
+
+        stream
+            Read strings continuously until a stop condition is met. Defaults to False.
 
         alignment
             Number of bytes to align the start of the next element to.
 
-        zero_pad
-            Pad the data with zeros to match the length. If enabled, the data size must be up to or equal to the length.
+        stream_end
+            Byte string to indicate the end of the data.
+
+        stop_check
+            A function that takes a data buffer and an offset; should return True if
+            the end of the data stream has been reached and False otherwise.
+
+        transform
+            Transform class to use for preprocessing the data before importing or
+            exporting each string.
 
         encoding
             Python string encoding to use for output, as accepted by bytes.decode().
+
+        length_field
+            Field class used to parse the string length. For use when a string is preceded by
+            the size.
+
+        fill
+            Exact byte sequence that denotes an empty entry in a list.
+
+        element_length
+            Length of each string element to load.
+
+        element_end
+            Byte string to indicate the end of a single string element.
+
+        zero_pad
+            Pad each element with zeros to match the length. Only for use with fixed
+            length elements. The data size must be up to or equal to the length.
+            Defaults to False.
+
         """
-        if default is not None:
-            assert common.is_bytes( default )
-        else:
-            default = b''
-        super().__init__( default=default, **kwargs )
-        self.offset = offset
-        self.length = length
-        self.transform = transform
-        if stream_end is not None:
-            assert common.is_bytes( stream_end )
-        self.stream_end = stream_end
-        self.alignment = alignment
-        if zero_pad:
-            assert self.length is not None
-        self.zero_pad = zero_pad
-        self.encoding = encoding
-
-    def _scrub_bytes( self, value, parent=None ):
-        encoding = property_get( self.encoding, parent )
-        data = value
-
-        if encoding:
-            data = data.encode( encoding )
-        if self.transform:
-            data = self.transform.export_data( data, parent=parent ).payload
-        if self.stream_end is not None:
-            data += self.stream_end
-        return data
-
-    def get_from_buffer( self, buffer, parent=None, **kwargs ):
-        assert common.is_bytes( buffer )
-        offset = property_get( self.offset, parent, caller=self )
-        length = property_get( self.length, parent )
-        encoding = property_get( self.encoding, parent )
-
-        data = buffer[offset:]
-        if self.stream_end is not None:
-            end = data.find( self.stream_end )
-            if end != -1:
-                data = data[:end]
-        if length is not None:
-            data = data[:length]
-
-        if self.transform:
-            data = self.transform.import_data( data, parent=parent ).payload
-    
-        if encoding:
-            data = data.decode( encoding )
-
-        return data
-
-    def update_buffer_with_value( self, value, buffer, parent=None ):
-        super().update_buffer_with_value( value, buffer, parent )
-        offset = property_get( self.offset, parent, caller=self )
-        length = property_get( self.length, parent )
-        alignment = property_get( self.alignment, parent )
-        encoding = property_get( self.encoding, parent )
-
-        data = self._scrub_bytes( value, parent=None )
-
-        new_size = offset+len( data )
-        if alignment is not None:
-            width = new_size % alignment
-            if width:
-                new_size += alignment-width
-
-        if len( buffer ) < new_size:
-            buffer.extend( b'\x00'*(new_size-len( buffer )) )
-
-        buffer[offset:offset+len( data )] = data
-        return
-
-    def update_deps( self, value, parent=None ):
-        length = property_get( self.length, parent )
-        zero_pad = property_get( self.zero_pad, parent )
-        encoding = property_get( self.encoding, parent )
-
-        value = self._scrub_bytes( value, parent=None )
-        test_length = len( value )
-
-        if length is not None and not zero_pad and length != test_length:
-            property_set( self.length, parent, test_length )
-
-    def validate( self, value, parent=None ):
-        offset = property_get( self.offset, parent, caller=self )
-        length = property_get( self.length, parent )
-        zero_pad = property_get( self.zero_pad, parent )
-        encoding = property_get( self.encoding, parent )
-
-        if encoding:
-            # try to encode string, throw UnicodeEncodeError if fails
-            value = value.encode( encoding )
-        elif not common.is_bytes( value ):
-            raise FieldValidationError( 'Expecting bytes, not {}'.format( type( value ) ) )
-
-        calc_length = len( value )
-
-        if length is not None:
-            if (not isinstance( self.length, Ref )) and (calc_length != length):
-                raise FieldValidationError( 'Length defined as a constant, was expecting {} bytes but got {}!'.format( length, calc_length ) )
-            elif zero_pad and calc_length > length:
-                raise FieldValidationError( 'Content of {} bytes is greater than expected length of {} bytes!'.format( calc_length, length ) )
-
-        return
-
-    @property
-    def repr( self ):
-        details = 'offset={}'.format( hex( self.offset ) if type( self.offset ) == int else self.offset )
-        if self.length:
-            details += ', length={}'.format( self.length )
-        if self.default:
-            details += ', default={}'.format( self.default )
-        if self.transform:
-            details += ', transform={}'.format( self.transform )
-        return details
-
-    def get_start_offset( self, value, parent=None, index=None ):
-        assert index is None
-        offset = property_get( self.offset, parent, caller=self )
-        return offset
-
-    def get_size( self, value, parent=None, index=None ):
-        assert index is None
-        length = property_get( self.length, parent )
-        encoding = property_get( self.encoding, parent )
-        if length is None:
-            return len( self._scrub_bytes( value, parent ) )
-        return length
-
-    def serialise( self, value, parent=None ):
-        self.validate( value, parent )
-        return value
-
-
-class StringField( StreamField ):
-    def __init__( self, offset=Chain(), default=None, count=None, length=None,
-                    stream=False, alignment=1, stream_end=None, stop_check=None,
-                    zero_pad=False, encoding=False, length_field=None, fill=None,
-                    element_length=None, element_end=None,
-                    **kwargs ):
-        super().__init__( ofset=offset, default=default, count=count, length=length,
+        super().__init__( offset=offset, default=default, count=count, length=length,
                           stream=stream, alignment=alignment, stream_end=stream_end,
                           stop_check=stop_check, **kwargs )
 
@@ -963,41 +857,71 @@ class StringField( StreamField ):
         else:
             self.length_field = None
 
+        self.transform = transform
         self.zero_pad = zero_pad
         self.encoding = encoding
         self.fill = fill
         self.element_length = element_length
+        if element_end:
+            assert common.is_bytes( element_end )
+        self.element_end = element_end
 
     def _scrub_bytes( self, value, parent=None ):
+        fill = property_get( self.fill, parent )
         encoding = property_get( self.encoding, parent )
         data = value
 
+        if data is None:
+            if fill:
+                return fill
+            else:
+                raise ParseError( 'A fill pattern needs to be specified to use None as a list entry' )
+
         if encoding:
             data = data.encode( encoding )
+        if self.transform:
+            data = self.transform.export_data( data, parent=parent ).payload
+        if self.element_end is not None:
+            data += self.element_end
         return data
 
     def get_element_from_buffer( self, offset, buffer, parent=None ):
         fill = property_get( self.fill, parent )
         encoding = property_get( self.encoding, parent )
         element_length = property_get( self.element_length, parent )
+        element_end = property_get( self.element_end, parent )
         zero_pad = property_get( self.zero_pad, parent )
 
         pointer = offset
+        # add an empty list entry if we find the fill pattern
+        if fill and buffer[pointer:pointer+len( fill )] == fill:
+            return None, pointer+len( fill )
+
         if self.length_field:
+            # if there's a prefixed length field, that determines the end offset
             size = self.length_field.get_from_buffer( buffer[pointer:], parent=parent )
             pointer += self.length_field.field_size
             data = buffer[pointer:pointer+size]
-            pointer += size
         elif element_length:
+            # if the element length is fixed, that determines the end offset
             data = buffer[pointer:pointer+element_length]
-            pointer += element_length
         else:
-            # no element size hints, assume it's the whole thing
+            # no element size hints, use more guesswork
             data = buffer[pointer:]
-            pointer += len( data )
 
-        if data == fill:
-            return None, pointer
+        # if we have an inline transform, apply it
+        if self.transform:
+            data_ts = self.transform.import_data( data, parent=parent )
+            pointer += data_ts.end_offset
+            data = data_ts.payload
+        else:
+            if element_end:
+                index = data.find( element_end )
+                if index >= 0:
+                    data = data[:index]
+                    pointer += 1
+
+            pointer += len( data )
 
         if zero_pad:
             index = data.find( b'\x00' )
@@ -1013,23 +937,38 @@ class StringField( StreamField ):
         fill = property_get( self.fill, parent )
         encoding = property_get( self.encoding, parent )
         element_length = property_get( self.element_length, parent )
+        element_end = property_get( self.element_end, parent )
         zero_pad = property_get( self.zero_pad, parent )
 
         data = bytearray()
 
-        if encoding:
-            element = element.encode( encoding )
+        if element is None:
+            if fill:
+                data.extend( fill )
+            else:
+                raise ParseError( 'A fill pattern needs to be specified to use None as a list entry' )
+        else:
+            if encoding:
+                element = element.encode( encoding )
 
-        if self.length_field:
-            data.extend( b'\x00'*self.length_field.field_size )
-            self.length_field.update_buffer_with_value( len( element ) )
-        elif element_length is not None:
-            if element_length != len( element ):
-                if zero_pad and len( element ) < element_length:
-                    element += b'\x00'*(element_length-len( element ))
+            if self.transform:
+                element = self.transform.export_data( data, parent=parent ).payload
+            else:
+                if element_end:
+                    element += element_end
 
-        data.extend( element )
+            if self.length_field:
+                data.extend( b'\x00'*self.length_field.field_size )
+                self.length_field.update_buffer_with_value( len( element ) )
 
+            data.extend( element )
+
+            if element_length is not None:
+                if element_length != len( element ):
+                    if zero_pad and len( element ) < element_length:
+                        data.extend( b'\x00'*(element_length-len( data )) )
+
+        # add element to buffer
         if len( buffer ) < offset+len( data ):
             buffer.extend( b'\x00'*(offset+len( data )-len( buffer )) )
         buffer[offset:offset+len( data )] = data
@@ -1054,6 +993,25 @@ class StringField( StreamField ):
             if not zero_pad and element_length < len( element ):
                 raise FieldValidationError( 'Elements must have a size of {} but found {}!'.format( element_length, len( element ) ) )
 
+    @property
+    def repr( self ):
+        details = 'offset={}'.format( hex( self.offset ) if type( self.offset ) == int else self.offset )
+        if self.length:
+            details += ', length={}'.format( self.length )
+        if self.count:
+            details += ', count={}'.format( self.count )
+        if self.stream:
+            details += ', stream={}'.format( self.stream )
+        if self.default:
+            details += ', default={}'.format( self.default )
+        if self.transform:
+            details += ', transform={}'.format( self.transform )
+        return details
+
+    def get_start_offset( self, value, parent=None, index=None ):
+        assert index is None
+        offset = property_get( self.offset, parent, caller=self )
+        return offset
 
     def get_element_size( self, element, parent=None ):
         fill = property_get( self.fill, parent )
@@ -1061,7 +1019,7 @@ class StringField( StreamField ):
         size = 0
         if self.length_field:
             size += self.length_field.field_size
-        size += len( self._scrub_bytes( element ) )
+        size += len( self._scrub_bytes( element, parent=parent ) )
         return size
 
     def serialise( self, value, parent=None ):
@@ -1074,104 +1032,19 @@ class StringField( StreamField ):
         return value
 
 
-
-class CString( Bytes ):
+class Bytes( StringField ):
     def __init__( self, offset=Chain(), **kwargs ):
-        super().__init__( offset=offset, stream_end=b'\x00', **kwargs )
+        super().__init__( offset=offset, **kwargs )
 
 
-class CStringN( Field ):
-    def __init__( self, offset, length, default=b'', **kwargs ):
-        assert common.is_bytes( default )
-        super().__init__( default=default, **kwargs )
-        self.offset = offset
-        self.length = length
-
-    def get_from_buffer( self, buffer, parent=None ):
-        assert common.is_bytes( buffer )
-        offset = property_get( self.offset, parent, caller=self )
-        length = property_get( self.length, parent )
-
-        return buffer[offset:offset+length].split( b'\x00', 1 )[0]
-
-    def update_buffer_with_value( self, value, buffer, parent=None ):
-        super().update_buffer_with_value( value, buffer, parent )
-        offset = property_get( self.offset, parent, caller=self )
-        length = property_get( self.length, parent )
-
-        block_data = value + b'\x00'*(length - len( value ))
-        if len( buffer ) < offset+len( block_data ):
-            buffer.extend( b'\x00'*(offset+len( block_data )-len( buffer )) )    
-        buffer[offset:offset+len( block_data )] = block_data
-        return
-
-    def validate( self, value, parent=None ):
-        length = property_get( self.length, parent )
-
-        if type( value ) != bytes:
-            raise FieldValidationError( 'Expecting type {}, not {}'.format( bytes, type( value ) ) )
-        if (len( value ) > length):
-            raise FieldValidationError( 'Expecting length <= {}, not {}'.format( length, len( value ) ) )
-        return
-    
-    def get_start_offset( self, value, parent=None, index=None ):
-        assert index is None
-        offset = property_get( self.offset, parent, caller=self )
-        return offset
-
-    def get_size( self, value, parent=None, index=None ):
-        assert index is None
-        length = property_get( self.length, parent )
-        return length
+class CString( StringField ):
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( offset=offset, element_end=b'\x00', **kwargs )
 
 
-class CStringNStream( Field ):
-    def __init__( self, offset, length_field, **kwargs ):
-        assert issubclass( length_field, NumberField )
-        super().__init__( **kwargs )
-        self.offset = offset
-        self.length_field = length_field( 0x00 )
-
-    def get_from_buffer( self, buffer, parent=None ):
-        assert common.is_bytes( buffer )
-        offset = property_get( self.offset, parent, caller=self )
-        strings = []
-
-        pointer = offset
-        while pointer < len( buffer ):
-            count = self.length_field.get_from_buffer( buffer[pointer:] )
-            pointer += self.length_field.field_size
-            strings.append( buffer[pointer:pointer+count].split( b'\x00', 1 )[0] )
-            pointer += count
-        return strings
-
-    def update_buffer_with_value( self, value, buffer, parent=None ):
-        super().update_buffer_with_value( value, buffer, parent )
-        offset = property_get( self.offset, parent, caller=self )
-        length = self.length_field.field_size
-
-        pointer = offset
-        for s in value:
-            assert common.is_bytes( s )
-            string_data = s+b'\x00'
-            self.length_field.offset = pointer
-            self.length_field.update_buffer_with_value( len( string_data ), buffer )
-            pointer += length
-            buffer[pointer:pointer+len( string_data )] = string_data
-            pointer += len( string_data )
-
-    def get_start_offset( self, value, parent=None, index=None ):
-        assert index is None
-        offset = property_get( self.offset, parent, caller=self )
-        return offset
-
-    def get_size( self, value, parent=None, index=None ):
-        assert index is None
-        size = 0
-        for x in value:
-            size += self.length_field.field_size
-            size += len( x )
-        return size
+class PString( StringField ):
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( offset=offset, length_field=UInt8, **kwargs )
 
 
 class NumberField( StreamField ):
@@ -1348,13 +1221,13 @@ class NumberField( StreamField ):
 
 
 class Int8( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 1, 'signed', None, range( -1<<7, 1<<7 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 1, 'signed', None, range( -1<<7, 1<<7 ), offset=offset, **kwargs )
 
 
 class UInt8( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 1, 'unsigned', None, range( 0, 1<<8 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 1, 'unsigned', None, range( 0, 1<<8 ), offset=offset, **kwargs )
 
 
 class Bits( NumberField ):
@@ -1427,171 +1300,171 @@ class Bits( NumberField ):
 
 
 class Bits8( Bits ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( *args, size=1, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( offset=offset, size=1, **kwargs )
 
 
 class Bits16( Bits ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( *args, size=2, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( offset=offset, size=2, **kwargs )
 
 
 class Bits32( Bits ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( *args, size=4, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( offset=offset, size=4, **kwargs )
 
 
 class Bits64( Bits ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( *args, size=8, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( offset=offset, size=8, **kwargs )
 
 
 class Int16_LE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 2, 'signed', 'little', range( -1<<15, 1<<15 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 2, 'signed', 'little', range( -1<<15, 1<<15 ), offset=offset, **kwargs )
 
 
 class Int24_LE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 3, 'signed', 'little', range( -1<<23, 1<<23 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 3, 'signed', 'little', range( -1<<23, 1<<23 ), offset=offset, **kwargs )
 
 
 class Int32_LE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 4, 'signed', 'little', range( -1<<31, 1<<31 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 4, 'signed', 'little', range( -1<<31, 1<<31 ), offset=offset, **kwargs )
 
 
 class Int64_LE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 8, 'signed', 'little', range( -1<<63, 1<<63 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 8, 'signed', 'little', range( -1<<63, 1<<63 ), offset=offset, **kwargs )
 
 
 class UInt16_LE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 2, 'unsigned', 'little', range( 0, 1<<16 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 2, 'unsigned', 'little', range( 0, 1<<16 ), offset=offset, **kwargs )
 
 
 class UInt24_LE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 3, 'unsigned', 'little', range( 0, 1<<24 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 3, 'unsigned', 'little', range( 0, 1<<24 ), offset=offset, **kwargs )
 
 
 class UInt32_LE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 4, 'unsigned', 'little', range( 0, 1<<32 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 4, 'unsigned', 'little', range( 0, 1<<32 ), offset=offset, **kwargs )
 
 
 class UInt64_LE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 8, 'unsigned', 'little', range( 0, 1<<64 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 8, 'unsigned', 'little', range( 0, 1<<64 ), offset=offset, **kwargs )
 
 
 class Float32_LE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( float, 4, 'signed', 'little', None, *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( float, 4, 'signed', 'little', None, offset=offset, **kwargs )
 
 
 class Float64_LE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( float, 8, 'signed', 'little', None, *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( float, 8, 'signed', 'little', None, offset=offset, **kwargs )
 
 
 class Int16_BE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 2, 'signed', 'big', range( -1<<15, 1<<15 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 2, 'signed', 'big', range( -1<<15, 1<<15 ), offset=offset, **kwargs )
 
 
 class Int24_BE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 3, 'signed', 'big', range( -1<<23, 1<<23 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 3, 'signed', 'big', range( -1<<23, 1<<23 ), offset=offset, **kwargs )
 
 
 class Int32_BE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 4, 'signed', 'big', range( -1<<31, 1<<31 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 4, 'signed', 'big', range( -1<<31, 1<<31 ), offset=offset, **kwargs )
 
 
 class Int64_BE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 8, 'signed', 'big', range( -1<<63, 1<<63 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 8, 'signed', 'big', range( -1<<63, 1<<63 ), offset=offset, **kwargs )
 
 
 class UInt16_BE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 2, 'unsigned', 'big', range( 0, 1<<16 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 2, 'unsigned', 'big', range( 0, 1<<16 ), offset=offset, **kwargs )
 
 
 class UInt24_BE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 3, 'unsigned', 'big', range( 0, 1<<24 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 3, 'unsigned', 'big', range( 0, 1<<24 ), offset=offset, **kwargs )
 
 
 class UInt32_BE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 4, 'unsigned', 'big', range( 0, 1<<32 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 4, 'unsigned', 'big', range( 0, 1<<32 ), offset=offset, **kwargs )
 
 
 class UInt64_BE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 8, 'unsigned', 'big', range( 0, 1<<64 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 8, 'unsigned', 'big', range( 0, 1<<64 ), offset=offset, **kwargs )
 
 
 class Float32_BE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( float, 4, 'signed', 'big', None, *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( float, 4, 'signed', 'big', None, offset=offset, **kwargs )
 
 
 class Float64_BE( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( float, 8, 'signed', 'big', None, *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( float, 8, 'signed', 'big', None, offset=offset, **kwargs )
 
 
 class Int16_P( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 2, 'signed', Ref( '_endian' ), range( -1<<15, 1<<15 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 2, 'signed', Ref( '_endian' ), range( -1<<15, 1<<15 ), offset=offset, **kwargs )
 
 
 class Int24_P( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 3, 'signed', Ref( '_endian' ), range( -1<<23, 1<<23 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 3, 'signed', Ref( '_endian' ), range( -1<<23, 1<<23 ), offset=offset, **kwargs )
 
 
 class Int32_P( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 4, 'signed', Ref( '_endian' ), range( -1<<31, 1<<31 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 4, 'signed', Ref( '_endian' ), range( -1<<31, 1<<31 ), offset=offset, **kwargs )
 
 
 class Int64_P( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 8, 'signed', Ref( '_endian' ), range( -1<<63, 1<<63 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 8, 'signed', Ref( '_endian' ), range( -1<<63, 1<<63 ), offset=offset, **kwargs )
 
 
 class UInt16_P( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 2, 'unsigned', Ref( '_endian' ), range( 0, 1<<16 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 2, 'unsigned', Ref( '_endian' ), range( 0, 1<<16 ), offset=offset, **kwargs )
 
 
 class UInt24_P( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 3, 'unsigned', Ref( '_endian' ), range( 0, 1<<24 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 3, 'unsigned', Ref( '_endian' ), range( 0, 1<<24 ), offset=offset, **kwargs )
 
 
 class UInt32_P( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 4, 'unsigned', Ref( '_endian' ), range( 0, 1<<32 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 4, 'unsigned', Ref( '_endian' ), range( 0, 1<<32 ), offset=offset, **kwargs )
 
 
 class UInt64_P( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( int, 8, 'unsigned', Ref( '_endian' ), range( 0, 1<<64 ), *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( int, 8, 'unsigned', Ref( '_endian' ), range( 0, 1<<64 ), offset=offset, **kwargs )
 
 
 class Float32_P( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( float, 4, 'signed', Ref( '_endian' ), None, *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( float, 4, 'signed', Ref( '_endian' ), None, offset=offset, **kwargs )
 
 
 class Float64_P( NumberField ):
-    def __init__( self, *args, **kwargs ):
-        super().__init__( float, 8, 'signed', Ref( '_endian' ), None, *args, **kwargs )
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( float, 8, 'signed', Ref( '_endian' ), None, offset=offset, **kwargs )
 

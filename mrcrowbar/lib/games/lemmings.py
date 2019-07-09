@@ -493,7 +493,7 @@ class Level( mrc.Block ):
     #: List of SteelArea object references (32 slots).
     steel_areas =       mrc.BlockField( SteelArea, 0x0760, count=32, fill=b'\x00'*4 )
     #: Name of the level (ASCII string).
-    name =              mrc.Bytes( 0x07e0, 32, default=b'                                ' )
+    name =              mrc.Bytes( 0x07e0, length=32, default=b'                                ' )
 
     @property
     def camera_x( self ):
@@ -544,7 +544,7 @@ class OddRecord( mrc.Block ):
     num_diggers =       mrc.UInt16_BE( 0x0016, range=range( 0, 251 ) )
 
     #: Name of the level (ASCII string).
-    name =              mrc.Bytes( 0x0018, 32, default=b'                                ' )
+    name =              mrc.Bytes( 0x0018, length=32, default=b'                                ' )
 
     @property
     def repr( self ):

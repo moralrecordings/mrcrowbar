@@ -7,7 +7,7 @@ from mrcrowbar import utils
 class PRSChunk( mrc.Block ):
     tag = mrc.Bytes( 0x00, length=4 )
     unk1 = mrc.UInt16_LE( 0x04 )
-    name = mrc.CStringN( 0x06, length=0x12 )
+    name = mrc.CString( 0x06, length=0x12 )
     size = mrc.UInt32_LE( 0x18 )  # length of chunk header + data
     data = mrc.Bytes( 0x1c, length=mrc.Ref( 'size_data' ) )
 

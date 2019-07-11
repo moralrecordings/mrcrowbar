@@ -8,8 +8,8 @@ class RIFF( mrc.Block ):
     size = mrc.UInt32_LE( 0x04 )
     form_type = mrc.Bytes( 0x08, length=4 )
     stream = mrc.ChunkField( mrc.Ref( 'CHUNK_MAP' ), 0x0c,
-                             length=mrc.Ref( 'size' ), chunk_id_field=mrc.UInt32_BE,
-                             chunk_length_field=mrc.UInt32_LE, alignment=2,
+                             length=mrc.Ref( 'size' ), id_field=mrc.UInt32_BE,
+                             length_field=mrc.UInt32_LE, alignment=2,
                              default_klass=mrc.Unknown )
 
 
@@ -17,8 +17,8 @@ class RIFXMap( mrc.Block ):
     CHUNK_MAP = {}
     form_type = mrc.Bytes( 0x00, length=4 )
     stream = mrc.ChunkField( mrc.Ref( 'CHUNK_MAP' ), 0x04,
-                             chunk_id_field=mrc.UInt32_P,
-                             chunk_length_field=mrc.UInt32_P, alignment=2,
+                             id_field=mrc.UInt32_P,
+                             length_field=mrc.UInt32_P, alignment=2,
                              fill=b'',
                              default_klass=mrc.Unknown )
 

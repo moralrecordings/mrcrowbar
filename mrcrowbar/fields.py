@@ -274,7 +274,10 @@ class StreamField( Field ):
                     pointer += alignment - width
 
         if not is_array:
-            return result[0]
+            if not result:
+                return b''
+            else:
+                return result[0]
         return result
 
     def update_buffer_with_element( self, offset, element, buffer, parent=None ):
@@ -423,7 +426,7 @@ class Chunk( ChunkBase ):
 class ChunkField( StreamField ):
     def __init__( self, chunk_map, offset=Chain(), count=None, length=None, stream=True,
                     alignment=1, stream_end=None, stop_check=None, default_klass=None,
-                    chunk_id_size=None, chunk_id_field=None, chunk_length_field=None,
+                    id_size=None, id_field=None, length_field=None,
                     fill=None, **kwargs ):
         """Field for inserting a tokenised Block stream into the parent class.
     
@@ -457,13 +460,13 @@ class ChunkField( StreamField ):
         default_klass
             Fallback Block class to use if there's no match with the chunk_map mapping.
 
-        chunk_id_size
+        id_size
             Size in bytes of the Chunk ID.
 
-        chunk_id_field
+        id_field
             Field class used to parse Chunk ID. Defaults to Bytes.
 
-        chunk_length_field
+        length_field
             Field class used to parse the Chunk data length. For use when a Chunk consists of an ID followed by the size of the data.
 
         fill
@@ -474,19 +477,19 @@ class ChunkField( StreamField ):
                           stream=stream, alignment=alignment, stream_end=stream_end,
                           stop_check=stop_check, **kwargs )
         self.chunk_map = chunk_map
-        if chunk_length_field:
-            assert issubclass( chunk_length_field, NumberField )
-            self.chunk_length_field = chunk_length_field( 0x00 )
+        if length_field:
+            assert issubclass( length_field, NumberField )
+            self.length_field = length_field( 0x00 )
         else:
-            self.chunk_length_field = None
-        if chunk_id_field:
-            assert issubclass( chunk_id_field, (NumberField) )
-            self.chunk_id_field = chunk_id_field( 0x00 )
+            self.length_field = None
+        if id_field:
+            assert issubclass( id_field, (NumberField) )
+            self.id_field = id_field( 0x00 )
         else:
-            self.chunk_id_field = None
+            self.id_field = None
         self.default_klass = default_klass
 
-        self.chunk_id_size = chunk_id_size
+        self.id_size = id_size
         self.fill = fill
 
     def get_element_from_buffer( self, offset, buffer, parent=None ):
@@ -495,11 +498,11 @@ class ChunkField( StreamField ):
 
         pointer = offset
         chunk_id = None
-        if self.chunk_id_field:
-            chunk_id = self.chunk_id_field.get_from_buffer( buffer[pointer:], parent=parent )
-            pointer += self.chunk_id_field.field_size
-        elif self.chunk_id_size:
-            chunk_id = buffer[pointer:pointer+self.chunk_id_size]
+        if self.id_field:
+            chunk_id = self.id_field.get_from_buffer( buffer[pointer:], parent=parent )
+            pointer += self.id_field.field_size
+        elif self.id_size:
+            chunk_id = buffer[pointer:pointer+self.id_size]
             pointer += len( chunk_id )
         else:
             for test_id in chunk_map:
@@ -517,9 +520,9 @@ class ChunkField( StreamField ):
         else:
             raise ParseError( 'No chunk class match for ID {}'.format( chunk_id ) )
 
-        if self.chunk_length_field:
-            size = self.chunk_length_field.get_from_buffer( buffer[pointer:], parent=parent )
-            pointer += self.chunk_length_field.field_size
+        if self.length_field:
+            size = self.length_field.get_from_buffer( buffer[pointer:], parent=parent )
+            pointer += self.length_field.field_size
             chunk_buffer = buffer[pointer:pointer+size]
             pointer += size
             if chunk_buffer == fill:
@@ -538,9 +541,9 @@ class ChunkField( StreamField ):
         fill = property_get( self.fill, parent )
 
         data = bytearray()
-        if self.chunk_id_field:
-            data.extend( b'\x00'*self.chunk_id_field.field_size )
-            self.chunk_id_field.update_buffer_with_value( element.id, data, parent=parent )
+        if self.id_field:
+            data.extend( b'\x00'*self.id_field.field_size )
+            self.id_field.update_buffer_with_value( element.id, data, parent=parent )
         else:
             data += element.id
 
@@ -552,9 +555,9 @@ class ChunkField( StreamField ):
         else:
             payload = element.obj.export_data()
 
-        if self.chunk_length_field:
-            length_buf = bytearray( b'\x00'*self.chunk_length_field.field_size )
-            self.chunk_length_field.update_buffer_with_value( len( payload ), length_buf, parent=parent )
+        if self.length_field:
+            length_buf = bytearray( b'\x00'*self.length_field.field_size )
+            self.length_field.update_buffer_with_value( len( payload ), length_buf, parent=parent )
             data.extend( length_buf )
 
         data += payload
@@ -579,19 +582,19 @@ class ChunkField( StreamField ):
         else:
             assert isinstance( element.obj, chunk_klass )
 
-        if self.chunk_id_size:
-            assert len( element.id ) == self.chunk_id_size
+        if self.id_size:
+            assert len( element.id ) == self.id_size
 
     def get_element_size( self, element, parent=None ):
         fill = property_get( self.fill, parent )
 
         size = 0
-        if self.chunk_id_field:
-            size += self.chunk_id_field.field_size
+        if self.id_field:
+            size += self.id_field.field_size
         else:
             size += len( element.id )
-        if self.chunk_length_field:
-            size += self.chunk_length_field.field_size
+        if self.length_field:
+            size += self.length_field.field_size
         if element.obj is None:
             size += len( fill )
         else:
@@ -958,8 +961,9 @@ class StringField( StreamField ):
                     element += element_end
 
             if self.length_field:
-                data.extend( b'\x00'*self.length_field.field_size )
-                self.length_field.update_buffer_with_value( len( element ) )
+                length_buf = bytearray( b'\x00'*self.length_field.field_size )
+                self.length_field.update_buffer_with_value( len( element ), length_buf, parent=parent )
+                data.extend( length_buf )
 
             data.extend( element )
 

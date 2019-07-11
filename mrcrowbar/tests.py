@@ -144,10 +144,30 @@ class TestStringField( unittest.TestCase ):
         class Test( mrc.Block ):
             field = mrc.StringField( stream=True, element_end=b'\x00' )
         test = Test( payload )
+        self.assertEqual( len( test.field ), 3 )
         self.assertEqual( test.field[0], b'abcd' )
         self.assertEqual( test.field[1], b'ef' )
         self.assertEqual( test.field[2], b'gh' )
         self.assertEqual( test.export_data(), payload )
+
+    def test_length_field( self ):
+        payload = b'\x04\x02ab\x03cde\x04fghi\x01j'
+
+        class Test( mrc.Block ):
+            count = mrc.UInt8( 0x00 )
+            field = mrc.StringField( 0x01, count=mrc.Ref( 'count' ), length_field=mrc.UInt8 )
+
+        test = Test( payload )
+        self.assertEqual( len( test.field ), test.count )
+        self.assertEqual( test.field[0], b'ab' )
+        self.assertEqual( test.field[1], b'cde' )
+        self.assertEqual( test.field[2], b'fghi' )
+        self.assertEqual( test.field[3], b'j' )
+        self.assertEqual( test.export_data(), payload )
+
+        payload_mod = b'\x03\x02ab\x03cde\x01j'
+        del test.field[2]
+        self.assertEqual( test.export_data(), payload_mod )
 
 
 class TestNumberFields( unittest.TestCase ):

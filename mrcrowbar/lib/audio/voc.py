@@ -129,7 +129,7 @@ class VOC( mrc.Block ):
     version = mrc.Bytes( 0x16, length=2 )
     checksum = mrc.Bytes( 0x18, length=2 )
 
-    chunks = mrc.ChunkField( VOC_CHUNK_MAP, 0x1a, stream=True, chunk_id_field=mrc.UInt8, chunk_length_field=mrc.UInt24_LE, stream_end=b'\x00' )
+    chunks = mrc.ChunkField( VOC_CHUNK_MAP, 0x1a, stream=True, id_field=mrc.UInt8, length_field=mrc.UInt24_LE, stream_end=b'\x00' )
 
     @property
     def audio_chunk( self ):

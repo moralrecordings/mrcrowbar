@@ -337,7 +337,6 @@ class TextV4( mrc.Block ):
     unk3 = mrc.Bytes( mrc.EndOffset( 'data' ) )
 
 
-
 class ScriptContextEntry( mrc.Block ):
     data = mrc.Bytes( 0x00, length=12 )
 
@@ -350,6 +349,7 @@ class ScriptNamesV4( mrc.Block ):
     unk4 = mrc.UInt32_BE( 0x0c )
     unk5 = mrc.UInt16_BE( 0x10 )
     count = mrc.UInt16_BE( 0x12 )
+    names = mrc.StringField( 0x14, count=mrc.Ref( 'count' ), length_field=mrc.UInt8 )
 
 
 class ScriptContextV4( mrc.Block ):
@@ -624,4 +624,4 @@ class PJ93( mrc.Block ):
     dirdib_drv_offset = mrc.UInt32_P( 0x14 )
     macromix_dll_offset = mrc.UInt32_P( 0x18 )
     rifx_offset_dup = mrc.UInt32_P( 0x1c )
-    unk1 = mrc.Bytes( 0x20, 0xc ) 
+    unk1 = mrc.Bytes( 0x20, length=0xc ) 

@@ -241,5 +241,79 @@ class TestNumberFields( unittest.TestCase ):
             self.assertEqual( test.export_data(), payload )
 
 
+class TestStore( unittest.TestCase ):
+
+    def test_store( self ):
+        class Element( mrc.Block ):
+            data = mrc.Bytes( 0x00 )
+
+        class ElementRef( mrc.Block ):
+            offset = mrc.UInt8( 0x00 )
+            size = mrc.UInt8( 0x01 )
+
+            ref = mrc.StoreRef( Element, mrc.Ref( '_parent.store' ), mrc.Ref( 'offset' ), mrc.Ref( 'size' ) )
+
+        class Test( mrc.Block ):
+            count = mrc.UInt8( 0x00 )
+            elements = mrc.BlockField( ElementRef, count=mrc.Ref( 'count' ) )
+            raw_data = mrc.Bytes( mrc.EndOffset( 'elements' ) )
+
+            def __init__( self, *args, **kwargs ):
+                self.store = mrc.Store( 
+                    self, mrc.Ref( 'raw_data' )
+                )
+                super().__init__( *args, **kwargs )
+
+        payload = b'\x04\x00\x02\x02\x03\x05\x01\x06\x02abcdefgh'
+        test = Test( payload )
+        self.assertEqual( test.elements[0].ref.data, b'ab' )
+        self.assertEqual( test.elements[1].ref.data, b'cde' )
+        self.assertEqual( test.elements[2].ref.data, b'f' )
+        self.assertEqual( test.elements[3].ref.data, b'gh' )
+        self.assertEqual( test.export_data(), payload )
+
+        test.elements[2].ref.data = b'xxx'
+        test.store.save()
+        new_payload = b'\x04\x00\x02\x02\x03\x05\x03\x08\x02abcdexxxgh'
+        self.assertEqual( test.elements[0].ref.data, b'ab' )
+        self.assertEqual( test.elements[1].ref.data, b'cde' )
+        self.assertEqual( test.elements[2].ref.data, b'xxx' )
+        self.assertEqual( test.elements[3].ref.data, b'gh' )
+        self.assertEqual( test.export_data(), new_payload )
+
+
+
+    def test_linear_offsets( self ):
+        class Element( mrc.Block ):
+            data = mrc.Bytes( 0x00 )
+
+        class Test( mrc.Block ):
+            count = mrc.UInt8( 0x00 )
+            offsets = mrc.UInt16_LE( 0x01, count=mrc.Ref( 'count' ) )
+            raw_data = mrc.Bytes( mrc.EndOffset( 'offsets' ) )
+
+            def __init__( self, *args, **kwargs ):
+                self.elements = mrc.LinearStore(
+                    self, mrc.Ref( 'raw_data' ), Element,
+                    offsets=mrc.Ref( 'offsets' )
+                )
+                super().__init__( *args, **kwargs )
+            
+        payload = b'\x04\x00\x00\x02\x00\x06\x00\x09\x00abcdefghij'
+
+        test = Test( payload )
+        self.assertEqual( len( test.elements.items ), 4 )
+        self.assertEqual( test.elements.items[0].data, b'ab' )
+        self.assertEqual( test.elements.items[1].data, b'cdef' )
+        self.assertEqual( test.elements.items[2].data, b'ghi' )
+        self.assertEqual( test.elements.items[3].data, b'j' )
+        self.assertEqual( test.export_data(), payload )
+
+        del test.elements.items[1]
+        test.elements.save()
+        new_payload = b'\x03\x00\x00\x02\x00\x05\x00abghij'
+        self.assertEqual( test.export_data(), new_payload )
+
+
 if __name__ == '__main__':
     unittest.main()

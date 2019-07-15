@@ -426,7 +426,7 @@ class Chunk( ChunkBase ):
 class ChunkField( StreamField ):
     def __init__( self, chunk_map, offset=Chain(), count=None, length=None, stream=True,
                     alignment=1, stream_end=None, stop_check=None, default_klass=None,
-                    id_size=None, id_field=None, length_field=None,
+                    id_size=None, id_field=None, id_enum=None, length_field=None,
                     fill=None, **kwargs ):
         """Field for inserting a tokenised Block stream into the parent class.
     
@@ -466,6 +466,9 @@ class ChunkField( StreamField ):
         id_field
             Field class used to parse Chunk ID. Defaults to Bytes.
 
+        id_enum
+            Restrict allowed values for Chunk ID to those provided by a Python enum type. Used for validation.
+
         length_field
             Field class used to parse the Chunk data length. For use when a Chunk consists of an ID followed by the size of the data.
 
@@ -484,7 +487,10 @@ class ChunkField( StreamField ):
             self.length_field = None
         if id_field:
             assert issubclass( id_field, (NumberField) )
-            self.id_field = id_field( 0x00 )
+            if id_enum:
+                self.id_field = id_field( 0x00, enum=id_enum )
+            else:
+                self.id_field = id_field( 0x00 )
         else:
             self.id_field = None
         self.default_klass = default_klass

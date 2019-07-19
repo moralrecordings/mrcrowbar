@@ -39,6 +39,85 @@ class TestBlock( unittest.TestCase ):
         self.assertEqual( test.get_size(), 0x0a )
 
 
+class TestChunk( unittest.TestCase ):
+    def test_chunk( self ):
+        class Data1( mrc.Block ):
+            length = mrc.UInt8( 0x00 )
+            payload = mrc.Bytes( 0x01, length=mrc.Ref( 'length' ) )
+
+        class Data2( mrc.Block ):
+            payload = mrc.UInt32_LE( 0x00 )
+
+        CHUNK_MAP = {
+            b'\x01': Data1,
+            b'\x02': Data2
+        }
+
+        class Test( mrc.Block ):
+            data = mrc.ChunkField( CHUNK_MAP, 0x00, stream_end=b'\x00', id_size=1 )
+            bonus = mrc.Bytes( mrc.EndOffset( 'data' ) )
+
+        payload = b'\x01\x06abcdef\x02\x78\x56\x34\x12\x01\x02gh\x00end'
+
+        test = Test( payload )
+        self.assertEqual( len( test.data ), 3 )
+        self.assertIsInstance( test.data[0], mrc.Chunk )
+        self.assertIsInstance( test.data[1], mrc.Chunk )
+        self.assertIsInstance( test.data[2], mrc.Chunk )
+        self.assertEqual( test.data[0].id, b'\x01' )
+        self.assertEqual( test.data[1].id, b'\x02' )
+        self.assertEqual( test.data[2].id, b'\x01' )
+        self.assertIsInstance( test.data[0].obj, Data1 )
+        self.assertIsInstance( test.data[1].obj, Data2 )
+        self.assertIsInstance( test.data[2].obj, Data1 )
+        self.assertEqual( test.data[0].obj.payload, b'abcdef' )
+        self.assertEqual( test.data[1].obj.payload, 0x12345678 )
+        self.assertEqual( test.data[2].obj.payload, b'gh' )
+        self.assertEqual( test.bonus, b'end' )
+        self.assertEqual( test.export_data(), payload )
+
+    def test_chunk_varlength( self ):
+        class Data1( mrc.Block ):
+            payload = mrc.Bytes( 0x00 )
+
+        class Data2( mrc.Block ):
+            payload = mrc.Bytes( 0x00 )
+
+        CHUNK_MAP = {
+            0x12: Data1,
+            0x34: Data2,
+        }
+
+        class Test( mrc.Block ):
+            data = mrc.ChunkField( CHUNK_MAP, 0x00, stream_end=b'\xff', id_field=mrc.UInt8, length_field=mrc.UInt8, fill=b'\x00' )
+            bonus = mrc.Bytes( mrc.EndOffset( 'data' ) )
+
+        payload = b'\x12\x04abcd\x34\x06efghij\x12\x01\x00\x12\x01\x00\x12\x02kl\xffend'
+
+        test = Test( payload )
+        self.assertEqual( len( test.data ), 5 )
+        self.assertIsInstance( test.data[0], mrc.Chunk )
+        self.assertIsInstance( test.data[1], mrc.Chunk )
+        self.assertIsInstance( test.data[2], mrc.Chunk )
+        self.assertIsInstance( test.data[3], mrc.Chunk )
+        self.assertIsInstance( test.data[4], mrc.Chunk )
+        self.assertEqual( test.data[0].id, 0x12 )
+        self.assertEqual( test.data[1].id, 0x34 )
+        self.assertEqual( test.data[2].id, 0x12 )
+        self.assertEqual( test.data[3].id, 0x12 )
+        self.assertEqual( test.data[4].id, 0x12 )
+        self.assertIsInstance( test.data[0].obj, Data1 )
+        self.assertIsInstance( test.data[1].obj, Data2 )
+        self.assertIsNone( test.data[2].obj )
+        self.assertIsNone( test.data[3].obj )
+        self.assertIsInstance( test.data[4].obj, Data1 )
+        self.assertEqual( test.data[0].obj.payload, b'abcd' )
+        self.assertEqual( test.data[1].obj.payload, b'efghij' )
+        self.assertEqual( test.data[4].obj.payload, b'kl' )
+        self.assertEqual( test.bonus, b'end' )
+        self.assertEqual( test.export_data(), payload )
+
+
 class TestBlockField( unittest.TestCase ):
     def test_block_count( self ):
         class Element( mrc.Block ):

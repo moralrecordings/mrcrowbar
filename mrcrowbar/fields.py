@@ -15,6 +15,9 @@ class ParseError( Exception ):
 class FieldValidationError( Exception ):
     pass
 
+class EmptyFieldError( Exception ):
+    pass
+
 
 class Field( object ):
     def __init__( self, default=None, **kwargs ):
@@ -275,7 +278,7 @@ class StreamField( Field ):
 
         if not is_array:
             if not result:
-                return b''
+                raise EmptyFieldError( 'No data could be extracted for this field' )
             else:
                 return result[0]
         return result
@@ -893,6 +896,17 @@ class StringField( StreamField ):
         if self.element_end is not None:
             data += self.element_end
         return data
+
+    def get_from_buffer( self, buffer, parent=None ):
+        encoding = property_get( self.encoding, parent )
+
+        try:
+            result = super().get_from_buffer( buffer, parent=parent )
+        except EmptyFieldError:
+            result = b''
+            if encoding:
+                result = result.decode( encoding )
+        return result
 
     def get_element_from_buffer( self, offset, buffer, parent=None ):
         fill = property_get( self.fill, parent )

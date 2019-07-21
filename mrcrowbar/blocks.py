@@ -153,8 +153,8 @@ class Block( object, metaclass=BlockMeta ):
         """Base class for Blocks.
 
         source_data
-            Source data to construct Block with. Can be a byte string or 
-            another Block object.
+            Source data to construct Block with. Can be a byte string, dictionary 
+            of attribute: value pairs, or another Block object.
 
         parent
             Parent Block object where this Block is defined. Used for e.g. 
@@ -184,9 +184,13 @@ class Block( object, metaclass=BlockMeta ):
         # start the initial load of data
         if isinstance( source_data, Block ):
             self.clone_data( source_data )
+        elif isinstance( source_data, dict ):
+            # preload defaults, then overwrite with dictionary values
+            self.import_data( None )
+            self.update_data( source_data )
         else:
             self.import_data( source_data )
-
+        
         # cache all refs
         for key, ref in self._refs.items():
             ref.cache( self )
@@ -219,6 +223,17 @@ class Block( object, metaclass=BlockMeta ):
 
         for name in klass._fields:
             self._field_data[name] = getattr( source, name )
+
+    def update_data( self, source ):
+        """Update data from a dictionary.
+
+        source
+            Dictionary of attribute: value pairs.
+        """
+        assert isinstance( source, dict )
+        for attr, value in source.items():
+            assert hasattr( self, attr )
+            setattr( self, attr, value )
 
     def import_data( self, raw_buffer ):
         """Import data from a byte array.

@@ -171,7 +171,7 @@ COMMAND_MAP = {Command(x[1]): x[2] for x in COMMAND_LIST}
 
 
 class VGM150( mrc.Block ):
-    magic               = mrc.Const( mrc.Bytes( 0x00, length=0x04 ), b'Vgm ' )
+    magic               = mrc.Const( mrc.Bytes( 0x00, length=0x04, default=b'Vgm ' ), b'Vgm ' )
     eof_offset          = mrc.UInt32_LE( 0x04 )
     version             = mrc.UInt32_LE( 0x08 )
     sn76489_clock       = mrc.UInt32_LE( 0x0c )
@@ -187,7 +187,7 @@ class VGM150( mrc.Block ):
     ym2612_clock        = mrc.UInt32_LE( 0x2c )
     ym2151_clock        = mrc.UInt32_LE( 0x30 )
     vgm_data_offset_raw = mrc.UInt32_LE( 0x34 )
-    header_extra        = mrc.Bytes( 0x38, length=0x08 )
+    header_extra        = mrc.Bytes( 0x38, length=0x08, default=b'\x00'*8 )
 
     @property
     def vgm_data_offset( self ):
@@ -196,7 +196,7 @@ class VGM150( mrc.Block ):
         return 0x40
 
     vgm_data = mrc.ChunkField( COMMAND_MAP, mrc.Ref( 'vgm_data_offset' ), id_field=mrc.UInt8, id_enum=Command, default_klass=mrc.Unknown, stream_end=b'\x66' )
-    extra = mrc.Bytes( mrc.EndOffset( 'vgm_data' ) )
+    extra = mrc.Bytes( mrc.EndOffset( 'vgm_data' ), default=b'' )
 
 
 

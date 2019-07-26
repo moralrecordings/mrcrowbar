@@ -137,8 +137,7 @@ class SoundCastV4( mrc.Block ):
     def repr( self ):
         return 'unk1={}{}'.format(
             self.unk1, ', name={}'.format( self.extra[0].name ) if self.extra else '' )
-
-
+4
 class ScriptCastV4( mrc.Block ):
     unk1        = mrc.Bytes( 0x00, length=0x14 )
     script_id   = mrc.UInt16_BE( 0x14 )
@@ -282,6 +281,9 @@ class MMapEntry( mrc.Block ):
     unk1 =      mrc.UInt16_P( 0x0e )
     memsize =   mrc.UInt32_P( 0x10 )
 
+    def import_data( self, *args, **kwargs ):
+        return super().import_data( *args, **kwargs )
+
     @property
     def repr( self ):
         return 'chunk_id: {}, length: 0x{:08x}, offset: 0x{:08x}, flags: {}'.format( riff.TagB( self.chunk_id ), self.length, self.offset, self.flags )
@@ -337,6 +339,19 @@ class TextV4( mrc.Block ):
     unk3 = mrc.Bytes( mrc.EndOffset( 'data' ) )
 
 
+
+class Sprite( mrc.Block ):
+    script_id = mrc.UInt8( 0x00 )
+    sprite_type = mrc.UInt8( 0x01 )
+    x2 = mrc.UInt16_BE( 0x02 )
+    flags = mrc.UInt16_BE( 0x04 )
+    cast_id = mrc.UInt16_BE( 0x06 )
+    start_x = mrc.UInt16_BE( 0x08 )
+    start_y = mrc.UInt16_BE( 0x0a )
+    height = mrc.UInt16_BE( 0x0c )
+    width = mrc.UInt16_BE( 0x0e )
+    
+
 class ScriptContextEntry( mrc.Block ):
     data = mrc.Bytes( 0x00, length=12 )
 
@@ -372,97 +387,121 @@ class ScriptConstantType( IntEnum ):
     FLOAT =     0x0009
 
 
-class ScriptInstruction( IntEnum ):
-    EXIT =  0x01
-    PUSH_0 = 0x03
-    MULT = 0x04
-    ADD = 0x05
-    SUB = 0x06
-    DIV = 0x07
-    MOD = 0x08
-    NEG = 0x09
-    CONCAT = 0x0a
-    CONCAT_SP = 0x0b
-    LT = 0x0c
-    LE = 0x0d
-    NEQ = 0x0e
-    EQ = 0x0f
-    GT = 0x10
-    GE = 0x11
-    AND = 0x12
-    OR = 0x13
-    NOT = 0x14
-    CONTAINS = 0x15
-    STARTS = 0x16
-    SLICE = 0x17
-    HILITE = 0x18
-    SPRITE_INTERSECTS = 0x19
-    SPRITE_WITHIN = 0x1a
-    FIELD = 0x1b
-    EXEC = 0x1c
-    EXEC_END = 0x1d
-    UNK1 = 0x1e
-    DICT = 0x1f
+class Blank( mrc.Block ):
+    value = None
+
+    @property
+    def repr( self ):
+        return ''
+
+class Write8( mrc.Block ):
+    value = mrc.UInt8( 0x00 )
+            
+    @property
+    def repr( self ):
+        return '0x{:02x}'.format(self.value)
+
+class Write16( mrc.Block ):
+    value = mrc.UInt16_BE( 0x00 )
+    
+    @property
+    def repr( self ):
+        return '0x{:04x}'.format(self.value)
+
+LINGO_V4_LIST = [
+    ('EXIT', 0x01, Blank),
+    ('PUSH_0', 0x03, Blank),
+    ('MULT', 0x04, Blank),
+    ('ADD', 0x05, Blank),
+    ('SUB', 0x06, Blank),
+    ('DIV', 0x07, Blank),
+    ('MOD', 0x08, Blank),
+    ('NEGATE', 0x09, Blank),
+    ('AMPERSAND', 0x0a, Blank),
+    ('CONCAT', 0x0b, Blank),
+    ('LT', 0x0c, Blank),
+    ('LE', 0x0d, Blank),
+    ('NEQ', 0x0e, Blank),
+    ('EQ', 0x0f, Blank),
+    ('GT', 0x10, Blank),
+    ('GE', 0x11, Blank),
+    ('AND', 0x12, Blank),
+    ('OR', 0x13, Blank),
+    ('NOT', 0x14, Blank),
+    ('CONTAINS', 0x15, Blank),
+    ('STARTS', 0x16, Blank),
+    ('SLICE', 0x17, Blank),
+    ('HILITE', 0x18, Blank),
+    ('INTERSECTS', 0x19, Blank),
+    ('WITHIN', 0x1a, Blank),
+    ('FIELD', 0x1b, Blank),
+    ('EXEC', 0x1c, Blank),
+    ('EXEC_END', 0x1d, Blank),
+    ('DICT', 0x1f, Blank),
 
     # 1 byte payload
-    PUSH = 0x41
-    TUPLE = 0x42
-    LIST = 0x43
-    PUSH_CONST = 0x44
-    PUSH_SYMBOL = 0x45
-    PUSH_OBJECT = 0x46
+    ('PUSH', 0x41, Write8),
+    ('ARGLIST', 0x42, Write8),
+    ('LIST', 0x43, Write8),
+    ('PUSH_CONST', 0x44, Write8),
+    ('PUSH_SYMBOL', 0x45, Write8),
+    ('PUSH_OBJECT', 0x46, Write8),
     
-    PUSH_GLOBAL = 0x49
-    PUSH_PROPERTY = 0x4a
-    PUSH_PARAM = 0x4b
-    PUSH_LOCAL = 0x4c
+    ('PUSH_GLOBAL', 0x49, Write8),
+    ('PUSH_PROPERTY', 0x4a, Write8),
+    ('PUSH_PARAM', 0x4b, Write8),
+    ('PUSH_LOCAL', 0x4c, Write8),
     
-    POP_GLOBAL = 0x4f
-    POP_PROPERTY = 0x50
-    POP_PARAM = 0x51
-    POP_LOCAL = 0x52
+    ('POP_GLOBAL', 0x4f, Write8),
+    ('POP_PROPERTY', 0x50, Write8),
+    ('POP_PARAM', 0x51, Write8),
+    ('POP_LOCAL', 0x52, Write8),
 
-    JUMP_BACK = 0x54
+    ('JUMP_BACK', 0x54, Write8),
 
-    CALL = 0x56
-    CALL_EXTERNAL = 0x57
-    CALL_METHOD = 0x58
-    POP_VALUE1 = 0x59
-    POP_VALUE2 = 0x5a
-    SLICE_DEL = 0x5b
+    ('CALL', 0x56, Write8),
+    ('CALL_EXTERNAL', 0x57, Write8),
+    ('CALL_METHOD', 0x58, Write8),
+    ('AFTER', 0x59, Write8),
+    ('BEFORE', 0x5a, Write8),
+    ('SLICE_DEL', 0x5b, Write8),
     
-    KERNEL_CALL = 0x5c
-    KERNEL_SET = 0x5d
+    ('KERNEL_CALL', 0x5c, Write8),
+    ('KERNEL_SET', 0x5d, Write8),
 
-    PUSH_PROPERTY_CTX = 0x5f
-    POP_PROPERTY_CTX = 0x60
-    PUSH_PROPERTY_OBJ = 0x61
-    POP_PROPERTY_OBJ = 0x62
-    CALL_EXTERNAL_OBJ = 0x63
-    PUSH_FROM_STACK = 0x64
-    POP_FROM_STACK = 0x65
-    PUSH_PATH = 0x66
+    ('PUSH_PROPERTY_CTX', 0x5f, Write8),
+    ('POP_PROPERTY_CTX', 0x60, Write8),
+    ('PUSH_PROPERTY_OBJ', 0x61, Write8),
+    ('POP_PROPERTY_OBJ', 0x62, Write8),
+    ('CALL_EXTERNAL_OBJ', 0x63, Write8),
+    ('PUSH_FROM_STACK', 0x64, Write8),
+    ('POP_FROM_STACK', 0x65, Write8),
+    ('PUSH_PATH', 0x66, Write8),
 
     # 2 byte payload
-    PUSH_U16 = 0x81
-    TUPLE_U16 = 0x82
-    LIST_U16 = 0x83
-    PUSH_CONST_U16 = 0x84
+    ('PUSH_U16', 0x81, Write16),
+    ('ARGLIST_U16', 0x82, Write16),
+    ('LIST_U16', 0x83, Write16),
+    ('PUSH_CONST_U16', 0x84, Write16),
 
-    PUSH_GLOBAL_U16 = 0x89
+    ('PUSH_GLOBAL_U16', 0x89, Write16),
     
-    POP_GLOBAL_U16 = 0x8f
-    POP_PROPERTY_U16 = 0x90
+    ('POP_GLOBAL_U16', 0x8f, Write16),
+    ('POP_PROPERTY_U16', 0x90, Write16),
 
-    JUMP = 0x93
+    ('JUMP', 0x93, Write16),
     
-    JUMP_IF = 0x95
+    ('JUMP_IF', 0x95, Write16),
     
-    POP_PROPERTY_CTX_U16 = 0xa0
-    PUSH_PROPERTY_OBJ_U16 = 0xa1
-    POP_PROPERTY_OBJ_U16 = 0xa2
+    ('POP_PROPERTY_CTX_U16', 0xa0, Write16),
+    ('PUSH_PROPERTY_OBJ_U16', 0xa1, Write16),
+    ('POP_PROPERTY_OBJ_U16', 0xa2, Write16),
 
-    PUSH_PATH_U16 = 0xa6
+    ('PUSH_PATH_U16', 0xa6, Write16),
+]
+
+LingoV4 = IntEnum( 'LingoV4', [(x[0], x[1]) for x in LINGO_V4_LIST] )
+LINGO_V4_MAP = {LingoV4( x[1] ): x[2] for x in LINGO_V4_LIST}
 
 
 class ScriptString( mrc.Block ):
@@ -519,6 +558,10 @@ class ScriptConstant( mrc.Block ):
         return '{}: {}'.format( self.const_type, self.const.repr )
 
 
+class ScriptCode( mrc.Block ):
+    instructions = mrc.ChunkField( LINGO_V4_MAP, 0x00, id_field=mrc.UInt8, id_enum=LingoV4, default_klass=Blank )
+
+
 class ScriptFunction( mrc.Block ):
     name_index = mrc.UInt16_BE( 0x00 )
     unk1 = mrc.UInt16_BE( 0x02 )
@@ -535,7 +578,7 @@ class ScriptFunction( mrc.Block ):
     count4 = mrc.UInt16_BE( 0x24 )
     unk7 = mrc.UInt32_BE( 0x26 )
 
-    code = mrc.StoreRef( mrc.Unknown, mrc.Ref( '_parent.code_store' ), offset=mrc.Ref( 'offset' ), size=mrc.Ref( 'length' ) )
+    code = mrc.StoreRef( ScriptCode, mrc.Ref( '_parent.code_store' ), offset=mrc.Ref( 'offset' ), size=mrc.Ref( 'length' ) )
 
 
 class ScriptV4( mrc.Block ):
@@ -592,6 +635,8 @@ class ScriptV4( mrc.Block ):
         super().__init__( *args, **kwargs )
 
 
+
+
 class DirectorV4Map( riff.RIFXMap ):
     CHUNK_MAP = {
         riff.Tag( b'mmap' ): MMapV4,
@@ -605,6 +650,7 @@ class DirectorV4Map( riff.RIFXMap ):
         riff.Tag( b'Lscr' ): ScriptV4,
         riff.Tag( b'Lnam' ): ScriptNamesV4,
         riff.Tag( b'Lctx' ): ScriptContextV4,
+        riff.Tag( b'VWSC' ): FramesV4,
     }
 DirectorV4Map.CHUNK_MAP[riff.Tag( b'RIFX' )] = DirectorV4Map
 
@@ -625,3 +671,12 @@ class PJ93( mrc.Block ):
     macromix_dll_offset = mrc.UInt32_P( 0x18 )
     rifx_offset_dup = mrc.UInt32_P( 0x1c )
     unk1 = mrc.Bytes( 0x20, length=0xc ) 
+
+
+class MV93( mrc.Block ):
+    _endian = 'little'
+
+    magic = mrc.Const( mrc.Bytes( 0x00, length=4 ), b'XFIR' )
+    unk1 = mrc.Bytes( 0x04, length=0x4 )
+    magic2 = mrc.Const( mrc.Bytes( 0x08, length=4 ), b'39VM' )
+    stream = mrc.ChunkField( DirectorV4Map.CHUNK_MAP, mrc.EndOffset( 'magic2' ), stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2 )

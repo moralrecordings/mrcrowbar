@@ -242,21 +242,21 @@ class Block( object, metaclass=BlockMeta ):
             Byte array to import from.
         """
         klass = self.__class__
-        if raw_buffer:
+        if raw_buffer is not None:
             assert common.is_bytes( raw_buffer )
 #            raw_buffer = memoryview( raw_buffer )
 
         self._field_data = {}
 
         for name in klass._fields:
-            if raw_buffer:
+            if raw_buffer is not None:
                 self._field_data[name] = klass._fields[name].get_from_buffer(
                     raw_buffer, parent=self
                 )
             else:
                 self._field_data[name] = klass._fields[name].default
         
-        if raw_buffer:
+        if raw_buffer is not None:
             for name, check in klass._checks.items():
                 check.check_buffer( raw_buffer, parent=self )
 

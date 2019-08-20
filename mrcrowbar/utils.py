@@ -501,7 +501,7 @@ def pixdump_iter( source, start=None, end=None, length=None, width=64, height=No
     def data_fetch( x_pos, y_pos, frame ):
         index = y_pos*width + x_pos + start
         if index >= end:
-            return (0, 0, 0, 0)
+            return colour.Transparent()
         return palette[source[index]]
 
     return ansi.format_image_iter( data_fetch, width=width, height=height )

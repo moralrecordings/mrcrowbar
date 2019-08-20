@@ -59,6 +59,18 @@ class ChannelV4( mrc.Block ):
     channel_offset = mrc.UInt16_BE( 0x02 )
     data = mrc.Bytes( 0x04, length=mrc.Ref( 'channel_size' ) )
 
+    @property
+    def channel_row( self ):
+        return self.channel_offset // 0x14
+
+    @property
+    def channel_type( self ):
+        return self.channel_offset % 0x14
+
+    @property
+    def repr( self ):
+        return 'channel_size=0x{:02x}, channel_offset=0x{:04x}, channel_row={}, channel_type={}'.format( self.channel_size, self.channel_offset, self.channel_row, self.channel_type )
+
 
 class FrameV4( mrc.Block ):
     size = mrc.UInt16_BE( 0x00 )
@@ -67,6 +79,10 @@ class FrameV4( mrc.Block ):
     @property
     def size_channels( self ):
         return self.size-0x02
+    
+    @property
+    def repr( self ):
+        return 'num_channnels={}'.format( len( self.channels ) )
 
 
 class FramesV4( mrc.Block ):
@@ -83,6 +99,11 @@ class FramesV4( mrc.Block ):
     @property
     def size_frames( self ):
         return self.size-0x14
+
+    @property
+    def repr( self ):
+        return 'num_frames={}'.format( len( self.frames ) )
+
 
 
 class SoundV4( mrc.Block ):
@@ -430,7 +451,7 @@ LINGO_V4_LIST = [
     ('NOT', 0x14, Blank),
     ('CONTAINS', 0x15, Blank),
     ('STARTS', 0x16, Blank),
-    ('SLICE', 0x17, Blank),
+    ('OF', 0x17, Blank),
     ('HILITE', 0x18, Blank),
     ('INTERSECTS', 0x19, Blank),
     ('WITHIN', 0x1a, Blank),
@@ -679,4 +700,13 @@ class MV93( mrc.Block ):
     magic = mrc.Const( mrc.Bytes( 0x00, length=4 ), b'XFIR' )
     unk1 = mrc.Bytes( 0x04, length=0x4 )
     magic2 = mrc.Const( mrc.Bytes( 0x08, length=4 ), b'39VM' )
-    stream = mrc.ChunkField( DirectorV4Map.CHUNK_MAP, mrc.EndOffset( 'magic2' ), stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2 )
+    stream = mrc.ChunkField( DirectorV4Map.CHUNK_MAP, mrc.EndOffset( 'magic2' ), stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2, fill=b'' )
+
+
+class MV93_BE( mrc.Block ):
+    _endian = 'big'
+
+    magic = mrc.Const( mrc.Bytes( 0x00, length=4 ), b'RIFX' )
+    unk1 = mrc.Bytes( 0x04, length=0x4 )
+    magic2 = mrc.Const( mrc.Bytes( 0x08, length=4 ), b'MV93' )
+    stream = mrc.ChunkField( DirectorV4Map.CHUNK_MAP, mrc.EndOffset( 'magic2' ), stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2, fill=b'' )

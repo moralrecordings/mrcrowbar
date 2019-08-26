@@ -26,14 +26,17 @@ PC_SPEAKER_NOTE_TABLE = [
 
 
 class Sound( mrc.Block ):
-    sample_rate = 6000
+    SAMPLE_RATE = 6000
     raw_data = mrc.Bytes( 0x00 )
 
     def __init__( self, *args, **kwargs ):
         super().__init__( *args, **kwargs )
         self.wave = aud.Wave( self, mrc.Ref( 'raw_data' ), channels=1,
-                              sample_rate=mrc.Ref( 'sample_rate' ), format_type=int,
+                              sample_rate=SAMPLE_RATE, format_type=int,
                               field_size=1, signedness='unsigned', endian=None )
+
+class Text( mrc.Block ):
+    data = mrc.Bytes( 0x00 )
 
 
 class VCLFile( mrc.Block ):

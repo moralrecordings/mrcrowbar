@@ -20,7 +20,7 @@ class EmptyFieldError( Exception ):
 
 
 class Field( object ):
-    def __init__( self, default=None, **kwargs ):
+    def __init__( self, *, default=None, **kwargs ):
         """Base class for Fields.
 
         default
@@ -190,7 +190,7 @@ class Field( object ):
 
 
 class StreamField( Field ):
-    def __init__( self, offset=Chain(), default=None, count=None, length=None, stream=False,
+    def __init__( self, offset=Chain(), *, default=None, count=None, length=None, stream=False,
                     alignment=1, stream_end=None, stop_check=None, **kwargs ):
         """Base class for accessing one or more streamable elements.
 
@@ -427,7 +427,7 @@ class Chunk( ChunkBase ):
 
 
 class ChunkField( StreamField ):
-    def __init__( self, chunk_map, offset=Chain(), count=None, length=None, stream=True,
+    def __init__( self, chunk_map, offset=Chain(), *, count=None, length=None, stream=True,
                     alignment=1, stream_end=None, stop_check=None, default_klass=None,
                     id_size=None, id_field=None, id_enum=None, length_field=None,
                     fill=None, **kwargs ):
@@ -621,7 +621,7 @@ class ChunkField( StreamField ):
 
 
 class BlockField( StreamField ):
-    def __init__( self, block_klass, offset=Chain(), block_kwargs=None, count=None, fill=None,
+    def __init__( self, block_klass, offset=Chain(), *, block_kwargs=None, count=None, fill=None,
                     block_type=None, default_klass=None, length=None, stream=False,
                     alignment=1, transform=None, stream_end=None, stop_check=None,
                     **kwargs ):
@@ -785,7 +785,7 @@ class BlockField( StreamField ):
 
 
 class StringField( StreamField ):
-    def __init__( self, offset=Chain(), default=None, count=None, length=None,
+    def __init__( self, offset=Chain(), *, default=None, count=None, length=None,
                     stream=False, alignment=1, stream_end=None, stop_check=None,
                     transform=None, encoding=False, length_field=None,
                     fill=None, element_length=None, element_end=None, zero_pad=False,
@@ -1072,7 +1072,10 @@ class PString( StringField ):
 
 
 class NumberField( StreamField ):
-    def __init__( self, format_type, field_size, signedness, endian, format_range, offset=Chain(), default=0, count=None, length=None, stream=False, alignment=1, stream_end=None, stop_check=None, bitmask=None, range=None, enum=None, **kwargs ):
+    def __init__( self, format_type, field_size, signedness, endian, format_range, 
+                  offset=Chain(), *, default=0, count=None, length=None, stream=False, 
+                  alignment=1, stream_end=None, stop_check=None, bitmask=None, 
+                  range=None, enum=None, **kwargs ):
         """Base class for numeric value Fields.
 
         format_type
@@ -1255,7 +1258,7 @@ class UInt8( NumberField ):
 
 
 class Bits( NumberField ):
-    def __init__( self, offset=Chain(), bits=0, default=0, size=1, enum=None, endian=None, *args, **kwargs ):
+    def __init__( self, offset=Chain(), *, bits=0, default=0, size=1, enum=None, endian=None, **kwargs ):
         SIZES = {
             1: (int, 1, 'unsigned', None if endian is None else endian, range( 0, 1<<8 )),
             2: (int, 2, 'unsigned', 'big' if endian is None else endian, range( 0, 1<<16 )),
@@ -1276,9 +1279,7 @@ class Bits( NumberField ):
         self.enum_t = enum
         bitmask = encoding.pack( SIZES[size][:4], bits )
 
-        # Python 3.4 compat
-        inner_args = list( SIZES[size] ) + [offset] + list( args )
-        super().__init__( *inner_args, default=default, bitmask=bitmask, **kwargs )
+        super().__init__( *SIZES[size], offset=offset, default=default, bitmask=bitmask, **kwargs )
 
     def get_element_from_buffer( self, offset, buffer, parent=None ):
         result, end_offset = super().get_element_from_buffer( offset, buffer, parent )

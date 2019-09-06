@@ -217,16 +217,16 @@ class Rect( mrc.Block ):
 class BitmapCastV4( mrc.Block ):
     _data = None
 
-    bpp = mrc.Bits( 0x00, 0xf0 )
-    pitch = mrc.Bits( 0x00, 0x0fff, size=2 )
-    initial_rect = mrc.BlockField( Rect, 0x02 )
-    bounding_rect = mrc.BlockField( Rect, 0x0a )
-    reg_x = mrc.UInt16_BE( 0x12 )
+    bpp             = mrc.Bits16( 0x00, 0b1111000000000000 )
+    pitch           = mrc.Bits16( 0x00, 0b0000111111111111 )
+    initial_rect    = mrc.BlockField( Rect, 0x02 )
+    bounding_rect   = mrc.BlockField( Rect, 0x0a )
+    reg_x           = mrc.UInt16_BE( 0x12 )
     reg_y = mrc.UInt16_BE( 0x14 )
-    #bpp = mrc.UInt16_BE( 0x16 )
-    #unk4 = mrc.Bytes( 0x18, length=0x24 )
-    #name = mrc.Bytes( 0x3e )
-    unk4 = mrc.Bytes( 0x16 )
+    #bpp =          mrc.UInt16_BE( 0x16 )
+    #unk4 =         mrc.Bytes( 0x18, length=0x24 )
+    #name =         mrc.Bytes( 0x3e )
+    unk4 =          mrc.Bytes( 0x16 )
 
     @property
     def repr( self ):

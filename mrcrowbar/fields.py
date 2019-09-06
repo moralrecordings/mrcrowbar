@@ -1258,7 +1258,7 @@ class UInt8( NumberField ):
 
 
 class Bits( NumberField ):
-    def __init__( self, offset=Chain(), *, bits=0, default=0, size=1, enum=None, endian=None, **kwargs ):
+    def __init__( self, offset=Chain(), bits=0, *, default=0, size=1, enum=None, endian=None, **kwargs ):
         SIZES = {
             1: (int, 1, 'unsigned', None if endian is None else endian, range( 0, 1<<8 )),
             2: (int, 2, 'unsigned', 'big' if endian is None else endian, range( 0, 1<<16 )),
@@ -1325,23 +1325,23 @@ class Bits( NumberField ):
 
 
 class Bits8( Bits ):
-    def __init__( self, offset=Chain(), **kwargs ):
-        super().__init__( offset=offset, size=1, **kwargs )
+    def __init__( self, offset=Chain(), bits=0, **kwargs ):
+        super().__init__( offset=offset, bits=bits, size=1, **kwargs )
 
 
 class Bits16( Bits ):
-    def __init__( self, offset=Chain(), **kwargs ):
-        super().__init__( offset=offset, size=2, **kwargs )
+    def __init__( self, offset=Chain(), bits=0, **kwargs ):
+        super().__init__( offset=offset, bits=bits, size=2, **kwargs )
 
 
 class Bits32( Bits ):
-    def __init__( self, offset=Chain(), **kwargs ):
-        super().__init__( offset=offset, size=4, **kwargs )
+    def __init__( self, offset=Chain(), bits=0, **kwargs ):
+        super().__init__( offset=offset, bits=bits, size=4, **kwargs )
 
 
 class Bits64( Bits ):
-    def __init__( self, offset=Chain(), **kwargs ):
-        super().__init__( offset=offset, size=8, **kwargs )
+    def __init__( self, offset=Chain(), bits=0, **kwargs ):
+        super().__init__( offset=offset, bits=bits, size=8, **kwargs )
 
 
 class Int16_LE( NumberField ):

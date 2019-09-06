@@ -48,10 +48,10 @@ class TileMap( mrc.Block ):
 
 
 class TileQuad( mrc.Block ):
-    index =     mrc.Bits( 0x00, 0xffc0, size=2, endian='little' )
-    flip_v =    mrc.Bits( 0x00, 0x0020, size=2, endian='little' )
-    flip_h =    mrc.Bits( 0x00, 0x0010, size=2, endian='little' )
-    unk1 =      mrc.Bits( 0x00, 0x000f, size=2, endian='little' )
+    index =     mrc.Bits16( 0x00, 0xffc0, endian='little' )
+    flip_v =    mrc.Bits16( 0x00, 0x0020, endian='little' )
+    flip_h =    mrc.Bits16( 0x00, 0x0010, endian='little' )
+    unk1 =      mrc.Bits16( 0x00, 0x000f, endian='little' )
 
     @property
     def repr( self ):

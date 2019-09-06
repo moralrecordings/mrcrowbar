@@ -179,26 +179,18 @@ class ModuleSegmentHeader( SegmentHeader ):
 class Resource( mrc.Block ):
     offset =        mrc.UInt16_LE( 0x00 )
     size =          mrc.UInt16_LE( 0x02 )
+    unk2 =          mrc.Bits( 0x04, 0b10000000 )
     preload =       mrc.Bits( 0x04, 0b01000000 )
     sharable =      mrc.Bits( 0x04, 0b00100000 )
     movable =       mrc.Bits( 0x04, 0b00010000 )
     in_memory =     mrc.Bits( 0x04, 0b00000100 )
-    unk1 =          mrc.Bits( 0x04, 0b10001111 )
+    unk2 =          mrc.Bits( 0x04, 0b00000011 )
+    unk3 =          mrc.Bits( 0x05, 0b11100000 )
     discardable =   mrc.Bits( 0x05, 0b00010000 )
-    unk2 =          mrc.Bits( 0x05, 0b11101111 )
-    resource_id_low =   mrc.UInt8( 0x06 )
-    int_id =            mrc.Bits( 0x07, 0b10000000 )
-    resource_id_high =  mrc.Bits( 0x07, 0b01111111 )
+    unk4 =          mrc.Bits( 0x05, 0b00001111 )
+    int_id =        mrc.Bits16( 0x06, 0b1000000000000000, endian='little' )
+    resource_id =   mrc.Bits16( 0x06, 0b0111111111111111, endian='little' )
     reserved =      mrc.Bytes( 0x08, length=0x04 )
-
-    @property
-    def resource_id( self ):
-        return (self.resource_id_high << 8) + self.resource_id_low
-
-    @resource_id.setter
-    def resource_id( self, value ):
-        self.resouce_id_high = (value >> 8) & 0b01111111
-        self.resource_id_low = value & 0b11111111
 
     @property
     def repr( self ):
@@ -206,21 +198,11 @@ class Resource( mrc.Block ):
 
 
 class ResourceInfo( mrc.Block ):
-    type_id_low =   mrc.UInt8( 0x00 )
-    type_id_high =  mrc.Bits( 0x01, 0b01111111 )
-    int_id =        mrc.Bits( 0x01, 0b10000000 )
+    int_id =        mrc.Bits16( 0x00, 0b1000000000000000, endian='little' )
+    type_id =       mrc.Bits16( 0x00, 0b0111111111111111, endian='little' )
     count =         mrc.UInt16_LE( 0x02 )
     reserved =      mrc.Bytes( 0x04, length=0x04 )
     resources =     mrc.BlockField( Resource, 0x08, count=mrc.Ref( 'count' ) )
-
-    @property
-    def type_id( self ):
-        return (self.type_id_high << 8) + self.type_id_low
-
-    @type_id.setter
-    def type_id( self, value ):
-        self.type_id_high = (value >> 8) & 0b01111111
-        self.type_id_low = value & 0b11111111
 
     @property
     def repr( self ):

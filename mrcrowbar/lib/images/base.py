@@ -1,6 +1,6 @@
 from mrcrowbar import models as mrc
 from mrcrowbar import ansi, utils
-from mrcrowbar.colour import BaseColour, Black, White, Transparent, from_palette_bytes, to_palette_bytes
+from mrcrowbar.colour import BaseColour, Black, White, Transparent, from_palette_bytes, to_palette_bytes, TEST_PALETTE
 
 try:
     from PIL import Image as PILImage
@@ -16,7 +16,7 @@ import io
 import logging
 logger = logging.getLogger( __name__ )
 
-class Colour( mrc.Block, BaseColour ):
+class Colour( BaseColour, mrc.Block ):
     pass
 
 
@@ -146,7 +146,7 @@ class CodecImage( Image ):
 class IndexedImage( Image ):
     """Class for viewing indexed (palette-based) chunky image data."""
 
-    def __init__( self, parent, source, width, height, frame_count=1, palette=None, mask=None ):
+    def __init__( self, parent, source, width, height, frame_count=1, palette=TEST_PALETTE, mask=None ):
         super().__init__( parent, source, width, height, frame_count )
         self._palette = palette if (palette is not None) else []
         self._mask = mask

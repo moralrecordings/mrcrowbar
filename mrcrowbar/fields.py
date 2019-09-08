@@ -1066,6 +1066,11 @@ class CString( StringField ):
         super().__init__( offset=offset, element_end=b'\x00', **kwargs )
 
 
+class CStringN( StringField ):
+    def __init__( self, offset=Chain(), **kwargs ):
+        super().__init__( offset=offset, element_end=b'\x00', zero_pad=True, **kwargs )
+
+
 class PString( StringField ):
     def __init__( self, offset=Chain(), **kwargs ):
         super().__init__( offset=offset, length_field=UInt8, **kwargs )

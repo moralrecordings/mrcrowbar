@@ -5,7 +5,7 @@ from mrcrowbar.refs import Ref, ConstRef, property_get, property_set, \
                             view_property, EndOffset, Chain
 from mrcrowbar.fields import ParseError, FieldValidationError, Field, \
                             Chunk, ChunkField, BlockField, \
-                            StringField, Bytes, CString, PString, \
+                            StringField, Bytes, CString, CStringN, PString, \
                             NumberField, Int8, UInt8, Bits, Bits8, \
                             Bits16, Bits32, Bits64, \
                             Int16_LE, Int24_LE, Int32_LE, Int64_LE, \

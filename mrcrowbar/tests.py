@@ -248,6 +248,31 @@ class TestStringField( unittest.TestCase ):
         del test.field[2]
         self.assertEqual( test.export_data(), payload_mod )
 
+    def test_transform( self ):
+        payload = b'\x01\x23\x45\x67'
+
+        class TestTransform( mrc.Transform ):
+            def import_data( self, buffer, parent=None ):
+                output = bytearray( len( buffer )*2 )
+                for i in range( len( buffer ) ):
+                    output[2*i] = buffer[i] >> 4
+                    output[2*i+1] = buffer[i] & 0x0f
+                return mrc.TransformResult( payload=bytes( output ), end_offset=len( buffer ) )
+
+            def export_data( self, buffer, parent=None ):
+                output = bytearray( len( buffer )//2 )
+                for i in range( len( output ) ):
+                    output[i] |= buffer[2*i] << 4
+                    output[i] |= buffer[2*i+1]
+                return mrc.TransformResult( payload=bytes( output ), end_offset=len( buffer ) )
+
+        class Test( mrc.Block ):
+            field = mrc.StringField( 0x00, transform=TestTransform() )
+
+        test = Test( payload )
+        self.assertEqual( test.field, b'\x00\x01\x02\x03\x04\x05\x06\x07' ) 
+        self.assertEqual( test.export_data(), payload )
+
 
 class TestNumberFields( unittest.TestCase ):
 

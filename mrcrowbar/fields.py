@@ -975,7 +975,7 @@ class StringField( StreamField ):
                 element = element.encode( encoding )
 
             if self.transform:
-                element = self.transform.export_data( data, parent=parent ).payload
+                element = self.transform.export_data( element, parent=parent ).payload
             else:
                 if element_end:
                     element += element_end

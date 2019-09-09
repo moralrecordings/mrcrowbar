@@ -248,6 +248,10 @@ class IndexedImage( Image ):
             height = self.height-y_start
 
         stride = width*height
+        image_size = stride*self.frame_count
+        self.overflow = False
+        self.overflow_area = ''
+        self.overflow_size = 0
 
         def data_fetch( x, y, fr_obj ):
             fr = fn_index( fr_obj )
@@ -260,13 +264,29 @@ class IndexedImage( Image ):
             if fn_flip_v( fr_obj ):
                 y = self.height - y - 1
             index = self.width*y + x
-            p = self.source[stride*fr+index]
+            offset = stride*fr+index
+
+            if offset >= len( self.source ):
+                if not self.overflow:
+                    self.overflow = True
+                    self.overflow_area = 'source'
+                    self.overflow_size = len( self.source )
+                return Transparent()
+            p = self.source[offset]
             if self.mask:
-                p = p if self.mask[stride*fr+index] else None
+                if offset >= len( self.mask ):
+                    if not self.overflow:
+                        self.overflow = True
+                        self.overflow_area = 'mask'
+                        self.overflow_size = len( self.mask )
+                    return Transparent()
+                p = p if self.mask[offset] else None
             return self.palette[p] if p is not None else Transparent()
 
         for x in ansi.format_image_iter( data_fetch, x_start, y_start, width, height, frames, columns, downsample ):
             yield x
+        if self.overflow:
+            logger.warning( 'Image {} requires {} pixels but {} only has {} pixels'.format( self, image_size, self.overflow_area, self.overflow_size ) )
         return
     
     def print( self, *args, **kwargs ):

@@ -2,7 +2,7 @@ import math
 
 from mrcrowbar import colour, statistics
 
-#: ANSI escape sequence container
+#: Container for ANSI escape sequences for text formatting
 ANSI_FORMAT_BASE = '\x1b[{}m'
 #: ANSI escape sequence for resetting the colour settings to the default.
 ANSI_FORMAT_RESET_CMD = '0'
@@ -27,6 +27,24 @@ ANSI_FORMAT_UNDERLINE_CMD = '4'
 ANSI_FORMAT_BLINK_CMD = '5'
 #: ANSI escape sequence for inverted text
 ANSI_FORMAT_INVERTED_CMD = '7'
+
+#: Container for ANSI escape sequence screen erasing
+ANSI_ERASE_BASE = '\x1b[{}J'
+#: ANSI escape sequence for clearing the visible terminal
+ANSI_ERASE_SCREEN = ANSI_ERASE_BASE.format( 2 )
+#: ANSI escape sequence for clearing the scrollback of the terminal
+ANSI_ERASE_SCROLLBACK = ANSI_ERASE_BASE.format( 3 )
+
+#: ANSI escape sequence to set the cursor position. (1, 1) is the top left.
+ANSI_CURSOR_SET_POSITION = '\x1b[{};{}H'
+#: ANSI escape sequence to move the cursor up.
+ANSI_CURSOR_MOVE_UP = '\x1b[{}A'
+#: ANSI escape sequence to move the cursor down.
+ANSI_CURSOR_MOVE_DOWN = '\x1b[{}B'
+#: ANSI escape sequence to move the cursor forward.
+ANSI_CURSOR_MOVE_FORWARD = '\x1b[{}C'
+#: ANSI escape sequence to move the cursor backward.
+ANSI_CURSOR_MOVE_BACKWARD = '\x1b[{}D'
 
 #: Unicode representation of a vertical bar graph.
 BAR_VERT   = u' ▁▂▃▄▅▆▇█'

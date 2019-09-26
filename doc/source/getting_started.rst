@@ -17,7 +17,7 @@ For development, you can check out the latest source tree, `create a virtualenv 
 
 .. code:: bash
    
-    hg clone https://bitbucket.org/moralrecordings/mrcrowbar
+    git clone https://github.com/moralrecordings/mrcrowbar
     cd mrcrowbar
     virtualenv -p /usr/bin/python3 venv
     source venv/bin/activate

@@ -10,7 +10,7 @@ The eventual goal is to provide a library for storing file format information th
 Give us an example
 ==================
 
-The `main project page <https://bitbucket.org/moralrecordings/mrcrowbar>`_ has a pretty good example, omitted here for brevity.
+The `README <https://moral.net.au/mrcrowbar>`_ has a pretty good example, omitted here for brevity.
 
 Contributing 
 ============

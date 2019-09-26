@@ -36,6 +36,7 @@ For development, you can `create a virtualenv for Python 3 <http://docs.python-g
 
 .. code:: bash
    
+    git clone https://github.com/moralrecordings/mrcrowbar
     cd mrcrowbar
     virtualenv -p /usr/bin/python3 venv
     source venv/bin/activate

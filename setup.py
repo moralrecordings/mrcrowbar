@@ -13,7 +13,7 @@ setup(
     description=('A library and model framework for '
                 'reverse engineering binary file formats'),
     long_description=long_description,
-    url='https://bitbucket.org/moralrecordings/mrcrowbar',
+    url='https://moral.net.au/mrcrowbar',
     license='BSD',
     author='Scott Percival',
     author_email='code@moral.net.au',

@@ -1,7 +1,8 @@
-from mrcrowbar import utils
+from mrcrowbar import common, utils
 from mrcrowbar.version import __version__
 
 import argparse
+import os
 
 auto_int = lambda s: int( s, base=0 )
 
@@ -209,16 +210,80 @@ ARGS_PIX = {
     ),
 }
 
+ARGS_GREP = {
+    'pattern': dict(
+        metavar='PATTERN',
+        help='Pattern to match',
+    ),
+    'source': dict(
+        metavar='FILE',
+        nargs='+',
+        help='File to inspect',
+    ),
+    ('-r', '--recursive'): dict(
+        dest='recursive',
+        action='store_true',
+        help='Read all files under each directory, recursively'
+    ),
+    ('-F', '--fixed-strings'): dict(
+        dest='fixed_strings',
+        action='store_true',
+        help='Interpret PATTERN as fixed string, not regular expression'
+    ),
+    '--encoding': dict(
+        metavar='ENCODING',
+        dest='encoding',
+        help='Search for PATTERN with a specific Python encoding'
+    ),
+    ('-u', '--utf8'): dict(
+        dest='utf8',
+        action='store_true',
+        help='Search for PATTERN encoded as UTF8 (same as --encoding=utf8)'
+    ),
+    '--start': dict(
+        metavar='INT',
+        dest='start',
+        type=auto_int,
+        help='Start offset to read from (default: file start)',
+    ),
+    '--end': dict(
+        metavar='INT',
+        dest='end',
+        type=auto_int,
+        help='End offset to stop reading at (default: end)',
+    ),
+    '--length': dict(
+        metavar='INT',
+        dest='length',
+        type=auto_int,
+        help='Length to read in (optional replacement for --end)'
+    ),
+    '--version': dict(
+        action='version',
+        version='%(prog)s {}'.format( __version__ )
+    ),
+}
+
 def get_parser( description, args ):
     parser = argparse.ArgumentParser( description=description )
     for arg, spec in args.items():
-        parser.add_argument( arg, **spec )
+        if isinstance( arg, tuple ):
+            parser.add_argument( *arg, **spec )
+        else:
+            parser.add_argument( arg, **spec )
     return parser
 
 mrcdump_parser = lambda: get_parser( description='Examine the contents of a file as hexadecimal.', args=ARGS_DUMP )
 mrcdiff_parser = lambda: get_parser( description='Compare the contents of two files as hexadecimal.', args=ARGS_DIFF )
 mrchist_parser = lambda: get_parser( description='Display the contents of a file as a histogram map.', args=ARGS_HIST )
 mrcpix_parser = lambda: get_parser( description='Display the contents of a file as a 256 colour image.', args=ARGS_PIX )
+mrcgrep_parser = lambda: get_parser( description='Display the contents of a file that match a pattern.', args=ARGS_GREP )
+
+
+def get_files( path_list, recursive=False ):
+    for path in path_list:
+        print( path )
+
 
 def mrcdump():
     parser = mrcdump_parser()
@@ -227,7 +292,7 @@ def mrcdump():
     for i, src in enumerate( raw_args.source ):
         if len( raw_args.source ) != 1:
             print( src.name )
-        with utils.read( src ) as source:
+        with common.read( src ) as source:
 
             if not raw_args.no_hexdump:
                 utils.hexdump(
@@ -252,7 +317,7 @@ def mrcdiff():
     before = raw_args.before if not raw_args.show_all else None
     after = raw_args.after if not raw_args.show_all else None
 
-    with utils.read( raw_args.source1 ) as source1, utils.read( raw_args.source2 ) as source2:
+    with common.read( raw_args.source1 ) as source1, common.read( raw_args.source2 ) as source2:
         utils.hexdump_diff(
             source1, source2, start=raw_args.start, end=raw_args.end,
             length=raw_args.length, major_len=raw_args.major_len,
@@ -267,7 +332,7 @@ def mrchist():
     for i, src in enumerate( raw_args.source ):
         if len( raw_args.source ) != 1:
             print( src.name )
-        with utils.read( src ) as source:
+        with common.read( src ) as source:
             utils.histdump( source, start=raw_args.start, end=raw_args.end,
                 length=raw_args.length, samples=raw_args.samples, width=raw_args.width,
                 address_base=raw_args.address_base,
@@ -282,9 +347,14 @@ def mrcpix():
     for i, src in enumerate( raw_args.source ):
         if len( raw_args.source ) != 1:
             print( src.name )
-        with utils.read( src ) as source:
+        with common.read( src ) as source:
             utils.pixdump( source, start=raw_args.start, end=raw_args.end,
                 length=raw_args.length, width=raw_args.width,
             )
         if i != len( raw_args.source ) - 1:
             print()
+
+def mrcgrep():
+    parser = mrcgrep_parser()
+    raw_args = parser.parse_args()
+

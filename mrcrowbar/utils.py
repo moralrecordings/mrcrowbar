@@ -48,7 +48,7 @@ BYTE_REVERSE = bytes.fromhex( '008040c020a060e0109050d030b070f0'\
 DIFF_COLOUR_MAP = (9, 10)
 
 
-def find_all_iter( source, substring, start=None, end=None, overlap=False ):
+def find_all_iter( source, substring, start=None, end=None, length=None, overlap=False ):
     """Iterate through every location a substring can be found in a source string.
 
     source
@@ -60,9 +60,15 @@ def find_all_iter( source, substring, start=None, end=None, overlap=False ):
     end
         End offset to stop reading at (default: end)
 
+    length
+        Length to read in (optional replacement for end)
+
     overlap
         Whether to return overlapping matches (default: false)
     """
+    assert is_bytes( source )
+    start, end = bounds( start, end, length, len( source ) )
+
     data = source
     base = 0
     if end is not None:
@@ -80,7 +86,7 @@ def find_all_iter( source, substring, start=None, end=None, overlap=False ):
         pointer += increment
 
 
-def find_all( source, substring, start=None, end=None, overlap=False ):
+def find_all( source, substring, start=None, end=None, length=None, overlap=False ):
     """Return every location a substring can be found in a source string.
 
     source
@@ -92,10 +98,17 @@ def find_all( source, substring, start=None, end=None, overlap=False ):
     end
         End offset to stop reading at (default: end)
 
+    length
+        Length to read in (optional replacement for end)
+
     overlap
         Whether to return overlapping matches (default: false)
     """
-    return [x for x in find_all_iter( source, substring, start, end, overlap )]
+    return [x for x in find_all_iter( source, substring, start, end, length, overlap )]
+
+
+def grep_all_iter( source, substring, start=None, end=None, overlap=False, encoding=None, fixed_strings=False, ):
+    pass
 
 
 def basic_diff( source1, source2, start=None, end=None ):

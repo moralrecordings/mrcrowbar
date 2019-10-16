@@ -1,4 +1,44 @@
+import codecs
+import re
 import struct
+
+
+# source: https://stackoverflow.com/questions/4020539/process-escape-sequences-in-a-string-in-python
+
+BYTE_ESCAPE_RE = re.compile( r"""
+    ( \\x[0-9A-Fa-f]{2} # 2-digit hex escapes
+    | \\[0-7]{1,3}      # Octal escapes
+    | \\[\\'"abfnrtv]   # Single-character escapes
+    )""", re.UNICODE|re.VERBOSE )
+
+def escaped_to_bytes( string ):
+    """Convert an escaped Python string into the bytes equivalent."""
+    def decode_match( match ):
+        return codecs.decode( match.group( 0 ), 'unicode_escape' )
+    result = BYTE_ESCAPE_RE.sub( decode_match, string ).encode( 'latin1' )
+    return result
+
+
+
+REGEX_CHARS = """()[]{}?*+-|^$\\.&~#"""
+REGEX_CHAR_MATCH = re.compile( "([{}])".format( re.escape( REGEX_CHARS ) ) )
+REGEX_ESCAPE_MATCH = re.compile( "(\\[{}])".format( re.escape( REGEX_CHARS ) ) )
+
+def regex_pattern_to_bytes( pattern, encoding='utf8' ):
+    elements = REGEX_CHAR_MATCH.split( pattern )
+    result = bytearray()
+    for element in elements:
+        if len( element ) == 0:
+            continue
+        if len( element ) == 1 and element in REGEX_CHARS:
+            result.extend( element.encode( 'utf8' ) )
+        else:
+            # encode as byte literals to prevent ambiguity
+            for char in element.encode( encoding ):
+                result.extend( '\\x{:02x}'.format( char ).encode( 'utf8' ) )
+    return bytes( result )
+
+
 
 RAW_TYPE_NAME = {
     (int, 1, 'signed', 'little'):   'int8',

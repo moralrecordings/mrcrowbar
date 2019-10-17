@@ -3,39 +3,41 @@ import re
 import struct
 
 
-# source: https://stackoverflow.com/questions/4020539/process-escape-sequences-in-a-string-in-python
-
-BYTE_ESCAPE_RE = re.compile( r"""
-    ( \\x[0-9A-Fa-f]{2} # 2-digit hex escapes
-    | \\[0-7]{1,3}      # Octal escapes
-    | \\[\\'"abfnrtv]   # Single-character escapes
-    )""", re.UNICODE|re.VERBOSE )
-
-def escaped_to_bytes( string ):
-    """Convert an escaped Python string into the bytes equivalent."""
-    def decode_match( match ):
-        return codecs.decode( match.group( 0 ), 'unicode_escape' )
-    result = BYTE_ESCAPE_RE.sub( decode_match, string ).encode( 'latin1' )
-    return result
-
-
-
 REGEX_CHARS = """()[]{}?*+-|^$\\.&~#"""
-REGEX_CHAR_MATCH = re.compile( "([{}])".format( re.escape( REGEX_CHARS ) ) )
-REGEX_ESCAPE_MATCH = re.compile( "(\\[{}])".format( re.escape( REGEX_CHARS ) ) )
+byte_escape = lambda char: '\\x{:02x}'.format( char ).encode( 'utf8' )
 
-def regex_pattern_to_bytes( pattern, encoding='utf8' ):
-    elements = REGEX_CHAR_MATCH.split( pattern )
+def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_strings=False ):
     result = bytearray()
-    for element in elements:
-        if len( element ) == 0:
-            continue
-        if len( element ) == 1 and element in REGEX_CHARS:
-            result.extend( element.encode( 'utf8' ) )
+    pointer = 0
+    while pointer < len( pattern ):
+        if pattern[pointer] == '\\':
+            # an escaped character!
+            if re.match( r'\\x[0-9A-Fa-f]{2}', pattern[pointer:pointer+4] ):
+                # escaped hex byte 
+                result.extend( byte_escape( bytes.fromhex( pattern[pointer+2:pointer+4] )[0] ) )
+                pointer += 4
+            elif re.match( r'\\[\\\'"abfnrtv]', pattern[pointer:pointer+2] ):
+                # escaped single character
+                char_id, char_raw = '\\\'"abfnrtv', '\\\'"\a\b\f\n\r\t\v'
+                char_map = {char_id[i]: char_raw[i] for i in range( len( char_id ) )}
+                result.extend( byte_escape( ord( char_map[pattern[pointer+1]] ) ) )
+                pointer += 2
+            elif pattern[pointer+1] in REGEX_CHARS:
+                # escaped character that's also a regex char
+                result.extend( byte_escape( ord( pattern[pointer+1] ) ) )
+                pointer += 2
+            else:
+                raise ValueError( 'Unknown escape sequence \\{}'.format( pattern[pointer+1] ) )
+
+        elif pattern[pointer] in REGEX_CHARS and not fixed_strings:
+            # a regex special character! inject it into the output unchanged
+            result.extend( pattern[pointer].encode( 'utf8' ) )
+            pointer += 1
         else:
-            # encode as byte literals to prevent ambiguity
-            for char in element.encode( encoding ):
-                result.extend( '\\x{:02x}'.format( char ).encode( 'utf8' ) )
+            # a normal character! encode as bytes, and inject escaped digits into the output
+            for char in pattern[pointer].encode( encoding ):
+                result.extend( byte_escape( char ) )
+            pointer += 1
     return bytes( result )
 
 

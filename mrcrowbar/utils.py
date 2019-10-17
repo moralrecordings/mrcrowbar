@@ -1,16 +1,17 @@
 """General utility functions useful for reverse engineering."""
 
-import math
 import io
-import mmap
 import logging
+import math
+import mmap
+import re
 import time
 logger = logging.getLogger( __name__ )
 
-from mrcrowbar import ansi, colour, encoding, statistics, sound
+from mrcrowbar import ansi, colour, encoding as enco, statistics, sound
 from mrcrowbar.common import is_bytes, read, bounds
 
-globals().update( encoding._load_raw_types() )
+globals().update( enco._load_raw_types() )
 
 def enable_logging( level='WARNING' ):
     """Enable sending logs to stderr. Useful for shell sessions.
@@ -107,8 +108,12 @@ def find_all( source, substring, start=None, end=None, length=None, overlap=Fals
     return [x for x in find_all_iter( source, substring, start, end, length, overlap )]
 
 
-def grep_all_iter( source, substring, start=None, end=None, overlap=False, encoding=None, fixed_strings=False, ):
-    pass
+def grep_all_iter( pattern, source, start=None, end=None, overlap=False, encoding='utf8', fixed_strings=False, ):
+    regex = re.compile( enco.regex_pattern_to_bytes( pattern, encoding=encoding, fixed_strings=fixed_strings ) )
+
+    pointer = 0
+    return [match for match in regex.finditer( source )]
+
 
 
 def basic_diff( source1, source2, start=None, end=None ):

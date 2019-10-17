@@ -233,12 +233,7 @@ ARGS_GREP = {
     '--encoding': dict(
         metavar='ENCODING',
         dest='encoding',
-        help='Search for PATTERN with a specific Python encoding'
-    ),
-    ('-u', '--utf8'): dict(
-        dest='utf8',
-        action='store_true',
-        help='Search for PATTERN encoded as UTF8 (same as --encoding=utf8)'
+        help='Search for PATTERN with a specific Python encoding (default: utf8)'
     ),
     '--start': dict(
         metavar='INT',
@@ -358,3 +353,4 @@ def mrcgrep():
     parser = mrcgrep_parser()
     raw_args = parser.parse_args()
 
+    

@@ -111,7 +111,7 @@ def find_all( source, substring, start=None, end=None, length=None, overlap=Fals
     return [x for x in find_all_iter( source, substring, start, end, length, overlap )]
 
 
-def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2 ):
+def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
@@ -124,18 +124,24 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
 
     regex_iter = grep_iter( pattern, source[start:end], encoding, fixed_string, hex_format )
 
+
     class HighlightBuffer( object ):
         def __init__( self ):
             self.lines = []
             self.last_printed = -1
             self.output_buffer = {}
-        
+            self.printed = False
+
         def update( self, marker ):
             cutoff = marker - (marker % stride) - stride
             if cutoff < start:
                 return
             keys = [x for x in self.output_buffer.keys() if x <= cutoff and x > self.last_printed]
             keys.sort()
+            if keys and not self.printed:
+                if title:
+                    self.lines.append( title )
+                self.printed = True
             for i, key in enumerate( keys ):
                 if key - self.last_printed > stride:
                     self.lines.append( '...' )
@@ -143,6 +149,7 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
                     self.lines.append( ansi.format_hexdump_line( source, key, end, major_len, minor_len, colour, prefix='!', highlight_addr=DIFF_COLOUR_MAP[0], highlight_map=self.output_buffer[key], address_base_offset=address_base_offset ) )
                 else:
                     self.lines.append( ansi.format_hexdump_line( source, key, end, major_len, minor_len, colour, prefix=' ', address_base_offset=address_base_offset ) )
+                self.output_buffer[key] = None
                 self.last_printed = key
 
         def push( self, span ):
@@ -170,10 +177,11 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
 
         def flush( self ):
             self.update( len( source )+stride )
-            if self.last_printed < len( source ) - (len( source ) % stride):
-                self.lines.append( '...' )
+            if self.printed:
+                if self.last_printed < len( source ) - (len( source ) % stride):
+                    self.lines.append( '...' )
+                self.lines.append( '' )
             return self.pop()
-    
     
     hb = HighlightBuffer()
     for match in regex_iter:
@@ -186,8 +194,8 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
         yield line
 
 
-def hexdump_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2 ):
-    for line in hexdump_grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, major_len, minor_len, colour, address_base, before, after ):
+def hexdump_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
+    for line in hexdump_grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, major_len, minor_len, colour, address_base, before, after, title ):
         print( line )
 
 

@@ -416,8 +416,9 @@ def mrcgrep():
 
     for i, path in enumerate( source_paths ):
         src = open( path, 'rb' )
+        title = None
         if multi:
-            print( src.name )
+            title = src.name
         with common.read( src ) as source:
             utils.hexdump_grep( raw_args.pattern, source,
                 encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
@@ -425,5 +426,5 @@ def mrcgrep():
                 start=raw_args.start, end=raw_args.end,
                 length=raw_args.length,
                 before=raw_args.before, after=raw_args.after,
+                title=title
             )
-        print()

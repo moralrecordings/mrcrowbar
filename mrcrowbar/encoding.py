@@ -3,14 +3,19 @@ import re
 import struct
 
 
-REGEX_CHARS = """()[]{}?*+-|^$\\.&~#"""
+REGEX_CHARS = """()[]{}?*+-|^$\\.&~#="""
 byte_escape = lambda char: '\\x{:02x}'.format( char ).encode( 'utf8' )
 
-def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_strings=False ):
+def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_string=False, hex_format=False ):
     result = bytearray()
+
+    # for hex format mode, strip out all whitespace characters first
+    if hex_format:
+        pattern = pattern.replace( ' ', '' ).replace( '\t', '' ).replace( '\n', '' ).replace( '\r', '' )
+    
     pointer = 0
     while pointer < len( pattern ):
-        if pattern[pointer] == '\\':
+        if pattern[pointer] == '\\' and not hex_strings:
             # an escaped character!
             if re.match( r'\\x[0-9A-Fa-f]{2}', pattern[pointer:pointer+4] ):
                 # escaped hex byte 
@@ -19,8 +24,8 @@ def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_strings=False ):
             elif re.match( r'\\[\\\'"abfnrtv]', pattern[pointer:pointer+2] ):
                 # escaped single character
                 char_id, char_raw = '\\\'"abfnrtv', '\\\'"\a\b\f\n\r\t\v'
-                char_map = {char_id[i]: char_raw[i] for i in range( len( char_id ) )}
-                result.extend( byte_escape( ord( char_map[pattern[pointer+1]] ) ) )
+                char_map = {char_id[i]: ord( char_raw[i] ) for i in range( len( char_id ) )}
+                result.extend( byte_escape( char_map[pattern[pointer+1]] ) )
                 pointer += 2
             elif pattern[pointer+1] in REGEX_CHARS:
                 # escaped character that's also a regex char
@@ -29,10 +34,16 @@ def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_strings=False ):
             else:
                 raise ValueError( 'Unknown escape sequence \\{}'.format( pattern[pointer+1] ) )
 
-        elif pattern[pointer] in REGEX_CHARS and not fixed_strings:
+        elif pattern[pointer] in REGEX_CHARS and not fixed_string:
             # a regex special character! inject it into the output unchanged
             result.extend( pattern[pointer].encode( 'utf8' ) )
             pointer += 1
+        elif hex_format:
+            # we're in hex string mode; treat as raw hexadecimal
+            if not re.match( r'[0-9A-Fa-f]{2}', pattern[pointer:pointer+2] ):
+                raise ValueError( 'Sequence {} is not valid hexadecimal'.format( pattern[pointer:pointer+2] ) )
+            result.extend( byte_escape( int( pattern[pointer:pointer+2], 16 ) ) )
+            pointer += 2
         else:
             # a normal character! encode as bytes, and inject escaped digits into the output
             for char in pattern[pointer].encode( encoding ):

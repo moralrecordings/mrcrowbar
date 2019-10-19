@@ -1,6 +1,7 @@
 import itertools
 import contextlib
 import mmap
+import os
 
 next_position_hint = itertools.count()
 
@@ -41,3 +42,13 @@ def bounds( start, end, length, src_size ):
 
 def serialise( obj, fields ):
     return ((obj.__class__.__module__, obj.__class__.__name__), tuple( (x, getattr( obj, x )) for x in fields ))
+
+
+def file_path_recurse( *root_list ):
+    for root in root_list:
+        for path, dirs, files in os.walk( root ):
+            for item in files:
+                file_path = os.path.join( path, item )
+                if not os.path.isfile( file_path ):
+                    continue
+                yield file_path

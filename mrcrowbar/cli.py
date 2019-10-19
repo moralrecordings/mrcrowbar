@@ -60,8 +60,12 @@ ARGS_DUMP = {
     'source': dict(
         metavar='FILE',
         nargs='+',
-        type=argparse.FileType( mode='rb' ),
         help='File to inspect',
+    ),
+    ('-r', '--recursive'): dict(
+        dest='recursive',
+        action='store_true',
+        help='Read all files under each directory, recursively'
     ),
     '--no-hexdump': dict(
         dest='no_hexdump',
@@ -125,7 +129,6 @@ ARGS_HIST = {
    'source': dict(
         metavar='FILE',
         nargs='+',
-        type=argparse.FileType( mode='rb' ),
         help='File to inspect',
     ),
     '--start': dict(
@@ -166,6 +169,11 @@ ARGS_HIST = {
         default=64,
         help='Histogram width (default: 64)'
     ),
+    ('-r', '--recursive'): dict(
+        dest='recursive',
+        action='store_true',
+        help='Read all files under each directory, recursively'
+    ),
     '--version': dict(
         action='version',
         version='%(prog)s {}'.format( __version__ )
@@ -176,7 +184,6 @@ ARGS_PIX = {
    'source': dict(
         metavar='FILE',
         nargs='+',
-        type=argparse.FileType( mode='rb' ),
         help='File to inspect',
     ),
     '--start': dict(
@@ -204,6 +211,11 @@ ARGS_PIX = {
         default=64,
         help='Image width (default: 64)'
     ),
+    ('-r', '--recursive'): dict(
+        dest='recursive',
+        action='store_true',
+        help='Read all files under each directory, recursively'
+    ),
     '--version': dict(
         action='version',
         version='%(prog)s {}'.format( __version__ )
@@ -225,15 +237,20 @@ ARGS_GREP = {
         action='store_true',
         help='Read all files under each directory, recursively'
     ),
-    ('-F', '--fixed-strings'): dict(
-        dest='fixed_strings',
+    ('-F', '--fixed-string'): dict(
+        dest='fixed_string',
         action='store_true',
-        help='Interpret PATTERN as fixed string, not regular expression'
+        help='Interpret PATTERN as fixed string (disable regular expressions)'
+    ),
+    ('-H', '--hex-format'): dict(
+        dest='hex_format',
+        action='store_true',
+        help='Interpret strings in PATTERN as hexadecimal'
     ),
     '--encoding': dict(
         metavar='ENCODING',
         dest='encoding',
-        help='Search for PATTERN with a specific Python encoding (default: utf8)'
+        help='Convert strings in PATTERN to a specific Python encoding (default: utf8)'
     ),
     '--start': dict(
         metavar='INT',
@@ -252,6 +269,20 @@ ARGS_GREP = {
         dest='length',
         type=auto_int,
         help='Length to read in (optional replacement for --end)'
+    ),
+    '--before': dict(
+        metavar='INT',
+        dest='before',
+        type=auto_int,
+        default=2,
+        help='Number of lines preceeding a match to show (default: 2)'
+    ),
+    '--after': dict(
+        metavar='INT',
+        dest='after',
+        type=auto_int,
+        default=2,
+        help='Number of lines following a match to show (default: 2)'
     ),
     '--version': dict(
         action='version',
@@ -275,17 +306,29 @@ mrcpix_parser = lambda: get_parser( description='Display the contents of a file 
 mrcgrep_parser = lambda: get_parser( description='Display the contents of a file that match a pattern.', args=ARGS_GREP )
 
 
-def get_files( path_list, recursive=False ):
-    for path in path_list:
-        print( path )
+"""
+For convenience, mrcgrep will interpret the pattern as UTF-8 and convert it to the bytes equivalent
+in the encoding you specify.
+
+It is important to note when writing regular expressions, single character matches and counts are done
+at the encoded byte level, not at the UTF-8 level! This can lead to unexpected side-effects for rules,
+e.g. the pattern "[ů]" will translate to "[\\xc5\\xaf]", which matches either the first or second byte.
+If you're unsure, write your expressions using hexadecimal raw byte notation (e.g. "\\xNN").
+"""
 
 
 def mrcdump():
     parser = mrcdump_parser()
     raw_args = parser.parse_args()
 
-    for i, src in enumerate( raw_args.source ):
-        if len( raw_args.source ) != 1:
+    source_paths = raw_args.source
+    multi = len( raw_args.source ) != 1 or raw_args.recursive
+    if raw_args.recursive:
+        source_paths = common.file_path_recurse( *source_paths )
+
+    for i, path in enumerate( source_paths ):
+        src = open( path, 'rb' )
+        if multi:
             print( src.name )
         with common.read( src ) as source:
 
@@ -302,8 +345,8 @@ def mrcdump():
             if not raw_args.no_stats:
                 print( 'Source stats:' )
                 utils.stats( source, raw_args.start, raw_args.end, raw_args.length, raw_args.hist_w, raw_args.hist_h )
-        if i != len( raw_args.source ) - 1:
-            print()
+        print()
+
 
 def mrcdiff():
     parser = mrcdiff_parser()
@@ -324,33 +367,62 @@ def mrchist():
     parser = mrchist_parser()
     raw_args = parser.parse_args()
 
-    for i, src in enumerate( raw_args.source ):
-        if len( raw_args.source ) != 1:
+    source_paths = raw_args.source
+    multi = len( raw_args.source ) != 1 or raw_args.recursive
+    if raw_args.recursive:
+        source_paths = common.file_path_recurse( *source_paths )
+
+    for i, path in enumerate( source_paths ):
+        src = open( path, 'rb' )
+        if multi:
             print( src.name )
         with common.read( src ) as source:
             utils.histdump( source, start=raw_args.start, end=raw_args.end,
                 length=raw_args.length, samples=raw_args.samples, width=raw_args.width,
                 address_base=raw_args.address_base,
             )
-        if i != len( raw_args.source ) - 1:
-            print()
+        print()
+
 
 def mrcpix():
     parser = mrcpix_parser()
     raw_args = parser.parse_args()
 
-    for i, src in enumerate( raw_args.source ):
-        if len( raw_args.source ) != 1:
+    source_paths = raw_args.source
+    multi = len( raw_args.source ) != 1 or raw_args.recursive
+    if raw_args.recursive:
+        source_paths = common.file_path_recurse( *source_paths )
+
+    for i, path in enumerate( source_paths ):
+        src = open( path, 'rb' )
+        if multi:
             print( src.name )
         with common.read( src ) as source:
             utils.pixdump( source, start=raw_args.start, end=raw_args.end,
                 length=raw_args.length, width=raw_args.width,
             )
-        if i != len( raw_args.source ) - 1:
-            print()
+        print()
+
 
 def mrcgrep():
     parser = mrcgrep_parser()
     raw_args = parser.parse_args()
 
-    
+    source_paths = raw_args.source
+    multi = len( raw_args.source ) != 1 or raw_args.recursive
+    if raw_args.recursive:
+        source_paths = common.file_path_recurse( *source_paths )
+
+    for i, path in enumerate( source_paths ):
+        src = open( path, 'rb' )
+        if multi:
+            print( src.name )
+        with common.read( src ) as source:
+            utils.hexdump_grep( raw_args.pattern, source,
+                encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
+                hex_format=raw_args.hex_format,
+                start=raw_args.start, end=raw_args.end,
+                length=raw_args.length,
+                before=raw_args.before, after=raw_args.after,
+            )
+        print()

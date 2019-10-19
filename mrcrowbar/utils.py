@@ -49,6 +49,14 @@ BYTE_REVERSE = bytes.fromhex( '008040c020a060e0109050d030b070f0'\
 DIFF_COLOUR_MAP = (9, 10)
 
 
+def grep_iter( pattern, source, encoding='utf8', fixed_string=False, hex_format=False ):
+    assert isinstance( pattern, str )
+    assert is_bytes( source )
+    regex = re.compile( enco.regex_pattern_to_bytes( pattern, encoding=encoding, fixed_string=fixed_string, hex_format=hex_format ), re.DOTALL )
+
+    return regex.finditer( source )
+
+
 def find_all_iter( source, substring, start=None, end=None, length=None, overlap=False ):
     """Iterate through every location a substring can be found in a source string.
 
@@ -70,21 +78,12 @@ def find_all_iter( source, substring, start=None, end=None, length=None, overlap
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
-    data = source
-    base = 0
-    if end is not None:
-        data = data[:end]
-    if start is not None:
-        data = data[start:]
-        base = start
-    pointer = 0
-    increment = 1 if overlap else (len( substring ) or 1)
-    while True:
-        pointer = data.find( substring, pointer )
-        if pointer == -1:
-            return
-        yield base+pointer
-        pointer += increment
+    pattern = substring.hex()
+    if overlap:
+        pattern = r'(?=({}))'.format( pattern )
+
+    for match in grep_iter( pattern, source[start:end], hex_format=True ):
+        yield match.span()[0]
 
 
 def find_all( source, substring, start=None, end=None, length=None, overlap=False ):
@@ -108,12 +107,11 @@ def find_all( source, substring, start=None, end=None, length=None, overlap=Fals
     return [x for x in find_all_iter( source, substring, start, end, length, overlap )]
 
 
-def grep_all_iter( pattern, source, start=None, end=None, overlap=False, encoding='utf8', fixed_strings=False, ):
-    regex = re.compile( enco.regex_pattern_to_bytes( pattern, encoding=encoding, fixed_strings=fixed_strings ) )
+def hexdump_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, before=2, after=2 ):
+    assert is_bytes( source )
+    start, end = bounds( start, end, length, len( source ) )
 
-    pointer = 0
-    return [match for match in regex.finditer( source )]
-
+    regex_iter = grep_iter( pattern, source[start:end], length, encoding, fixed_string, hex_format )
 
 
 def basic_diff( source1, source2, start=None, end=None ):

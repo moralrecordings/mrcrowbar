@@ -285,6 +285,11 @@ ARGS_GREP = {
         default=2,
         help='Number of lines following a match to show (default: 2)'
     ),
+    '--no-hexdump': dict(
+        dest='no_hexdump',
+        action='store_true',
+        help='Don\'t render a hex dump'
+    ),
     '--version': dict(
         action='version',
         version='%(prog)s {}'.format( __version__ )
@@ -420,11 +425,21 @@ def mrcgrep():
         if multi:
             title = src.name
         with common.read( src ) as source:
-            utils.hexdump_grep( raw_args.pattern, source,
-                encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
-                hex_format=raw_args.hex_format,
-                start=raw_args.start, end=raw_args.end,
-                length=raw_args.length,
-                before=raw_args.before, after=raw_args.after,
-                title=title
-            )
+            if raw_args.no_hexdump:
+                utils.list_grep( raw_args.pattern, source,
+                    encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
+                    hex_format=raw_args.hex_format,
+                    start=raw_args.start, end=raw_args.end,
+                    length=raw_args.length,
+                    title=title
+                )
+            else:
+                utils.hexdump_grep( raw_args.pattern, source,
+                    encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
+                    hex_format=raw_args.hex_format,
+                    start=raw_args.start, end=raw_args.end,
+                    length=raw_args.length,
+                    before=raw_args.before, after=raw_args.after,
+                    title=title
+                )
+

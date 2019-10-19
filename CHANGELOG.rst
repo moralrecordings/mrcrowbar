@@ -6,6 +6,7 @@ Unreleased
 
 - encoding: Add regex_pattern_to_bytes() for converting UTF8 format string into a byte regular expression.
 - utils.grep_iter: Create a base method for regular expression based searching.
+- common: Add file_path_recurse() to recursively find file paths.
 - cli: Update command line tools to support recursive directory traversal.
 - Add changelog.
 

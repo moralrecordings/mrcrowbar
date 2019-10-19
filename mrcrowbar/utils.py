@@ -199,6 +199,34 @@ def hexdump_grep( pattern, source, start=None, end=None, length=None, encoding='
         print( line )
 
 
+def list_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, address_base=None, title=None ):
+    assert is_bytes( source )
+    start, end = bounds( start, end, length, len( source ) )
+
+    start = max( start, 0 )
+    end = min( end, len( source ) )
+    if len( source ) == 0 or (start == end == 0):
+        return
+    address_base_offset = address_base-start if address_base is not None else 0
+
+    regex_iter = grep_iter( pattern, source[start:end], encoding, fixed_string, hex_format )
+
+    for match in regex_iter:
+        start_off = match.span()[0]+start+address_base_offset
+        end_off = match.span()[1]+start+address_base_offset
+        digits = '{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}'
+        line = (digits+':'+digits).format( start_off, end_off )
+        line += ':{}'.format( repr( match.group( 0 ) ) )
+        if title:
+            line = '{}:'.format( title ) + line
+        yield line
+
+
+def list_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, address_base=None, title=None ):
+    for line in list_grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, address_base, title ):
+        print( line )
+
+
 def basic_diff( source1, source2, start=None, end=None ):
     """Perform a basic diff between two equal-sized binary strings and
     return a list of (offset, size) tuples denoting the differences.

@@ -46,6 +46,9 @@ def serialise( obj, fields ):
 
 def file_path_recurse( *root_list ):
     for root in root_list:
+        if os.path.isfile( root ):
+            yield root
+            continue
         for path, dirs, files in os.walk( root ):
             for item in files:
                 file_path = os.path.join( path, item )

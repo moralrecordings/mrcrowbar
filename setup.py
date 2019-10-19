@@ -42,6 +42,7 @@ setup(
             'mrcdump = mrcrowbar.cli:mrcdump',
             'mrchist = mrcrowbar.cli:mrchist',
             'mrcpix = mrcrowbar.cli:mrcpix',
+            'mrcgrep = mrcrowbar.cli:mrcgrep',
         ],
     },
 )

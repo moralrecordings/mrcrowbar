@@ -15,7 +15,7 @@ def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_string=False, hex_fo
     
     pointer = 0
     while pointer < len( pattern ):
-        if pattern[pointer] == '\\' and not hex_strings:
+        if pattern[pointer] == '\\' and not hex_format:
             # an escaped character!
             if re.match( r'\\x[0-9A-Fa-f]{2}', pattern[pointer:pointer+4] ):
                 # escaped hex byte 

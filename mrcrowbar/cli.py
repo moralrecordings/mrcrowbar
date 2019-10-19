@@ -250,6 +250,7 @@ ARGS_GREP = {
     '--encoding': dict(
         metavar='ENCODING',
         dest='encoding',
+        default='utf8',
         help='Convert strings in PATTERN to a specific Python encoding (default: utf8)'
     ),
     '--start': dict(
@@ -290,8 +291,8 @@ ARGS_GREP = {
     ),
 }
 
-def get_parser( description, args ):
-    parser = argparse.ArgumentParser( description=description )
+def get_parser( args, **kwargs ):
+    parser = argparse.ArgumentParser( **kwargs )
     for arg, spec in args.items():
         if isinstance( arg, tuple ):
             parser.add_argument( *arg, **spec )
@@ -299,22 +300,22 @@ def get_parser( description, args ):
             parser.add_argument( arg, **spec )
     return parser
 
-mrcdump_parser = lambda: get_parser( description='Examine the contents of a file as hexadecimal.', args=ARGS_DUMP )
-mrcdiff_parser = lambda: get_parser( description='Compare the contents of two files as hexadecimal.', args=ARGS_DIFF )
-mrchist_parser = lambda: get_parser( description='Display the contents of a file as a histogram map.', args=ARGS_HIST )
-mrcpix_parser = lambda: get_parser( description='Display the contents of a file as a 256 colour image.', args=ARGS_PIX )
-mrcgrep_parser = lambda: get_parser( description='Display the contents of a file that match a pattern.', args=ARGS_GREP )
-
-
-"""
+EPILOG_GREP = """
 For convenience, mrcgrep will interpret the pattern as UTF-8 and convert it to the bytes equivalent
 in the encoding you specify.
 
 It is important to note when writing regular expressions, single character matches and counts are done
 at the encoded byte level, not at the UTF-8 level! This can lead to unexpected side-effects for rules,
 e.g. the pattern "[ů]" will translate to "[\\xc5\\xaf]", which matches either the first or second byte.
-If you're unsure, write your expressions using hexadecimal raw byte notation (e.g. "\\xNN").
+If you're unsure, write your expressions using escaped hexadecimal bytes (e.g. "[\\xNN]").
 """
+
+mrcdump_parser = lambda: get_parser( args=ARGS_DUMP, description='Examine the contents of a file as hexadecimal.', )
+mrcdiff_parser = lambda: get_parser( args=ARGS_DIFF, description='Compare the contents of two files as hexadecimal.' )
+mrchist_parser = lambda: get_parser( args=ARGS_HIST, description='Display the contents of a file as a histogram map.' )
+mrcpix_parser = lambda: get_parser( args=ARGS_PIX, description='Display the contents of a file as a 256 colour image.' )
+mrcgrep_parser = lambda: get_parser( args=ARGS_GREP, description='Display the contents of a file that match a pattern.', epilog=EPILOG_GREP )
+
 
 
 def mrcdump():

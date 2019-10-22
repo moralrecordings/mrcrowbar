@@ -149,12 +149,12 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
                     self.lines.append( ansi.format_hexdump_line( source, key, end, major_len, minor_len, colour, prefix='!', highlight_addr=DIFF_COLOUR_MAP[0], highlight_map=self.output_buffer[key], address_base_offset=address_base_offset ) )
                 else:
                     self.lines.append( ansi.format_hexdump_line( source, key, end, major_len, minor_len, colour, prefix=' ', address_base_offset=address_base_offset ) )
-                self.output_buffer[key] = None
+                del self.output_buffer[key]
                 self.last_printed = key
 
         def push( self, span ):
             block_start = span[0] - (span[0] % stride)
-            block_end = span[1] - (span[1] % stride)
+            block_end = max( 0, (span[1]-1) - ((span[1]-1) % stride) )
             for i in range( block_start, block_end+stride, stride ):
                 if i not in self.output_buffer:
                     self.output_buffer[i] = {}
@@ -162,9 +162,9 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
                     for j in range( max( i, span[0] ), min( i+stride, span[1] ) ):
                         self.output_buffer[i][j] = DIFF_COLOUR_MAP[0]
             for b in [block_start-(x+1)*stride for x in range( before )]:
-                if b not in self.output_buffer:
+                if b not in self.output_buffer and b > self.last_printed:
                     self.output_buffer[b] = {}
-            for a in [block_start+(x+1)*stride for x in range( after )]:
+            for a in [block_end+(x+1)*stride for x in range( after )]:
                 if a not in self.output_buffer:
                     self.output_buffer[a] = {}
 

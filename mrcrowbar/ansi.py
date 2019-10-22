@@ -58,7 +58,6 @@ BYTE_COLOUR_MAP = (12,) + (14,)*32 + (11,)*94 + (14,)*128 + (12,)
 
 
 
-
 def format_escape( foreground=None, background=None, bold=False, faint=False,
     italic=False, underline=False, blink=False, inverted=False ):
     """Returns the ANSI escape sequence to set character formatting.
@@ -356,6 +355,8 @@ def format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=32, fr
     return
 
 
+BYTE_ESCAPE_MAP = [format_escape( x ) for x in BYTE_COLOUR_MAP]
+
 def format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, colour=True,
         prefix='', highlight_addr=None, highlight_map=None, address_base_offset=0 ):
     def get_colour( index ):
@@ -363,7 +364,7 @@ def format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, col
             if highlight_map:
                 if index in highlight_map:
                     return format_escape( highlight_map[index] )
-            return format_escape( BYTE_COLOUR_MAP[source[index]] )
+            return BYTE_ESCAPE_MAP[source[index]]
         return ''
 
     def get_glyph():

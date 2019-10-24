@@ -355,15 +355,21 @@ def diffdump( source1, source2, prefix='source', depth=None ):
     depth
         Maximum number of levels to traverse.
     """
+    same = True
     for p, s1, s2 in diff_iter( source1, source2, prefix, depth ):
         if type( s1 ) == bytes and type( s2 ) == bytes:
             print( '* {}:'.format( prefix ) )
             for line in hexdump_diff_iter( s1, s2 ):
                 print( line )
+            same = False
+            continue
         if s1 is not None:
             print( ansi.format_string( '- {}: {}'.format( p, s1 ), foreground=DIFF_COLOUR_MAP[0] ) )
+            same = False
         if s2 is not None:
             print( ansi.format_string( '+ {}: {}'.format( p, s2 ), foreground=DIFF_COLOUR_MAP[1] ) )
+            same = False
+    return same
 
 
 def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, width=64, address_base=None ):

@@ -13,6 +13,7 @@ Unreleased
 - utils.diff: Rename to utils.diffdump.
 - utils.diff_iter: Decouple diff results from print output.
 - lib.os.win16.RelocationOSFixup: Add enum for fixup types.
+- utils.diffdump: Return True if the two sources match.
 
 0.7.0 - 2019-09-26
 ==================

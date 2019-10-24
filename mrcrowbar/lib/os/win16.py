@@ -68,8 +68,17 @@ class RelocationImportOrdinal( mrc.Block ):
         return 'index=0x{:04x}, ordinal=0x{:04x}'.format( self.index, self.ordinal )
 
 
+class RelocationOSFixupType( IntEnum ):
+    FIARQQ_FJARQQ = 0x0001
+    FISRQQ_FJSRQQ = 0x0002
+    FICRQQ_FJCRQQ = 0x0003
+    FIERQQ = 0x0004
+    FIDRQQ = 0x0005
+    FIWRQQ = 0x0006
+
+
 class RelocationOSFixup( mrc.Block ):
-    fixup =         mrc.UInt16_LE( 0x00 )
+    fixup =         mrc.UInt16_LE( 0x00, enum=RelocationOSFixupType )
     check =         mrc.Const( mrc.UInt16_LE( 0x02 ), 0 )
 
     @property

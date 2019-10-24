@@ -12,6 +12,7 @@ Unreleased
 - cli.mrcgrep: Add command line binary grep tool.
 - utils.diff: Rename to utils.diffdump.
 - utils.diff_iter: Decouple diff results from print output.
+- lib.os.win16.RelocationOSFixup: Add enum for fixup types.
 
 0.7.0 - 2019-09-26
 ==================

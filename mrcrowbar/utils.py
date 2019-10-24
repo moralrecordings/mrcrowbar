@@ -266,7 +266,7 @@ def basic_diff( source1, source2, start=None, end=None ):
     return results
 
 
-def diff( source1, source2, prefix='source', depth=None ):
+def diff_iter( source1, source2, prefix='source', depth=None ):
     """Perform a diff between two objects.
 
     source1
@@ -286,44 +286,84 @@ def diff( source1, source2, prefix='source', depth=None ):
         return src if type( src ) in (int, float, str, bytes) else (src.__class__.__module__, src.__class__.__name__)
 
     if type( source1 ) != type( source2 ):
-        print( ansi.format_string( '- {}: {}'.format( prefix, abbr( source1 ) ), foreground=DIFF_COLOUR_MAP[0] ) )
-        print( ansi.format_string( '+ {}: {}'.format( prefix, abbr( source2 ) ), foreground=DIFF_COLOUR_MAP[1] ) )
+        yield (prefix, abbr( source1 ), abbr( source2 ))
     else:
         if type( source1 ) == list:
             for i in range( max( len( source1 ), len( source2 ) ) ):
                 prefix_mod = prefix+'[{}]'.format( i )
                 if i < len( source1 ) and i < len( source2 ):
-                    diff( source1[i], source2[i], prefix=prefix_mod, depth=depth )
+                    for x in diff_iter( source1[i], source2[i], prefix=prefix_mod, depth=depth ):
+                        yield x
                 elif i >= len( source2 ):
-                    print( ansi.format_string( '- {}: {}'.format( prefix_mod, abbr( source1[i] ) ), foreground=DIFF_COLOUR_MAP[0] ) )
+                    yield( prefix_mod, abbr( source1[i] ), None )
                 else:
-                    print( ansi.format_string( '+ {}: {}'.format( prefix_mod, abbr( source2[i] ) ), foreground=DIFF_COLOUR_MAP[1] ) )
+                    yield( prefix_mod, abbr( None, source2[i] ) )
         elif type( source1 ) == bytes:
             if source1 != source2:
-                print( '* {}:'.format( prefix ) )
-                for line in hexdump_diff_iter( source1, source2 ):
-                    print( line )
+                yield( prefix, source1, source2 )
         elif type( source1 ) in (int, float, str):
             if source1 != source2:
-                print( ansi.format_string( '- {}: {}'.format( prefix, source1 ), foreground=DIFF_COLOUR_MAP[0] ) )
-                print( ansi.format_string( '+ {}: {}'.format( prefix, source2 ), foreground=DIFF_COLOUR_MAP[1] ) )
+                yield (prefix, source1, source2)
         elif hasattr( source1, 'serialised' ):  # Block
             s1 = source1.serialised
             s2 = source2.serialised
             if s1 != s2 and depth is not None and depth <= 0:
-                print( ansi.format_string( '- {}: {}'.format( prefix, abbr( source1 ) ), foreground=DIFF_COLOUR_MAP[0] ) )
-                print( ansi.format_string( '+ {}: {}'.format( prefix, abbr( source2 ) ), foreground=DIFF_COLOUR_MAP[1] ) )
+                yield (prefix, source1, source2)
             else:
                 assert s1[0] == s2[0]
                 assert len( s1[1] ) == len( s2[1] )
                 for i in range( len( s1[1] ) ):
                     assert s1[1][i][0] == s2[1][i][0]
                     if s1[1][i][1] != s2[1][i][1]:
-                        diff( getattr( source1, s1[1][i][0] ), getattr( source2, s1[1][i][0] ), prefix='{}.{}'.format( prefix, s1[1][i][0] ), depth=depth )
+                        for x in diff_iter( getattr( source1, s1[1][i][0] ), getattr( source2, s1[1][i][0] ), prefix='{}.{}'.format( prefix, s1[1][i][0] ), depth=depth ):
+                            yield x
         else:
             if source1 != source2:
-                print( ansi.format_string( '- {}: {}'.format( prefix, abbr( source1 ) ), foreground=DIFF_COLOUR_MAP[0] ) )
-                print( ansi.format_string( '+ {}: {}'.format( prefix, abbr( source2 ) ), foreground=DIFF_COLOUR_MAP[1] ) )
+                yield (prefix, source1, source2)
+
+
+def diff( source1, source2, prefix='source', depth=None ):
+    """Perform a diff between two objects.
+
+    source1
+        The first source.
+
+    source2
+        The second source.
+
+    prefix
+        The name of the base element to display.
+
+    depth
+        Maximum number of levels to traverse.
+    """
+    return [x for x in diff_iter( source1, source2, prefix, depth )]
+
+
+def diffdump( source1, source2, prefix='source', depth=None ):
+    """Perform a diff between two objects.
+
+    source1
+        The first source.
+
+    source2
+        The second source.
+
+    prefix
+        The name of the base element to display.
+
+    depth
+        Maximum number of levels to traverse.
+    """
+    for p, s1, s2 in diff_iter( source1, source2, prefix, depth ):
+        if type( s1 ) == bytes and type( s2 ) == bytes:
+            print( '* {}:'.format( prefix ) )
+            for line in hexdump_diff_iter( s1, s2 ):
+                print( line )
+        if s1 is not None:
+            print( ansi.format_string( '- {}: {}'.format( p, s1 ), foreground=DIFF_COLOUR_MAP[0] ) )
+        if s2 is not None:
+            print( ansi.format_string( '+ {}: {}'.format( p, s2 ), foreground=DIFF_COLOUR_MAP[1] ) )
 
 
 def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, width=64, address_base=None ):

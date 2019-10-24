@@ -9,6 +9,9 @@ Unreleased
 - common: Add file_path_recurse() to recursively find file paths.
 - cli: Update command line tools to support recursive directory traversal.
 - Add changelog.
+- cli.mrcgrep: Add command line binary grep tool.
+- utils.diff: Rename to utils.diffdump.
+- utils.diff_iter: Decouple diff results from print output.
 
 0.7.0 - 2019-09-26
 ==================

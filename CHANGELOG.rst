@@ -1,8 +1,8 @@
 Changelog
 #########
 
-Unreleased
-==========
+0.7.1 - 2019-10-25
+==================
 
 - encoding: Add regex_pattern_to_bytes() for converting UTF8 format string into a byte regular expression.
 - utils.grep_iter: Create a base method for regular expression based searching.

@@ -1,6 +1,11 @@
 Changelog
 #########
 
+Unreleased
+==========
+
+- lib.platforms.director: More improvements.
+
 0.7.1 - 2019-10-25
 ==================
 

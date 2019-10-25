@@ -85,7 +85,7 @@ class FrameV4( mrc.Block ):
         return 'num_channnels={}'.format( len( self.channels ) )
 
 
-class FramesV4( mrc.Block ):
+class ScoreV4( mrc.Block ):
     size = mrc.UInt32_BE( 0x00 )
     unk1 = mrc.UInt32_BE( 0x04 )
     unk2 = mrc.UInt32_BE( 0x08 )
@@ -95,6 +95,7 @@ class FramesV4( mrc.Block ):
     unk6 = mrc.UInt16_BE( 0x12 )
 
     frames = mrc.BlockField( FrameV4, 0x14, stream=True, length=mrc.Ref( 'size_frames' ) )
+    extra = mrc.Bytes( mrc.EndOffset( 'frames' ) )
 
     @property
     def size_frames( self ):
@@ -288,10 +289,10 @@ class KeyEntry( mrc.Block ):
 class KeyV4( mrc.Block ):
     unk1 =          mrc.UInt16_P( 0x00 )
     unk2 =          mrc.UInt16_P( 0x02 )
-    unk3 =          mrc.UInt32_P( 0x04 )
+    slot_count =    mrc.UInt32_P( 0x04 )
     entry_count =   mrc.UInt32_P( 0x08 )
-    entries =       mrc.BlockField( KeyEntry, 0x0c, count=mrc.Ref( 'entry_count' ) )
-    garbage =       mrc.Bytes( mrc.EndOffset( 'entries' ) )
+    entries =       mrc.BlockField( KeyEntry, 0x0c, count=mrc.Ref( 'slot_count' ) )
+#    garbage =       mrc.Bytes( mrc.EndOffset( 'entries' ) )
 
 
 class MMapEntry( mrc.Block ):
@@ -373,19 +374,19 @@ class Sprite( mrc.Block ):
     width = mrc.UInt16_BE( 0x0e )
     
 
-class ScriptContextEntry( mrc.Block ):
-    data = mrc.Bytes( 0x00, length=12 )
-
-
 class ScriptNamesV4( mrc.Block ):
     # used to store the names of functions invoked with CALL_EXTERNAL
     unk1 = mrc.UInt32_BE( 0x00 )
     unk2 = mrc.UInt32_BE( 0x04 )
-    unk3 = mrc.UInt32_BE( 0x08 )
-    unk4 = mrc.UInt32_BE( 0x0c )
+    length_1 = mrc.UInt32_BE( 0x08 )
+    length_2 = mrc.UInt32_BE( 0x0c )
     unk5 = mrc.UInt16_BE( 0x10 )
     count = mrc.UInt16_BE( 0x12 )
     names = mrc.StringField( 0x14, count=mrc.Ref( 'count' ), length_field=mrc.UInt8 )
+
+
+class ScriptContextEntry( mrc.Block ):
+    data = mrc.Bytes( 0x00, length=12 )
 
 
 class ScriptContextV4( mrc.Block ):
@@ -429,6 +430,7 @@ class Write16( mrc.Block ):
     def repr( self ):
         return '0x{:04x}'.format(self.value)
 
+
 LINGO_V4_LIST = [
     ('EXIT', 0x01, Blank),
     ('PUSH_0', 0x03, Blank),
@@ -458,6 +460,7 @@ LINGO_V4_LIST = [
     ('FIELD', 0x1b, Blank),
     ('EXEC', 0x1c, Blank),
     ('EXEC_END', 0x1d, Blank),
+    ('LIST_UNK', 0x1e, Blank),
     ('DICT', 0x1f, Blank),
 
     # 1 byte payload
@@ -497,7 +500,7 @@ LINGO_V4_LIST = [
     ('CALL_EXTERNAL_OBJ', 0x63, Write8),
     ('PUSH_FROM_STACK', 0x64, Write8),
     ('POP_FROM_STACK', 0x65, Write8),
-    ('PUSH_PATH', 0x66, Write8),
+    ('PUSH_PROPERTY_RO', 0x66, Write8),
 
     # 2 byte payload
     ('PUSH_U16', 0x81, Write16),
@@ -520,6 +523,18 @@ LINGO_V4_LIST = [
 
     ('PUSH_PATH_U16', 0xa6, Write16),
 ]
+
+# add stubs for missing instructions
+LINGO_COVERAGE = set( (x[1] for x in LINGO_V4_LIST) )
+for i in range( 0x00, 0x40 ):
+    if i not in LINGO_COVERAGE:
+        LINGO_V4_LIST.append( ('UNK_{:02X}'.format( i ), i, Blank ) )
+for i in range( 0x40, 0x80 ):
+    if i not in LINGO_COVERAGE:
+        LINGO_V4_LIST.append( ('UNK_{:02X}'.format( i ), i, Write8 ) )
+for i in range( 0x80, 0x100 ):
+    if i not in LINGO_COVERAGE:
+        LINGO_V4_LIST.append( ('UNK_{:02X}'.format( i ), i, Write16 ) )
 
 LingoV4 = IntEnum( 'LingoV4', [(x[0], x[1]) for x in LINGO_V4_LIST] )
 LINGO_V4_MAP = {LingoV4( x[1] ): x[2] for x in LINGO_V4_LIST}
@@ -584,22 +599,41 @@ class ScriptCode( mrc.Block ):
 
 
 class ScriptFunction( mrc.Block ):
-    name_index = mrc.UInt16_BE( 0x00 )
+    unk0 = mrc.UInt16_BE( 0x00 )
     unk1 = mrc.UInt16_BE( 0x02 )
-    length = mrc.UInt32_BE( 0x04 )
-    offset = mrc.UInt32_BE( 0x08 )
+    offset_copy = mrc.UInt16_BE( 0x04 )
+    unk2 = mrc.UInt16_BE( 0x06 )
+    unk3 = mrc.UInt16_BE( 0x08 )
+    offset = mrc.UInt16_BE( 0x0a )
     arg_count = mrc.UInt16_BE( 0x0c )
-    unk2 = mrc.UInt32_BE( 0x0e )
+    unk4 = mrc.UInt16_BE( 0x0e )
+    unk5 = mrc.UInt16_BE( 0x10 )
     var_count = mrc.UInt16_BE( 0x12 )
-    unk3 = mrc.UInt32_BE( 0x14 )
-    count3 = mrc.UInt16_BE( 0x18 )
-    unk4 = mrc.UInt32_BE( 0x1a )
-    unk5 = mrc.UInt32_BE( 0x1e )
-    unk6 = mrc.UInt16_BE( 0x22 )
+    unk6 = mrc.UInt16_BE( 0x14 )
+    unk7 = mrc.UInt16_BE( 0x16 )
+    name_index = mrc.UInt16_BE( 0x18 )
+    unk8 = mrc.UInt16_BE( 0x1a )
+    unk9 = mrc.UInt16_BE( 0x1c )
+    length = mrc.UInt16_BE( 0x1e )
+    unk11 = mrc.UInt16_BE( 0x20 )
+    start_offset = mrc.UInt16_BE( 0x22 )
     count4 = mrc.UInt16_BE( 0x24 )
-    unk7 = mrc.UInt32_BE( 0x26 )
+    unk13 = mrc.UInt16_BE( 0x26 )
+    end_offset = mrc.UInt16_BE( 0x28 )
 
-    code = mrc.StoreRef( ScriptCode, mrc.Ref( '_parent.code_store' ), offset=mrc.Ref( 'offset' ), size=mrc.Ref( 'length' ) )
+    code = mrc.StoreRef( ScriptCode, mrc.Ref( '_parent.code_store' ), offset=mrc.Ref( 'start_offset' ), size=mrc.Ref( 'length' ) )
+
+    @property
+    def name( self ):
+        if self._parent and self._parent._parent:
+            names = next( (x.obj for x in self._parent._parent.stream if x.id == riff.Tag( b'Lnam' )), None)
+            if names and (self.name_index != 65535) and len( names.names ) > self.name_index:
+                return names.names[self.name_index]
+        return None
+
+    @property
+    def repr( self ):
+        return '{}'.format( self.name )
 
 
 class ScriptV4( mrc.Block ):
@@ -671,7 +705,7 @@ class DirectorV4Map( riff.RIFXMap ):
         riff.Tag( b'Lscr' ): ScriptV4,
         riff.Tag( b'Lnam' ): ScriptNamesV4,
         riff.Tag( b'Lctx' ): ScriptContextV4,
-        riff.Tag( b'VWSC' ): FramesV4,
+        riff.Tag( b'VWSC' ): ScoreV4,
     }
 DirectorV4Map.CHUNK_MAP[riff.Tag( b'RIFX' )] = DirectorV4Map
 
@@ -698,7 +732,7 @@ class MV93( mrc.Block ):
     _endian = 'little'
 
     magic = mrc.Const( mrc.Bytes( 0x00, length=4 ), b'XFIR' )
-    unk1 = mrc.Bytes( 0x04, length=0x4 )
+    data_length = mrc.UInt32_P( 0x04 )
     magic2 = mrc.Const( mrc.Bytes( 0x08, length=4 ), b'39VM' )
     stream = mrc.ChunkField( DirectorV4Map.CHUNK_MAP, mrc.EndOffset( 'magic2' ), stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2, fill=b'' )
 
@@ -707,6 +741,6 @@ class MV93_BE( mrc.Block ):
     _endian = 'big'
 
     magic = mrc.Const( mrc.Bytes( 0x00, length=4 ), b'RIFX' )
-    unk1 = mrc.Bytes( 0x04, length=0x4 )
+    data_length = mrc.UInt32_P( 0x04 )
     magic2 = mrc.Const( mrc.Bytes( 0x08, length=4 ), b'MV93' )
     stream = mrc.ChunkField( DirectorV4Map.CHUNK_MAP, mrc.EndOffset( 'magic2' ), stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2, fill=b'' )

@@ -386,7 +386,17 @@ class ScriptNamesV4( mrc.Block ):
 
 
 class ScriptContextEntry( mrc.Block ):
-    data = mrc.Bytes( 0x00, length=12 )
+    unk1 = mrc.UInt16_BE( 0x00 )
+    unk2 = mrc.UInt16_BE( 0x02 )
+    unk3 = mrc.UInt16_BE( 0x04 )
+    index =     mrc.UInt16_BE( 0x06 )       # for mmap.entries
+    unk4 =      mrc.Bits16( 0x08, 0b1111111111111011 )
+    active =    mrc.Bits16( 0x08, 0b0000000000000100 )
+    link =      mrc.Int16_BE( 0x0a )
+    
+    @property
+    def repr( self ):
+        return 'index: {}, active: {}'.format( self.index, self.active )
 
 
 class ScriptContextV4( mrc.Block ):
@@ -594,34 +604,34 @@ class ScriptConstant( mrc.Block ):
         return '{}: {}'.format( self.const_type, self.const.repr )
 
 
+class ScriptGlobal( mrc.Block ):
+    name_index = mrc.UInt16_BE( 0x00 )
+
+
 class ScriptCode( mrc.Block ):
     instructions = mrc.ChunkField( LINGO_V4_MAP, 0x00, id_field=mrc.UInt8, id_enum=LingoV4, default_klass=Blank )
 
 
 class ScriptFunction( mrc.Block ):
-    unk0 = mrc.UInt16_BE( 0x00 )
+    name_index = mrc.UInt16_BE( 0x00 )
     unk1 = mrc.UInt16_BE( 0x02 )
-    offset_copy = mrc.UInt16_BE( 0x04 )
-    unk2 = mrc.UInt16_BE( 0x06 )
-    unk3 = mrc.UInt16_BE( 0x08 )
-    offset = mrc.UInt16_BE( 0x0a )
+    length = mrc.UInt32_BE( 0x04 )
+    offset = mrc.UInt32_BE( 0x08 )
     arg_count = mrc.UInt16_BE( 0x0c )
-    unk4 = mrc.UInt16_BE( 0x0e )
-    unk5 = mrc.UInt16_BE( 0x10 )
+    arg_offset = mrc.UInt32_BE( 0x0e )
     var_count = mrc.UInt16_BE( 0x12 )
-    unk6 = mrc.UInt16_BE( 0x14 )
-    unk7 = mrc.UInt16_BE( 0x16 )
-    name_index = mrc.UInt16_BE( 0x18 )
+    var_names_offset = mrc.UInt32_BE( 0x14 )
+    unk2 = mrc.UInt16_BE( 0x18 )
     unk8 = mrc.UInt16_BE( 0x1a )
     unk9 = mrc.UInt16_BE( 0x1c )
-    length = mrc.UInt16_BE( 0x1e )
+    unk10 = mrc.UInt16_BE( 0x1e )
     unk11 = mrc.UInt16_BE( 0x20 )
-    start_offset = mrc.UInt16_BE( 0x22 )
-    count4 = mrc.UInt16_BE( 0x24 )
-    unk13 = mrc.UInt16_BE( 0x26 )
-    end_offset = mrc.UInt16_BE( 0x28 )
+    unk12 = mrc.UInt16_BE( 0x22 )
+    unk13 = mrc.UInt16_BE( 0x24 )
+    unk14 = mrc.UInt16_BE( 0x26 )
+    unk15 = mrc.UInt16_BE( 0x28 )
 
-    code = mrc.StoreRef( ScriptCode, mrc.Ref( '_parent.code_store' ), offset=mrc.Ref( 'start_offset' ), size=mrc.Ref( 'length' ) )
+    code = mrc.StoreRef( ScriptCode, mrc.Ref( '_parent.code_store' ), offset=mrc.Ref( 'offset' ), size=mrc.Ref( 'length' ) )
 
     @property
     def name( self ):
@@ -641,21 +651,25 @@ class ScriptV4( mrc.Block ):
     code_store_offset = mrc.UInt16_BE( 0x10 )
     unk2 = mrc.Bytes( 0x12, length=0x2e )
 
-    functions_offset = mrc.UInt16_BE( 0x40 )
-
-    unk3 = mrc.Bytes( 0x42, length=6 )
+    globals_offset = mrc.UInt16_BE( 0x40 )
+    globals_count = mrc.UInt16_BE( 0x42 )
+    unk3 = mrc.Bytes( 0x44, length=4 )
     functions_count = mrc.UInt16_BE( 0x48 )
     unk4 = mrc.UInt16_BE( 0x4a )
     
-    unk5 = mrc.UInt16_BE( 0x4c )
+    functions_offset = mrc.UInt16_BE( 0x4c )
 
     consts_count = mrc.UInt16_BE( 0x4e )
 
+    unk6 = mrc.UInt16_BE( 0x50 )
+
     consts_offset = mrc.UInt16_BE( 0x52 )
+    unk7 = mrc.UInt16_BE( 0x54 )
     consts_unk = mrc.UInt16_BE( 0x56 )
+    unk8 = mrc.UInt16_BE( 0x58 )
     consts_base = mrc.UInt16_BE( 0x5a )
 
-    #unk6 = mrc.Bytes( 0x5c, length=0xc )
+    unk9 = mrc.Bytes( 0x5c, length=0xc )
 
     @property
     def code_store_size( self ):
@@ -671,6 +685,7 @@ class ScriptV4( mrc.Block ):
 
     code_store_raw = mrc.Bytes( mrc.Ref( 'code_store_offset' ), length=mrc.Ref( 'code_store_size' ) )
 
+    globals = mrc.BlockField( ScriptGlobal, mrc.Ref( 'globals_offset' ), count=mrc.Ref( 'globals_count' ) )
     functions = mrc.BlockField( ScriptFunction, mrc.Ref( 'functions_offset' ), count=mrc.Ref( 'functions_count' ) )
     consts = mrc.BlockField( ScriptConstant, mrc.Ref( 'consts_offset' ), count=mrc.Ref( 'consts_count' ) )
     consts_raw = mrc.Bytes( mrc.EndOffset( 'consts' ) )

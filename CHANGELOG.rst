@@ -5,6 +5,7 @@ Unreleased
 ==========
 
 - lib.platforms.director: More improvements.
+- lib.platforms.director: Add ScriptGlobal model, fix ScriptV4/ScriptFunction specification.
 
 0.7.1 - 2019-10-25
 ==================

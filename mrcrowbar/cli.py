@@ -3,6 +3,9 @@ from mrcrowbar.version import __version__
 
 import argparse
 import os
+import sys
+import logging
+logger = logging.getLogger( __name__ )
 
 auto_int = lambda s: int( s, base=0 )
 
@@ -333,25 +336,28 @@ def mrcdump():
         source_paths = common.file_path_recurse( *source_paths )
 
     for i, path in enumerate( source_paths ):
-        src = open( path, 'rb' )
-        if multi:
-            print( src.name )
-        with common.read( src ) as source:
+        try:
+            with open( path, 'rb' ) as src:
+                if multi:
+                    print( src.name )
+                with common.read( src ) as source:
 
-            if not raw_args.no_hexdump:
-                utils.hexdump(
-                    source, start=raw_args.start, end=raw_args.end, length=raw_args.length,
-                    major_len=raw_args.major_len, minor_len=raw_args.minor_len,
-                    colour=raw_args.colour, address_base=raw_args.address_base,
-                )
+                    if not raw_args.no_hexdump:
+                        utils.hexdump(
+                            source, start=raw_args.start, end=raw_args.end, length=raw_args.length,
+                            major_len=raw_args.major_len, minor_len=raw_args.minor_len,
+                            colour=raw_args.colour, address_base=raw_args.address_base,
+                        )
 
-            if not raw_args.no_hexdump and not raw_args.no_stats:
+                    if not raw_args.no_hexdump and not raw_args.no_stats:
+                        print()
+
+                    if not raw_args.no_stats:
+                        print( 'Source stats:' )
+                        utils.stats( source, raw_args.start, raw_args.end, raw_args.length, raw_args.hist_w, raw_args.hist_h )
                 print()
-
-            if not raw_args.no_stats:
-                print( 'Source stats:' )
-                utils.stats( source, raw_args.start, raw_args.end, raw_args.length, raw_args.hist_w, raw_args.hist_h )
-        print()
+        except OSError as e:
+            logger.warning( '{}'.format( e ) )
 
 
 def mrcdiff():
@@ -379,15 +385,18 @@ def mrchist():
         source_paths = common.file_path_recurse( *source_paths )
 
     for i, path in enumerate( source_paths ):
-        src = open( path, 'rb' )
-        if multi:
-            print( src.name )
-        with common.read( src ) as source:
-            utils.histdump( source, start=raw_args.start, end=raw_args.end,
-                length=raw_args.length, samples=raw_args.samples, width=raw_args.width,
-                address_base=raw_args.address_base,
-            )
-        print()
+        try:
+            with open( path, 'rb' ) as src:
+                if multi:
+                    print( src.name )
+                with common.read( src ) as source:
+                    utils.histdump( source, start=raw_args.start, end=raw_args.end,
+                        length=raw_args.length, samples=raw_args.samples, width=raw_args.width,
+                        address_base=raw_args.address_base,
+                    )
+                print()
+        except OSError as e:
+            logger.warning( '{}'.format( e ) )
 
 
 def mrcpix():
@@ -400,14 +409,17 @@ def mrcpix():
         source_paths = common.file_path_recurse( *source_paths )
 
     for i, path in enumerate( source_paths ):
-        src = open( path, 'rb' )
-        if multi:
-            print( src.name )
-        with common.read( src ) as source:
-            utils.pixdump( source, start=raw_args.start, end=raw_args.end,
-                length=raw_args.length, width=raw_args.width,
-            )
-        print()
+        try:
+            with open( path, 'rb' ) as src:
+                if multi:
+                    print( src.name )
+                with common.read( src ) as source:
+                    utils.pixdump( source, start=raw_args.start, end=raw_args.end,
+                        length=raw_args.length, width=raw_args.width,
+                    )
+                print()
+        except OSError as e:
+            logger.warning( '{}'.format( e ) )
 
 
 def mrcgrep():
@@ -420,26 +432,28 @@ def mrcgrep():
         source_paths = common.file_path_recurse( *source_paths )
 
     for i, path in enumerate( source_paths ):
-        src = open( path, 'rb' )
-        title = None
-        if multi:
-            title = src.name
-        with common.read( src ) as source:
-            if raw_args.no_hexdump:
-                utils.list_grep( raw_args.pattern, source,
-                    encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
-                    hex_format=raw_args.hex_format,
-                    start=raw_args.start, end=raw_args.end,
-                    length=raw_args.length,
-                    title=title
-                )
-            else:
-                utils.hexdump_grep( raw_args.pattern, source,
-                    encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
-                    hex_format=raw_args.hex_format,
-                    start=raw_args.start, end=raw_args.end,
-                    length=raw_args.length,
-                    before=raw_args.before, after=raw_args.after,
-                    title=title
-                )
-
+        try:
+            with open( path, 'rb' ) as src:
+                title = None
+                if multi:
+                    title = src.name
+                with common.read( src ) as source:
+                    if raw_args.no_hexdump:
+                        utils.list_grep( raw_args.pattern, source,
+                            encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
+                            hex_format=raw_args.hex_format,
+                            start=raw_args.start, end=raw_args.end,
+                            length=raw_args.length,
+                            title=title
+                        )
+                    else:
+                        utils.hexdump_grep( raw_args.pattern, source,
+                            encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
+                            hex_format=raw_args.hex_format,
+                            start=raw_args.start, end=raw_args.end,
+                            length=raw_args.length,
+                            before=raw_args.before, after=raw_args.after,
+                            title=title
+                        )
+        except OSError as e:
+            logger.warning( '{}'.format( e ) )

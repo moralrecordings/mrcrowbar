@@ -216,7 +216,7 @@ class LinearStore( View ):
 
 
 class StoreRef( Ref ):
-    def __init__( self, block_klass, store, offset, size, count=None, block_kwargs=None, transform=None ):
+    def __init__( self, block_klass, store, offset, size=None, count=None, block_kwargs=None, transform=None ):
         self.block_klass = block_klass
         self.store = store
         self.offset = offset

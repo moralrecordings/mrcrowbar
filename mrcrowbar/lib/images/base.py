@@ -1,5 +1,5 @@
 from mrcrowbar import models as mrc
-from mrcrowbar import ansi, utils
+from mrcrowbar import ansi, utils, bits
 from mrcrowbar.colour import BaseColour, Black, White, Transparent, from_palette_bytes, to_palette_bytes, TEST_PALETTE
 
 try:
@@ -426,12 +426,12 @@ class Planarizer( mrc.Transform ):
                     else:
                         address = pointer + (row_planar_size*bpp)*(i // row_planar_size) + row_planar_size*b + (i % row_planar_size)
 
-                    # utils.unpack_bits is a helper method which converts a 1-byte bitfield
+                    # bits.unpack_bits is a helper method which converts a 1-byte bitfield
                     # into 8 bool bytes (i.e. 1 or 0) stored as a 64-bit int.
                     # we can effectively work on 8 chunky pixels at once!
                     # because the chunky pixels are bitfields, combining planes is an easy
                     # left shift (i.e. move all the bits up by [plane ID] places) and bitwise OR
-                    planes[i] |= utils.unpack_bits( buffer[address] ) << bi
+                    planes[i] |= bits.unpack_bits( buffer[address] ) << bi
                     
             # check for endianness! for most intel and ARM chips the order of bytes in hardware is reversed,
             # so we need to flip it around for the bytes to be sequential.
@@ -510,7 +510,7 @@ class Planarizer( mrc.Transform ):
                 for i in range( plane_size ):
                     # for each group of 8 chunky pixels, use pack_bits to fill up 8 bits
                     # of the relevant bitplane
-                    raw_planes[pointer+b*segment_size+i] = utils.pack_bits( (planes[i] >> b) )
+                    raw_planes[pointer+b*segment_size+i] = bits.pack_bits( (planes[i] >> b) )
 
         return mrc.TransformResult( payload=raw_planes )
 

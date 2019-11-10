@@ -11,7 +11,7 @@ http://www.shikadi.net/moddingwiki/Secret_Agent_encryption
 """
 
 from mrcrowbar import models as mrc
-from mrcrowbar import utils
+from mrcrowbar import bits
 from mrcrowbar.lib.hardware import ibm_pc 
 from mrcrowbar.lib.images import base as img
 
@@ -24,12 +24,12 @@ class SAMEncryption( mrc.Transform ):
 
     def import_data( self, buffer, parent=None ):
         limit = len( buffer ) if not self.length else min( len( buffer ), self.length )
-        payload = bytes( [utils.BYTE_REVERSE[c] ^ self.KEY[i%len( self.KEY )]
+        payload = bytes( [bits.reverse_bits( c ) ^ self.KEY[i%len( self.KEY )]
                             for i, c in enumerate( buffer[:limit] )] )
         return mrc.TransformResult( payload=payload, end_offset=limit )
 
     def export_data( self, buffer, parent=None ):
-        payload = bytes( [utils.BYTE_REVERSE[c ^ self.KEY[i%len( self.KEY )]]
+        payload = bytes( [bits.reverse_bits( c ^ self.KEY[i%len( self.KEY )] )]
                             for i, c in enumerate( buffer )] )
         return mrc.TransformResult( payload=payload )
 

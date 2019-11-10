@@ -9,6 +9,7 @@ Unreleased
 - cli.mrcgrep: Add ability to ignore case.
 - encoding.regex_pattern_to_bytes: Fix parsing of repetition blocks.
 - views.StoreRef: Make size argument optional by default.
+- bits: Init, move specialist methods out of utils.
 
 0.7.1 - 2019-10-25
 ==================

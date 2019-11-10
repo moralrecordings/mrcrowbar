@@ -49,19 +49,22 @@ BYTE_REVERSE = bytes.fromhex( '008040c020a060e0109050d030b070f0'\
 DIFF_COLOUR_MAP = (9, 10)
 
 
-def grep_iter( pattern, source, encoding='utf8', fixed_string=False, hex_format=False ):
+def grep_iter( pattern, source, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
     assert isinstance( pattern, str )
     assert is_bytes( source )
-    regex = re.compile( enco.regex_pattern_to_bytes( pattern, encoding=encoding, fixed_string=fixed_string, hex_format=hex_format ), re.DOTALL )
+    flags = re.DOTALL
+    if ignore_case:
+        flags |= re.IGNORECASE
+    regex = re.compile( enco.regex_pattern_to_bytes( pattern, encoding=encoding, fixed_string=fixed_string, hex_format=hex_format ), flags )
 
     return regex.finditer( source )
 
 
-def grep( pattern, source, encoding='utf8', fixed_string=False, hex_format=False ):
-    return [x for x in grep_iter( pattern, source, encoding, fixed_string, hex_format )]
+def grep( pattern, source, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
+    return [x for x in grep_iter( pattern, source, encoding, fixed_string, hex_format, ignore_case )]
 
 
-def find_all_iter( source, substring, start=None, end=None, length=None, overlap=False ):
+def find_all_iter( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False ):
     """Iterate through every location a substring can be found in a source string.
 
     source
@@ -86,11 +89,11 @@ def find_all_iter( source, substring, start=None, end=None, length=None, overlap
     if overlap:
         pattern = r'(?=({}))'.format( pattern )
 
-    for match in grep_iter( pattern, source[start:end], hex_format=True ):
+    for match in grep_iter( pattern, source[start:end], hex_format=True, ignore_case=ignore_case ):
         yield match.span()[0]
 
 
-def find_all( source, substring, start=None, end=None, length=None, overlap=False ):
+def find_all( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False ):
     """Return every location a substring can be found in a source string.
 
     source
@@ -108,10 +111,10 @@ def find_all( source, substring, start=None, end=None, length=None, overlap=Fals
     overlap
         Whether to return overlapping matches (default: false)
     """
-    return [x for x in find_all_iter( source, substring, start, end, length, overlap )]
+    return [x for x in find_all_iter( source, substring, start, end, length, overlap, ignore_case )]
 
 
-def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
+def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
@@ -122,7 +125,7 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
     address_base_offset = address_base-start if address_base is not None else 0
     stride = minor_len*major_len
 
-    regex_iter = grep_iter( pattern, source[start:end], encoding, fixed_string, hex_format )
+    regex_iter = grep_iter( pattern, source[start:end], encoding, fixed_string, hex_format, ignore_case )
 
 
     class HighlightBuffer( object ):
@@ -194,12 +197,12 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
         yield line
 
 
-def hexdump_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
-    for line in hexdump_grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, major_len, minor_len, colour, address_base, before, after, title ):
+def hexdump_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
+    for line in hexdump_grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, ignore_case, major_len, minor_len, colour, address_base, before, after, title ):
         print( line )
 
 
-def list_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, address_base=None, title=None ):
+def list_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, address_base=None, title=None ):
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
@@ -209,7 +212,7 @@ def list_grep_iter( pattern, source, start=None, end=None, length=None, encoding
         return
     address_base_offset = address_base-start if address_base is not None else 0
 
-    regex_iter = grep_iter( pattern, source[start:end], encoding, fixed_string, hex_format )
+    regex_iter = grep_iter( pattern, source[start:end], encoding, fixed_string, hex_format, ignore_case )
 
     for match in regex_iter:
         start_off = match.span()[0]+start+address_base_offset
@@ -222,8 +225,8 @@ def list_grep_iter( pattern, source, start=None, end=None, length=None, encoding
         yield line
 
 
-def list_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, address_base=None, title=None ):
-    for line in list_grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, address_base, title ):
+def list_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, address_base=None, title=None ):
+    for line in list_grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, ignore_case, address_base, title ):
         print( line )
 
 

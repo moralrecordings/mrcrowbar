@@ -14,6 +14,7 @@ def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_string=False, hex_fo
         pattern = pattern.replace( ' ', '' ).replace( '\t', '' ).replace( '\n', '' ).replace( '\r', '' )
     
     pointer = 0
+    repeat_block = False
     while pointer < len( pattern ):
         if pattern[pointer] == '\\' and not hex_format:
             # an escaped character!
@@ -36,6 +37,15 @@ def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_string=False, hex_fo
 
         elif pattern[pointer] in REGEX_CHARS and not fixed_string:
             # a regex special character! inject it into the output unchanged
+            if pattern[pointer+1] == '{':
+                repeat_block = True
+            elif pattern[pointer+1] == '}':
+                repeat_block = False
+
+            result.extend( pattern[pointer].encode( 'utf8' ) )
+            pointer += 1
+        elif repeat_block:
+            # inside a repeat block, don't encode anything
             result.extend( pattern[pointer].encode( 'utf8' ) )
             pointer += 1
         elif hex_format:

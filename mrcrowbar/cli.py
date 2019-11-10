@@ -250,6 +250,11 @@ ARGS_GREP = {
         action='store_true',
         help='Interpret strings in PATTERN as hexadecimal'
     ),
+    ('-i', '--ignore-case'): dict(
+        dest='ignore_case',
+        action='store_true',
+        help='Perform a case-insensitive search'
+    ),
     '--encoding': dict(
         metavar='ENCODING',
         dest='encoding',
@@ -444,7 +449,8 @@ def mrcgrep():
                             hex_format=raw_args.hex_format,
                             start=raw_args.start, end=raw_args.end,
                             length=raw_args.length,
-                            title=title
+                            title=title,
+                            ignore_case=raw_args.ignore_case
                         )
                     else:
                         utils.hexdump_grep( raw_args.pattern, source,
@@ -453,7 +459,8 @@ def mrcgrep():
                             start=raw_args.start, end=raw_args.end,
                             length=raw_args.length,
                             before=raw_args.before, after=raw_args.after,
-                            title=title
+                            title=title,
+                            ignore_case=raw_args.ignore_case
                         )
         except OSError as e:
             logger.warning( '{}'.format( e ) )

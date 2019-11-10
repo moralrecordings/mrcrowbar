@@ -6,6 +6,8 @@ Unreleased
 
 - lib.platforms.director: More improvements.
 - lib.platforms.director: Add ScriptGlobal model, fix ScriptV4/ScriptFunction specification.
+- cli.mrcgrep: Add ability to ignore case.
+- encoding.regex_pattern_to_bytes: Fix parsing of repetition blocks.
 
 0.7.1 - 2019-10-25
 ==================

@@ -376,13 +376,17 @@ class Sprite( mrc.Block ):
 
 class ScriptNamesV4( mrc.Block ):
     # used to store the names of functions invoked with CALL_EXTERNAL
-    unk1 = mrc.UInt32_BE( 0x00 )
-    unk2 = mrc.UInt32_BE( 0x04 )
-    length_1 = mrc.UInt32_BE( 0x08 )
-    length_2 = mrc.UInt32_BE( 0x0c )
-    unk5 = mrc.UInt16_BE( 0x10 )
+    unk1 = mrc.UInt16_BE( 0x00 )
+    unk2 = mrc.UInt16_BE( 0x02 )
+    unk3 = mrc.UInt16_BE( 0x04 )
+    unk4 = mrc.UInt16_BE( 0x06 )
+    length_1 = mrc.UInt16_BE( 0x08 )
+    unk5 = mrc.UInt16_BE( 0x0a )
+    length_2 = mrc.UInt16_BE( 0x0c )
+    unk6 = mrc.UInt16_BE( 0x0e )
+    offset = mrc.UInt16_BE( 0x10 )
     count = mrc.UInt16_BE( 0x12 )
-    names = mrc.StringField( 0x14, count=mrc.Ref( 'count' ), length_field=mrc.UInt8 )
+    names = mrc.StringField( mrc.Ref( 'offset' ), count=mrc.Ref( 'count' ), length_field=mrc.UInt8, encoding='latin1' )
 
 
 class ScriptContextEntry( mrc.Block ):
@@ -552,11 +556,11 @@ LINGO_V4_MAP = {LingoV4( x[1] ): x[2] for x in LINGO_V4_LIST}
 
 class ScriptString( mrc.Block ):
     length = mrc.UInt32_BE( 0x00 )
-    value = mrc.CString( 0x04, length=mrc.Ref( 'length' ) )
+    value = mrc.CString( 0x04, length=mrc.Ref( 'length' ), encoding='latin1' )
 
     @property
     def repr( self ):
-        return self.value.decode( 'utf-8' )
+        return self.value
 
 class ScriptConstantString( mrc.Block ):
     offset = mrc.UInt32_BE( 0x00 )
@@ -612,15 +616,39 @@ class ScriptCode( mrc.Block ):
     instructions = mrc.ChunkField( LINGO_V4_MAP, 0x00, id_field=mrc.UInt8, id_enum=LingoV4, default_klass=Blank )
 
 
+class ScriptArguments( mrc.Block ):
+    name_index = mrc.UInt16_BE( 0x00, count=mrc.Ref( '_parent.args_count' ) )
+
+    @property
+    def names( self ):
+        if self._parent and self._parent._parent and self._parent._parent._parent:
+            names = next( (x.obj for x in self._parent._parent._parent.stream if x.id == riff.Tag( b'Lnam' )), None)
+            if names:
+                return [names.names[name_id] if len( names.names ) > name_id else None for name_id in self.name_index]
+        return [None for name_id in self.name_index]
+
+
+class ScriptVariables( mrc.Block ):
+    name_index = mrc.UInt16_BE( 0x00, count=mrc.Ref( '_parent.vars_count' ) )
+
+    @property
+    def names( self ):
+        if self._parent and self._parent._parent and self._parent._parent._parent:
+            names = next( (x.obj for x in self._parent._parent._parent.stream if x.id == riff.Tag( b'Lnam' )), None)
+            if names:
+                return [names.names[name_id] if len( names.names ) > name_id else None for name_id in self.name_index]
+        return [None for name_id in self.name_index]
+
+
 class ScriptFunction( mrc.Block ):
     name_index = mrc.UInt16_BE( 0x00 )
     unk1 = mrc.UInt16_BE( 0x02 )
     length = mrc.UInt32_BE( 0x04 )
     offset = mrc.UInt32_BE( 0x08 )
-    arg_count = mrc.UInt16_BE( 0x0c )
-    arg_offset = mrc.UInt32_BE( 0x0e )
-    var_count = mrc.UInt16_BE( 0x12 )
-    var_names_offset = mrc.UInt32_BE( 0x14 )
+    args_count = mrc.UInt16_BE( 0x0c )
+    args_offset = mrc.UInt32_BE( 0x0e )
+    vars_count = mrc.UInt16_BE( 0x12 )
+    vars_offset = mrc.UInt32_BE( 0x14 )
     unk2 = mrc.UInt16_BE( 0x18 )
     unk8 = mrc.UInt16_BE( 0x1a )
     unk9 = mrc.UInt16_BE( 0x1c )
@@ -632,6 +660,17 @@ class ScriptFunction( mrc.Block ):
     unk15 = mrc.UInt16_BE( 0x28 )
 
     code = mrc.StoreRef( ScriptCode, mrc.Ref( '_parent.code_store' ), offset=mrc.Ref( 'offset' ), size=mrc.Ref( 'length' ) )
+
+    args = mrc.StoreRef( ScriptArguments, mrc.Ref( '_parent.code_store' ), offset=mrc.Ref( 'args_offset' ) )
+    vars = mrc.StoreRef( ScriptVariables, mrc.Ref( '_parent.code_store' ), offset=mrc.Ref( 'vars_offset' ) )
+
+    @property
+    def args_size( self ):
+        return self.args_count * 2
+
+    @property
+    def vars_size( self ):
+        return self.vars_count * 2
 
     @property
     def name( self ):

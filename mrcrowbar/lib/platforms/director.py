@@ -593,7 +593,7 @@ class ScriptConstantFloat( mrc.Block ):
     def repr( self ):
         return self.value.repr
 
-class ScriptConstant( mrc.Block ):
+class ScriptConstantV4( mrc.Block ):
     SCRIPT_CONSTANT_TYPES = {
         0x0001: ScriptConstantString,
         0x0004: ScriptConstantUInt32,
@@ -602,6 +602,21 @@ class ScriptConstant( mrc.Block ):
 
     const_type = mrc.UInt16_BE( 0x00, enum=ScriptConstantType )
     const = mrc.BlockField( SCRIPT_CONSTANT_TYPES, 0x02, block_type=mrc.Ref( 'const_type' ) )
+
+    @property
+    def repr( self ):
+        return '{}: {}'.format( self.const_type, self.const.repr )
+
+
+class ScriptConstantV5( mrc.Block ):
+    SCRIPT_CONSTANT_TYPES = {
+        0x0001: ScriptConstantString,
+        0x0004: ScriptConstantUInt32,
+        0x0009: ScriptConstantFloat
+    }
+
+    const_type = mrc.UInt32_BE( 0x00, enum=ScriptConstantType )
+    const = mrc.BlockField( SCRIPT_CONSTANT_TYPES, 0x04, block_type=mrc.Ref( 'const_type' ) )
 
     @property
     def repr( self ):
@@ -708,8 +723,6 @@ class ScriptV4( mrc.Block ):
     unk8 = mrc.UInt16_BE( 0x58 )
     consts_base = mrc.UInt16_BE( 0x5a )
 
-    unk9 = mrc.Bytes( 0x5c, length=0xc )
-
     @property
     def code_store_size( self ):
         return self.functions_offset - self.code_store_offset
@@ -726,7 +739,7 @@ class ScriptV4( mrc.Block ):
 
     globals = mrc.BlockField( ScriptGlobal, mrc.Ref( 'globals_offset' ), count=mrc.Ref( 'globals_count' ) )
     functions = mrc.BlockField( ScriptFunction, mrc.Ref( 'functions_offset' ), count=mrc.Ref( 'functions_count' ) )
-    consts = mrc.BlockField( ScriptConstant, mrc.Ref( 'consts_offset' ), count=mrc.Ref( 'consts_count' ) )
+    consts = mrc.BlockField( ScriptConstantV4, mrc.Ref( 'consts_offset' ), count=mrc.Ref( 'consts_count' ) )
     consts_raw = mrc.Bytes( mrc.EndOffset( 'consts' ) )
 
     @property
@@ -743,6 +756,9 @@ class ScriptV4( mrc.Block ):
 
         super().__init__( *args, **kwargs )
 
+
+class ScriptV5( ScriptV4 ):
+    consts = mrc.BlockField( ScriptConstantV5, mrc.Ref( 'consts_offset' ), count=mrc.Ref( 'consts_count' ) )
 
 
 
@@ -768,6 +784,24 @@ class DirectorV4( riff.RIFX ):
     CHUNK_MAP_CLASS = DirectorV4Map
 
 
+class DirectorV5Map( riff.RIFXMap ):
+    CHUNK_MAP = {
+        riff.Tag( b'mmap' ): MMapV4,
+        riff.Tag( b'KEY*' ): KeyV4,
+        riff.Tag( b'Sord' ): SordV4,
+        riff.Tag( b'CAS*' ): CastListV4,
+        riff.Tag( b'CASt' ): CastV4,
+        riff.Tag( b'snd ' ): SoundV4,
+        riff.Tag( b'BITD' ): BitmapV4,
+        riff.Tag( b'STXT' ): TextV4,
+        riff.Tag( b'Lscr' ): ScriptV5,
+        riff.Tag( b'Lnam' ): ScriptNamesV4,
+        riff.Tag( b'Lctx' ): ScriptContextV4,
+        riff.Tag( b'VWSC' ): ScoreV4,
+    }
+DirectorV4Map.CHUNK_MAP[riff.Tag( b'RIFX' )] = DirectorV4Map
+
+
 class PJ93( mrc.Block ):
     _endian = 'little'
     
@@ -784,17 +818,29 @@ class PJ93( mrc.Block ):
 
 class MV93( mrc.Block ):
     _endian = 'little'
+    CHUNK_MAP_CLASS = DirectorV4Map.CHUNK_MAP
 
     magic = mrc.Const( mrc.Bytes( 0x00, length=4 ), b'XFIR' )
     data_length = mrc.UInt32_P( 0x04 )
     magic2 = mrc.Const( mrc.Bytes( 0x08, length=4 ), b'39VM' )
-    stream = mrc.ChunkField( DirectorV4Map.CHUNK_MAP, mrc.EndOffset( 'magic2' ), stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2, fill=b'' )
+    stream = mrc.ChunkField( CHUNK_MAP_CLASS, 0x0c, stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2, fill=b'' )
 
 
 class MV93_BE( mrc.Block ):
     _endian = 'big'
+    CHUNK_MAP_CLASS = DirectorV4Map.CHUNK_MAP
 
     magic = mrc.Const( mrc.Bytes( 0x00, length=4 ), b'RIFX' )
     data_length = mrc.UInt32_P( 0x04 )
     magic2 = mrc.Const( mrc.Bytes( 0x08, length=4 ), b'MV93' )
-    stream = mrc.ChunkField( DirectorV4Map.CHUNK_MAP, mrc.EndOffset( 'magic2' ), stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2, fill=b'' )
+    stream = mrc.ChunkField( CHUNK_MAP_CLASS, 0x0c, stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2, fill=b'' )
+
+
+class MV93_BE_V5( mrc.Block ):
+    _endian = 'big'
+    CHUNK_MAP_CLASS = DirectorV5Map.CHUNK_MAP
+
+    magic = mrc.Const( mrc.Bytes( 0x00, length=4 ), b'RIFX' )
+    data_length = mrc.UInt32_P( 0x04 )
+    magic2 = mrc.Const( mrc.Bytes( 0x08, length=4 ), b'MV93' )
+    stream = mrc.ChunkField( CHUNK_MAP_CLASS, 0x0c, stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2, fill=b'' )

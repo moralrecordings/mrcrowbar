@@ -148,8 +148,10 @@ class BlockMeta( type ):
 class Block( object, metaclass=BlockMeta ):
     _parent = None
     _endian = None
+    _cache_bytes = False
+    _bytes = None
 
-    def __init__( self, source_data=None, parent=None, preload_attrs=None, endian=None ):
+    def __init__( self, source_data=None, parent=None, preload_attrs=None, endian=None, cache_bytes=False ):
         """Base class for Blocks.
 
         source_data
@@ -169,6 +171,10 @@ class Block( object, metaclass=BlockMeta ):
             Useful for Blocks which have the same data layout but different
             endianness for stored numbers. Has no effect on fields with an
             predefined endianness.
+
+        cache_bytes
+            Cache the bytes equivalent of the Block. Useful for debugging the
+            loading procedure. Defaults to False.
         """
         self._field_data = {}
         self._ref_cache = {}
@@ -176,6 +182,11 @@ class Block( object, metaclass=BlockMeta ):
             assert isinstance( parent, Block )
         self._parent = parent
         self._endian = endian if endian else (parent._endian if parent else self._endian)
+
+        if cache_bytes:
+            self._cache_bytes = True
+            if source_data and common.is_bytes( source_data ):
+                self._bytes = bytes( source_data )
 
         if preload_attrs:
             for attr, value in preload_attrs.items():
@@ -334,6 +345,13 @@ class Block( object, metaclass=BlockMeta ):
         for check in klass._checks.values():
             size = max( size, check.get_end_offset( parent=self ) )
         return size
+
+    def get_field_obj( self, field_name ):
+        return klass._fields[field_name]
+
+    def get_field_names( self ):
+        klass = self.__class__
+        return klass._fields.keys()
 
     def get_field_start_offset( self, field_name, index=None ):
         klass = self.__class__

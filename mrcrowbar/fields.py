@@ -85,7 +85,7 @@ class Field( object ):
         assert common.is_bytes( buffer )
         self.validate( value, parent )
         return
-    
+
     def get_start_offset( self, value, parent=None, index=None ):
         """Return the start offset of where the Field's data is to be stored in the Block.
 
@@ -390,17 +390,18 @@ class StreamField( Field ):
         alignment = property_get( self.alignment, parent )
         is_array = stream or (count is not None)
 
+        pointer = self.get_start_offset( value, parent, index )
+        start = pointer
+
         if index is not None:
             if not is_array:
                 raise IndexError( 'Can\'t use index for a non-array BlockField' )
-            elif index not in range( 0, count ):
-                raise IndexError( 'Index {} is not within range( 0, {} )'.format( index, count ) )
+            elif index not in range( 0, len( value ) ):
+                raise IndexError( 'Index {} is not within range( 0, {} )'.format( index, len( value ) ) )
             value = [value[index]]
         else:
             value = value if is_array else [value]
 
-        pointer = self.get_start_offset( value, parent, index )
-        start = pointer
         for element in value:
             start_offset = pointer
             pointer += self.get_element_size( element, parent )
@@ -537,9 +538,9 @@ class ChunkField( StreamField ):
             if chunk_buffer == fill:
                 result = Chunk( id=chunk_id, obj=None )
                 return result, pointer
-            chunk = chunk_klass( chunk_buffer, parent=parent )
+            chunk = chunk_klass( chunk_buffer, parent=parent, cache_bytes=parent._cache_bytes )
         else:
-            chunk = chunk_klass( buffer[pointer:], parent=parent )
+            chunk = chunk_klass( buffer[pointer:], parent=parent, cache_bytes=parent._cache_bytes )
             pointer += chunk.get_size()
         result = Chunk( id=chunk_id, obj=chunk )
 
@@ -694,10 +695,10 @@ class BlockField( StreamField ):
         # if we have an inline transform, apply it
         elif self.transform:
             data = self.transform.import_data( buffer[offset:], parent=parent )
-            block = klass( source_data=data.payload, parent=parent, **self.block_kwargs )
+            block = klass( source_data=data.payload, parent=parent, cache_bytes=parent._cache_bytes, **self.block_kwargs )
             return block, offset+data.end_offset
         # otherwise, create a block
-        block = klass( source_data=buffer[offset:], parent=parent, **self.block_kwargs )
+        block = klass( source_data=buffer[offset:], parent=parent, cache_bytes=parent._cache_bytes, **self.block_kwargs )
         size = block.get_size()
         if size == 0:
             if stream:

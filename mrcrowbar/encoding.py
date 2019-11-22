@@ -37,9 +37,9 @@ def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_string=False, hex_fo
 
         elif pattern[pointer] in REGEX_CHARS and not fixed_string:
             # a regex special character! inject it into the output unchanged
-            if pattern[pointer+1] == '{':
+            if pattern[pointer] == '{':
                 repeat_block = True
-            elif pattern[pointer+1] == '}':
+            elif pattern[pointer] == '}':
                 repeat_block = False
 
             result.extend( pattern[pointer].encode( 'utf8' ) )

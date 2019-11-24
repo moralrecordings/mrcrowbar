@@ -9,7 +9,13 @@ Unreleased
 - cli.mrcgrep: Add ability to ignore case.
 - encoding.regex_pattern_to_bytes: Fix parsing of repetition blocks.
 - views.StoreRef: Make size argument optional by default.
+- lib.platforms.director: Add ScriptArguments and ScriptVariables.
 - bits: Init, move specialist methods out of utils.
+- fields.StreamField: Fix get_size().
+- utils: Add search() method for searching within Blocks for Fields that match byte strings.
+- fields.StreamField: Prevent massive recursive slowdown in get_size().
+- sound.play_pcm: Fix playback for case with no interpolation.
+
 
 0.7.1 - 2019-10-25
 ==================

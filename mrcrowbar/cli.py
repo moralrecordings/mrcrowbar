@@ -444,7 +444,7 @@ def mrcgrep():
                     title = src.name
                 with common.read( src ) as source:
                     if raw_args.no_hexdump:
-                        utils.list_grep( raw_args.pattern, source,
+                        utils.listdump_grep( raw_args.pattern, source,
                             encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
                             hex_format=raw_args.hex_format,
                             start=raw_args.start, end=raw_args.end,

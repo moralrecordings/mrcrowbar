@@ -33,6 +33,26 @@ DIFF_COLOUR_MAP = (9, 10)
 
 
 def grep_iter( pattern, source, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
+    """Return an iterator that finds the contents of a byte string that match a pattern.
+
+    pattern
+        Pattern to match, as a Python string
+
+    source
+        Byte string to inspect
+
+    encoding
+        Convert strings in the pattern to a specific Python encoding (default: utf8)
+
+    fixed_string
+        Interpret the pattern as a fixed string (disable regular expressions)
+
+    hex_format
+        Interpret the pattern as raw hexidecimal (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
+    """
     assert isinstance( pattern, str )
     assert is_bytes( source )
     flags = re.DOTALL
@@ -43,15 +63,38 @@ def grep_iter( pattern, source, encoding='utf8', fixed_string=False, hex_format=
     return regex.finditer( source )
 
 
-def grep( pattern, source, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
-    return [x for x in grep_iter( pattern, source, encoding, fixed_string, hex_format, ignore_case )]
+def grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
+    """Find the contents of a byte string that match a pattern.
+
+    pattern
+        Pattern to match, as a Python string
+
+    source
+        Source byte string to search
+
+    encoding
+        Convert strings in the pattern to a specific Python encoding (default: utf8)
+
+    fixed_string
+        Interpret the pattern as a fixed string (disable regular expressions)
+
+    hex_format
+        Interpret the pattern as raw hexidecimal (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
+    """
+    return [x for x in grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, ignore_case )]
 
 
 def find_all_iter( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False ):
-    """Iterate through every location a substring can be found in a source string.
+    """Return an iterator that finds every location of a substring in a source byte string.
 
     source
-        The source string to search.
+        Source byte string to search.
+
+    substring
+        Pattern to match, as a Python byte string
 
     start
         Start offset to read from (default: start)
@@ -64,8 +107,12 @@ def find_all_iter( source, substring, start=None, end=None, length=None, overlap
 
     overlap
         Whether to return overlapping matches (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
     """
     assert is_bytes( source )
+    assert is_bytes( substring )
     start, end = bounds( start, end, length, len( source ) )
 
     pattern = substring.hex()
@@ -77,10 +124,13 @@ def find_all_iter( source, substring, start=None, end=None, length=None, overlap
 
 
 def find_all( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False ):
-    """Return every location a substring can be found in a source string.
+    """Find every location of a substring in a source byte string.
 
     source
-        The source string to search.
+        Source byte string to search.
+
+    substring
+        Pattern to match, as a Python byte string
 
     start
         Start offset to read from (default: start)
@@ -93,11 +143,66 @@ def find_all( source, substring, start=None, end=None, length=None, overlap=Fals
 
     overlap
         Whether to return overlapping matches (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
     """
     return [x for x in find_all_iter( source, substring, start, end, length, overlap, ignore_case )]
 
 
 def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
+    """Return an iterator that searches a byte string for a pattern and renders the result in tabular hexadecimal/ASCII format.
+
+    pattern
+        Pattern to match, as a Python string
+
+    source
+        The byte string to print.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    encoding
+        Convert strings in the pattern to a specific Python encoding (default: utf8)
+
+    fixed_string
+        Interpret the pattern as a fixed string (disable regular expressions)
+
+    hex_format
+        Interpret the pattern as raw hexidecimal (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
+
+    major_len
+        Number of hexadecimal groups per line
+
+    minor_len
+        Number of bytes per hexadecimal group
+
+    colour
+        Add ANSI colour formatting to output (default: true)
+
+    address_base
+        Base address to use for labels (default: start)
+
+    before
+        Number of lines of context preceeding a match to show
+
+    after
+        Number of lines of context following a match to show
+
+    title
+        Name to print as a heading if there's a match. Useful for file names.
+
+    Raises ValueError if both end and length are defined.
+    """
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
@@ -181,11 +286,117 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
 
 
 def hexdump_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
+    """Search a byte string for a pattern and print the result in tabular hexadecimal/ASCII format.
+
+    pattern
+        Pattern to match, as a Python string
+
+    source
+        The byte string to print.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    encoding
+        Convert strings in the pattern to a specific Python encoding (default: utf8)
+
+    fixed_string
+        Interpret the pattern as a fixed string (disable regular expressions)
+
+    hex_format
+        Interpret the pattern as raw hexidecimal (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
+
+    major_len
+        Number of hexadecimal groups per line
+
+    minor_len
+        Number of bytes per hexadecimal group
+
+    colour
+        Add ANSI colour formatting to output (default: true)
+
+    address_base
+        Base address to use for labels (default: start)
+
+    before
+        Number of lines of context preceeding a match to show
+
+    after
+        Number of lines of context following a match to show
+
+    title
+        Name to print as a heading if there's a match. Useful for file names.
+
+    Raises ValueError if both end and length are defined.
+    """
+
     for line in hexdump_grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, ignore_case, major_len, minor_len, colour, address_base, before, after, title ):
         print( line )
 
 
-def list_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, address_base=None, title=None ):
+def listdump_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, address_base=None, title=None ):
+    """Return an iterator that searches a byte string for a pattern and renders the result in list format.
+
+    pattern
+        Pattern to match, as a Python string
+
+    source
+        The byte string to print.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    encoding
+        Convert strings in the pattern to a specific Python encoding (default: utf8)
+
+    fixed_string
+        Interpret the pattern as a fixed string (disable regular expressions)
+
+    hex_format
+        Interpret the pattern as raw hexidecimal (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
+
+    major_len
+        Number of hexadecimal groups per line
+
+    minor_len
+        Number of bytes per hexadecimal group
+
+    colour
+        Add ANSI colour formatting to output (default: true)
+
+    address_base
+        Base address to use for labels (default: start)
+
+    before
+        Number of lines of context preceeding a match to show
+
+    after
+        Number of lines of context following a match to show
+
+    title
+        Name to print as a heading if there's a match. Useful for file names.
+
+    Raises ValueError if both end and length are defined.
+    """
+
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
@@ -208,9 +419,153 @@ def list_grep_iter( pattern, source, start=None, end=None, length=None, encoding
         yield line
 
 
-def list_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, address_base=None, title=None ):
+def listdump_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, address_base=None, title=None ):
+    """Search a byte string for a pattern and print the result in list format.
+
+    pattern
+        Pattern to match, as a Python string
+
+    source
+        The byte string to print.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    encoding
+        Convert strings in the pattern to a specific Python encoding (default: utf8)
+
+    fixed_string
+        Interpret the pattern as a fixed string (disable regular expressions)
+
+    hex_format
+        Interpret the pattern as raw hexidecimal (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
+
+    major_len
+        Number of hexadecimal groups per line
+
+    minor_len
+        Number of bytes per hexadecimal group
+
+    colour
+        Add ANSI colour formatting to output (default: true)
+
+    address_base
+        Base address to use for labels (default: start)
+
+    before
+        Number of lines of context preceeding a match to show
+
+    after
+        Number of lines of context following a match to show
+
+    title
+        Name to print as a heading if there's a match. Useful for file names.
+
+    Raises ValueError if both end and length are defined.
+    """
+
     for line in list_grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, ignore_case, address_base, title ):
         print( line )
+
+
+def search_iter( pattern, source, prefix='source', depth=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
+    """Return an iterator that finds the Fields inside a Block that match a pattern.
+
+    pattern
+        Pattern to match, as a Python string
+
+    source
+        Block object to inspect
+
+    encoding
+        Convert strings in the pattern to a specific Python encoding (default: utf8)
+
+    fixed_string
+        Interpret the pattern as a fixed string (disable regular expressions)
+
+    hex_format
+        Interpret the pattern as raw hexidecimal (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
+    """
+    from mrcrowbar.models import Block, Chunk
+
+    contains = False
+    depth = depth-1 if depth is not None else None
+
+    match_list = [x.span() for x in grep( pattern, source.export_data(), encoding, fixed_string, hex_format, ignore_case )]
+
+    fields = source.get_field_names()
+
+    def check_field( offset, size, data, pref ):
+        for match in match_list:
+            if offset <= match[0] < offset + size or offset <= match[1] < offset+size:
+                if isinstance( data, Block ):
+                    success = False
+                    for x in search_iter( pattern, data, pref, depth, encoding, fixed_string, hex_format, ignore_case ):
+                        success = True
+                        yield x
+                    if not success:
+                        # no exact match, yield entire object
+                        yield pref
+                elif isinstance( data, Chunk ):
+                    success = False
+                    for x in search_iter( pattern, data.obj, '{}.obj'.format( pref ), depth, encoding, fixed_string, hex_format, ignore_case ):
+                        success = True
+                        yield x
+                    if not success:
+                        yield pref
+                else:
+                    yield pref
+                break
+
+    for name in fields:
+        offset = source.get_field_start_offset( name )
+        size = source.get_field_size( name )
+        data = getattr( source, name )
+        if type( data ) == list:
+            # field contents is a list, check each of the individual elements
+            el_offset = offset
+            for i, el in enumerate( data ):
+                el_size = source.get_field_size( name, index=i )
+                yield from check_field( el_offset, el_size, el, '{}.{}[{}]'.format( prefix, name, i ) )
+                el_offset += el_size
+        else:
+            yield from check_field( offset, size, data, '{}.{}'.format( prefix, name ) )
+
+
+def search( pattern, source, prefix='source', depth=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
+    """Find the Fields inside a Block that match a byte pattern.
+
+    pattern
+        Pattern to match, as a Python string
+
+    source
+        Block object to inspect
+
+    encoding
+        Convert strings in the pattern to a specific Python encoding (default: utf8)
+
+    fixed_string
+        Interpret the pattern as a fixed string (disable regular expressions)
+
+    hex_format
+        Interpret the pattern as raw hexidecimal (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
+    """
+    return [x for x in search_iter( pattern, source, prefix, depth, encoding, fixed_string, hex_format, ignore_case )]
 
 
 def basic_diff( source1, source2, start=None, end=None ):
@@ -253,7 +608,7 @@ def basic_diff( source1, source2, start=None, end=None ):
 
 
 def diff_iter( source1, source2, prefix='source', depth=None ):
-    """Perform a diff between two objects.
+    """Return an iterator that finds differences between two objects.
 
     source1
         The first source.
@@ -277,13 +632,13 @@ def diff_iter( source1, source2, prefix='source', depth=None ):
         if type( source1 ) == list:
             for i in range( max( len( source1 ), len( source2 ) ) ):
                 prefix_mod = prefix+'[{}]'.format( i )
+
                 if i < len( source1 ) and i < len( source2 ):
-                    for x in diff_iter( source1[i], source2[i], prefix=prefix_mod, depth=depth ):
-                        yield x
+                    yield from diff_iter( source1[i], source2[i], prefix=prefix_mod, depth=depth )
                 elif i >= len( source2 ):
-                    yield( prefix_mod, abbr( source1[i] ), None )
+                    yield (prefix_mod, abbr( source1[i] ), None)
                 else:
-                    yield( prefix_mod, abbr( None, source2[i] ) )
+                    yield (prefix_mod, abbr( None, source2[i] ))
         elif type( source1 ) == bytes:
             if source1 != source2:
                 yield( prefix, source1, source2 )
@@ -301,15 +656,14 @@ def diff_iter( source1, source2, prefix='source', depth=None ):
                 for i in range( len( s1[1] ) ):
                     assert s1[1][i][0] == s2[1][i][0]
                     if s1[1][i][1] != s2[1][i][1]:
-                        for x in diff_iter( getattr( source1, s1[1][i][0] ), getattr( source2, s1[1][i][0] ), prefix='{}.{}'.format( prefix, s1[1][i][0] ), depth=depth ):
-                            yield x
+                        yield from diff_iter( getattr( source1, s1[1][i][0] ), getattr( source2, s1[1][i][0] ), prefix='{}.{}'.format( prefix, s1[1][i][0] ), depth=depth )
         else:
             if source1 != source2:
                 yield (prefix, source1, source2)
 
 
 def diff( source1, source2, prefix='source', depth=None ):
-    """Perform a diff between two objects.
+    """Find differences between two objects.
 
     source1
         The first source.
@@ -326,14 +680,14 @@ def diff( source1, source2, prefix='source', depth=None ):
     return [x for x in diff_iter( source1, source2, prefix, depth )]
 
 
-def diffdump( source1, source2, prefix='source', depth=None ):
-    """Perform a diff between two objects.
+def diffdump_iter( source1, source2, prefix='source', depth=None ):
+    """Return an iterator that renders a list of differences between two objects.
 
     source1
-        The first source.
+        First source object
 
     source2
-        The second source.
+        Second source object
 
     prefix
         The name of the base element to display.
@@ -344,21 +698,62 @@ def diffdump( source1, source2, prefix='source', depth=None ):
     same = True
     for p, s1, s2 in diff_iter( source1, source2, prefix, depth ):
         if type( s1 ) == bytes and type( s2 ) == bytes:
-            print( '* {}:'.format( prefix ) )
-            for line in hexdump_diff_iter( s1, s2 ):
-                print( line )
+            yield '* {}:'.format( prefix )
+            yield from hexdump_diff_iter( s1, s2 )
             same = False
             continue
         if s1 is not None:
-            print( ansi.format_string( '- {}: {}'.format( p, s1 ), foreground=DIFF_COLOUR_MAP[0] ) )
+            yield ansi.format_string( '- {}: {}'.format( p, s1 ), foreground=DIFF_COLOUR_MAP[0] )
             same = False
         if s2 is not None:
-            print( ansi.format_string( '+ {}: {}'.format( p, s2 ), foreground=DIFF_COLOUR_MAP[1] ) )
+            yield ansi.format_string( '+ {}: {}'.format( p, s2 ), foreground=DIFF_COLOUR_MAP[1] )
             same = False
     return same
 
 
+def diffdump( source1, source2, prefix='source', depth=None ):
+    """Print a list of differences between two objects.
+
+    source1
+        First source object
+
+    source2
+        Second source object
+
+    prefix
+        The name of the base element to display.
+
+    depth
+        Maximum number of levels to traverse.
+    """
+    for line in diffdump_iter( source1, source2, prefix, depth ):
+        print( line )
+
+
 def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, width=64, address_base=None ):
+    """Return an iterator that renders a histogram of a byte string.
+
+    source
+        Source byte string to measure
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    samples
+        Number of samples per histogram slice (default: 0x10000)
+
+    width
+        Width of rendered histogram (default: 64)
+
+    address_base
+        Base address to use for labelling (default: start)
+    """
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
@@ -374,15 +769,38 @@ def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, w
 
 
 def histdump( source, start=None, end=None, length=None, samples=0x10000, width=64, address_base=None ):
+    """Print a histogram of a byte string.
+
+    source
+        Source byte string to measure
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    samples
+        Number of samples per histogram slice (default: 0x10000)
+
+    width
+        Width of rendered histogram (default: 64)
+
+    address_base
+        Base address to use for labelling (default: start)
+    """
     for line in histdump_iter( source, start, end, length, samples, width, address_base ):
         print( line )
 
 
 def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None ):
-    """Return the contents of a byte string in tabular hexadecimal/ASCII format.
+    """Return an iterator that renders a byte string in tabular hexadecimal/ASCII format.
     
     source
-        The byte string to print.
+        Source byte string to render
 
     start
         Start offset to read from (default: start)
@@ -422,10 +840,10 @@ def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_
 
 
 def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None ):
-    """Print the contents of a byte string in tabular hexadecimal/ASCII format.
+    """Print a byte string in tabular hexadecimal/ASCII format.
     
     source
-        The byte string to print.
+        Source byte string to print
 
     start
         Start offset to read from (default: start)
@@ -455,13 +873,13 @@ def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4
 
 
 def hexdump_diff_iter( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2, address_base=None ):
-    """Returns the differences between two byte strings in tabular hexadecimal/ASCII format.
+    """Return an iterator that renders the differences between two byte strings and renders the result in tabular hexadecimal/ASCII format.
 
     source1
-        The first byte string source.
+        First byte string source
 
     source2
-        The second byte string source.
+        Second byte string source
 
     start
         Start offset to read from (default: start)
@@ -546,13 +964,13 @@ def hexdump_diff_iter( source1, source2, start=None, end=None, length=None, majo
 
 
 def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2, address_base=None ):
-    """Returns the differences between two byte strings in tabular hexadecimal/ASCII format.
+    """Print the differences between two byte strings in tabular hexadecimal/ASCII format.
 
     source1
-        The first byte string source.
+        First byte string source
 
     source2
-        The second byte string source.
+        Second byte string source
 
     start
         Start offset to read from (default: start)
@@ -588,6 +1006,8 @@ def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len
 
 
 def stats( source, start=None, end=None, length=None, width=64, height=12 ):
+    """Print histogram statistics 
+    """
     start, end = bounds( start, end, length, len( source ) )
 
     stat = statistics.Stats( source[start:end] )
@@ -595,10 +1015,10 @@ def stats( source, start=None, end=None, length=None, width=64, height=12 ):
 
 
 def pixdump_iter( source, start=None, end=None, length=None, width=64, height=None, palette=None ):
-    """Return the contents of a byte string as a 256 colour image.
+    """Return an iterator which renders the contents of a byte string as a 256 colour image.
 
     source
-        The byte string to print.
+        Source byte string to render
 
     start
         Start offset to read from (default: start)
@@ -654,7 +1074,7 @@ def pixdump( source, start=None, end=None, length=None, width=64, height=None, p
     """Print the contents of a byte string as a 256 colour image.
 
     source
-        The byte string to print.
+        Source byte string to print
 
     start
         Start offset to read from (default: start)

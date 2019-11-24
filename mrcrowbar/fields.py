@@ -390,8 +390,7 @@ class StreamField( Field ):
         alignment = property_get( self.alignment, parent )
         is_array = stream or (count is not None)
 
-        pointer = self.get_start_offset( value, parent, index )
-        start = pointer
+        pointer = 0
 
         if index is not None:
             if not is_array:
@@ -414,7 +413,7 @@ class StreamField( Field ):
         if self.stream_end is not None:
             pointer += len( self.stream_end )
 
-        return pointer - start
+        return pointer
 
 
 

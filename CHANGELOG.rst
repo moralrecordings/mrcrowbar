@@ -1,8 +1,8 @@
 Changelog
 #########
 
-Unreleased
-==========
+0.7.2 - 2019-11-24
+==================
 
 - lib.platforms.director: More improvements.
 - lib.platforms.director: Add ScriptGlobal model, fix ScriptV4/ScriptFunction specification.

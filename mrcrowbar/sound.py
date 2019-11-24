@@ -105,6 +105,41 @@ def resample_audio_iter( source, format_type, field_size, signedness, endian, ch
 
 
 def play_pcm( source, channels, sample_rate, format_type, field_size, signedness, endian, start=None, end=None, length=None, interpolation=AudioInterpolation.LINEAR ):
+    """Play back a byte string as PCM audio.
+
+    source
+        The byte string to play.
+
+    channels
+        Number of audio channels.
+
+    sample_rate
+        Audio sample rate in Hz.
+
+    format_type
+        Type of sample encoding; either int or float.
+
+    field_size
+        Size of each sample, in bytes.
+
+    signedness
+        Signedness of each sample; either 'signed' or 'unsigned'.
+
+    endian
+        Endianness of each sample; either 'big', 'little' or None.
+
+    start
+        Start offset to read from (default: start).
+
+    end
+        End offset to stop reading at (default: end).
+
+    length
+        Length to read in (optional replacement for end).
+
+    interpolation
+        Interpolation algorithm to use for upsampling. Defaults to AudioInterpolation.LINEAR.
+    """
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
@@ -112,14 +147,19 @@ def play_pcm( source, channels, sample_rate, format_type, field_size, signedness
         raise ImportError( 'pyaudio must be installed for audio playback support (see https://people.csail.mit.edu/hubert/pyaudio)' )
     audio = pyaudio.PyAudio()
     format = getattr( pyaudio, PYAUDIO_NORMALISE_TYPE )
-    rate = sample_rate
+    playback_rate = None
 
-    samp_iter = resample_audio_iter( source, format_type, field_size, signedness, endian, channels, sample_rate, start, end, output_rate=RESAMPLE_RATE )
+    if interpolation == AudioInterpolation.NONE:
+        playback_rate = sample_rate
+    else:
+        playback_rate = RESAMPLE_RATE
+
+    samp_iter = resample_audio_iter( source, format_type, field_size, signedness, endian, channels, sample_rate, start, end, output_rate=playback_rate, interpolation=interpolation )
 
     stream = audio.open(
         format=format,
         channels=channels,
-        rate=RESAMPLE_RATE,
+        rate=playback_rate,
         output=True
     )
 

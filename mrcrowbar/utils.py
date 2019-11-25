@@ -63,7 +63,7 @@ def grep_iter( pattern, source, encoding='utf8', fixed_string=False, hex_format=
     return regex.finditer( source )
 
 
-def grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
+def grep( pattern, source, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
     """Find the contents of a byte string that match a pattern.
 
     pattern
@@ -84,7 +84,7 @@ def grep( pattern, source, start=None, end=None, length=None, encoding='utf8', f
     ignore_case
         Perform a case-insensitive search
     """
-    return [x for x in grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, ignore_case )]
+    return [x for x in grep_iter( pattern, source, encoding, fixed_string, hex_format, ignore_case )]
 
 
 def find_all_iter( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False ):
@@ -1006,7 +1006,22 @@ def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len
 
 
 def stats( source, start=None, end=None, length=None, width=64, height=12 ):
-    """Print histogram statistics 
+    """Print histogram graph for a byte string.
+
+    source
+        Source byte string to render
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    width
+        Width of graph to render in pixels (default: 64)
+
+    height
+        Height of graph to render in pixels (default: auto)
     """
     start, end = bounds( start, end, length, len( source ) )
 

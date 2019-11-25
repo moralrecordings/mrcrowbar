@@ -13,6 +13,15 @@ mrcdump
    :prog: mrcdump
    :nodefault:
 
+mrcgrep
+*******
+
+.. argparse::
+   :module: mrcrowbar.cli
+   :func: mrcgrep_parser
+   :prog: mrcgrep
+   :nodefault:
+
 mrcdiff
 *******
 

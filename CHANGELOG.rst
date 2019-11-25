@@ -1,6 +1,11 @@
 Changelog
 #########
 
+Unreleased
+==========
+
+- utils.grep: Fix wrong number of arguments.
+
 0.7.2 - 2019-11-24
 ==================
 

@@ -159,14 +159,47 @@ class SoundCastV4( mrc.Block ):
     def repr( self ):
         return 'unk1={}{}'.format(
             self.unk1, ', name={}'.format( self.extra[0].name ) if self.extra else '' )
-4
+
 class ScriptCastV4( mrc.Block ):
     unk1        = mrc.Bytes( 0x00, length=0x14 )
     script_id   = mrc.UInt16_BE( 0x14 )
-    unk4_size   = mrc.UInt16_BE( 0x16 )
+    unk2        = mrc.UInt16_BE( 0x16 )
     unk3        = mrc.UInt32_BE( 0x18 )
-    unk4        = mrc.UInt32_BE( 0x1c, count=mrc.Ref( 'unk4_size' ) )
-    extra       = mrc.Bytes( mrc.EndOffset( 'unk4' ) )
+    name_offset = mrc.UInt32_BE( 0x1c )
+    extra1_offset_raw   = mrc.UInt32_BE( 0x20 )
+    unk5        = mrc.UInt32_BE( 0x24 )
+    unk6        = mrc.UInt32_BE( 0x28 )
+    unk7        = mrc.UInt32_BE( 0x2c ) 
+    extra2_offset_raw = mrc.UInt32_BE( 0x30 )
+    end_offset_raw  = mrc.UInt32_BE( 0x34 )
+    code            = mrc.Bytes( mrc.EndOffset( 'end_offset_raw' ), length=mrc.Ref( 'name_offset' ) )
+    name            = mrc.PString( mrc.EndOffset( 'code' ) )
+    extra1      = mrc.Bytes( mrc.Ref( 'extra1_offset' ), length=mrc.Ref( 'extra1_size' ) )
+    extra2      = mrc.Bytes( mrc.Ref( 'extra2_offset' ), length=mrc.Ref( 'extra2_size' ) )
+
+    @property
+    def extra1_offset( self ):
+        return self.extra1_offset_raw + 0x38
+
+    @property
+    def extra1_size( self ):
+        return self.extra2_offset_raw-self.extra1_offset_raw
+
+    @extra1_size.setter
+    def extra1_size( self, value ):
+        self.extra2_offset_raw = value+self.extra1_offset_raw
+
+    @property
+    def extra2_offset( self ):
+        return self.extra2_offset_raw + 0x38
+
+    @property
+    def extra2_size( self ):
+        return self.end_offset_raw-self.extra2_offset_raw
+
+    @extra2_size.setter
+    def extra2_size( self, value ):
+        self.end_offset_raw = value+self.extra2_offset_raw
 
     @property
     def repr( self ):
@@ -328,6 +361,12 @@ class MMapEntry( mrc.Block ):
 # Sord chunk
 # - sets some sort of order for cast members???
 # - index appears to be for the CAS* list
+
+class IMapV4( mrc.Block ):
+    unk1 =          mrc.UInt32_BE( 0x00 )
+    mmap_offset =   mrc.UInt32_BE( 0x04 )
+    version =       mrc.UInt32_BE( 0x08 )
+    unk2 =          mrc.Bytes( 0x0c )
 
 class MMapV4( mrc.Block ):
     unk1 =      mrc.Bytes( 0x00, length=8 )
@@ -500,12 +539,12 @@ LINGO_V4_LIST = [
     ('CALL', 0x56, Write8),
     ('CALL_EXTERNAL', 0x57, Write8),
     ('CALL_METHOD', 0x58, Write8),
-    ('AFTER', 0x59, Write8),
-    ('BEFORE', 0x5a, Write8),
+    ('PUT_TEXTVAR', 0x59, Write8),
+    ('PUT', 0x5a, Write8),
     ('SLICE_DEL', 0x5b, Write8),
     
-    ('KERNEL_CALL', 0x5c, Write8),
-    ('KERNEL_SET', 0x5d, Write8),
+    ('THE_ENTITY_GET', 0x5c, Write8),
+    ('THE_ENTITY_SET', 0x5d, Write8),
 
     ('PUSH_PROPERTY_CTX', 0x5f, Write8),
     ('POP_PROPERTY_CTX', 0x60, Write8),
@@ -634,25 +673,9 @@ class ScriptCode( mrc.Block ):
 class ScriptArguments( mrc.Block ):
     name_index = mrc.UInt16_BE( 0x00, count=mrc.Ref( '_parent.args_count' ) )
 
-    @property
-    def names( self ):
-        if self._parent and self._parent._parent and self._parent._parent._parent:
-            names = next( (x.obj for x in self._parent._parent._parent.stream if x.id == riff.Tag( b'Lnam' )), None)
-            if names:
-                return [names.names[name_id] if len( names.names ) > name_id else None for name_id in self.name_index]
-        return [None for name_id in self.name_index]
-
 
 class ScriptVariables( mrc.Block ):
     name_index = mrc.UInt16_BE( 0x00, count=mrc.Ref( '_parent.vars_count' ) )
-
-    @property
-    def names( self ):
-        if self._parent and self._parent._parent and self._parent._parent._parent:
-            names = next( (x.obj for x in self._parent._parent._parent.stream if x.id == riff.Tag( b'Lnam' )), None)
-            if names:
-                return [names.names[name_id] if len( names.names ) > name_id else None for name_id in self.name_index]
-        return [None for name_id in self.name_index]
 
 
 class ScriptFunction( mrc.Block ):
@@ -686,14 +709,6 @@ class ScriptFunction( mrc.Block ):
     @property
     def vars_size( self ):
         return self.vars_count * 2
-
-    @property
-    def name( self ):
-        if self._parent and self._parent._parent:
-            names = next( (x.obj for x in self._parent._parent.stream if x.id == riff.Tag( b'Lnam' )), None)
-            if names and (self.name_index != 65535) and len( names.names ) > self.name_index:
-                return names.names[self.name_index]
-        return None
 
     @property
     def repr( self ):
@@ -764,6 +779,7 @@ class ScriptV5( ScriptV4 ):
 
 class DirectorV4Map( riff.RIFXMap ):
     CHUNK_MAP = {
+        riff.Tag( b'imap' ): IMapV4,
         riff.Tag( b'mmap' ): MMapV4,
         riff.Tag( b'KEY*' ): KeyV4,
         riff.Tag( b'Sord' ): SordV4,
@@ -786,6 +802,7 @@ class DirectorV4( riff.RIFX ):
 
 class DirectorV5Map( riff.RIFXMap ):
     CHUNK_MAP = {
+        riff.Tag( b'imap' ): IMapV4,
         riff.Tag( b'mmap' ): MMapV4,
         riff.Tag( b'KEY*' ): KeyV4,
         riff.Tag( b'Sord' ): SordV4,

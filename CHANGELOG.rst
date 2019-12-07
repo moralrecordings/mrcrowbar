@@ -5,6 +5,7 @@ Unreleased
 ==========
 
 - utils.grep: Fix wrong number of arguments.
+- utils.diff: Fix comparison between different bytes types.
 
 0.7.2 - 2019-11-24
 ==================

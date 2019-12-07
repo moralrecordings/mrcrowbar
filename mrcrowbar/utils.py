@@ -624,9 +624,9 @@ def diff_iter( source1, source2, prefix='source', depth=None ):
     """
     depth = depth-1 if depth is not None else None
     def abbr( src ):
-        return src if type( src ) in (int, float, str, bytes) else (src.__class__.__module__, src.__class__.__name__)
+        return src if type( src ) in (int, float, str, bytes, bytearray) else (src.__class__.__module__, src.__class__.__name__)
 
-    if type( source1 ) != type( source2 ):
+    if (type( source1 ) != type( source2 )) and not (is_bytes( source1 ) and is_bytes( source2 )):
         yield (prefix, abbr( source1 ), abbr( source2 ))
     else:
         if type( source1 ) == list:
@@ -638,8 +638,8 @@ def diff_iter( source1, source2, prefix='source', depth=None ):
                 elif i >= len( source2 ):
                     yield (prefix_mod, abbr( source1[i] ), None)
                 else:
-                    yield (prefix_mod, abbr( None, source2[i] ))
-        elif type( source1 ) == bytes:
+                    yield (prefix_mod, None, abbr( source2[i] ))
+        elif is_bytes( source1 ):
             if source1 != source2:
                 yield( prefix, source1, source2 )
         elif type( source1 ) in (int, float, str):
@@ -697,8 +697,8 @@ def diffdump_iter( source1, source2, prefix='source', depth=None ):
     """
     same = True
     for p, s1, s2 in diff_iter( source1, source2, prefix, depth ):
-        if type( s1 ) == bytes and type( s2 ) == bytes:
-            yield '* {}:'.format( prefix )
+        if is_bytes( s1 ) and is_bytes( s2 ):
+            yield '* {}:'.format( p )
             yield from hexdump_diff_iter( s1, s2 )
             same = False
             continue

@@ -1,8 +1,8 @@
 Changelog
 #########
 
-Unreleased
-==========
+0.7.3 - 2019-12-07
+==================
 
 - utils.grep: Fix wrong number of arguments.
 - utils.diff: Fix comparison between different bytes types.

@@ -54,10 +54,22 @@ class ChannelCompressor( mrc.Transform ):
         return mrc.TransformResult( payload=result, end_offset=pointer )
 
 
+class ChannelType( IntEnum ):
+    FRAME_SCRIPT =    0x10
+
+
+
+class ScriptChannelV4( mrc.Block ):
+    index = mrc.UInt16_BE( 0x00 )
+
+
 class ChannelV4( mrc.Block ):
-    channel_size = mrc.UInt16_BE( 0x00 )
-    channel_offset = mrc.UInt16_BE( 0x02 )
-    data = mrc.Bytes( 0x04, length=mrc.Ref( 'channel_size' ) )
+    CHANNEL_MAP = {
+        ChannelType.FRAME_SCRIPT: ScriptChannelV4
+    }
+
+    channel_size =      mrc.UInt16_BE( 0x00 )
+    channel_offset =    mrc.UInt16_BE( 0x02 )
 
     @property
     def channel_row( self ):
@@ -66,6 +78,8 @@ class ChannelV4( mrc.Block ):
     @property
     def channel_type( self ):
         return self.channel_offset % 0x14
+
+    data =              mrc.BlockField( CHANNEL_MAP, 0x04, block_type=mrc.Ref( 'channel_type' ), default_klass=mrc.Unknown, length=mrc.Ref( 'channel_size' ) )
 
     @property
     def repr( self ):
@@ -521,7 +535,7 @@ LINGO_V4_LIST = [
     ('ARGLIST', 0x42, Write8),
     ('LIST', 0x43, Write8),
     ('PUSH_CONST', 0x44, Write8),
-    ('PUSH_SYMBOL', 0x45, Write8),
+    ('PUSH_NAME', 0x45, Write8),
     ('PUSH_OBJECT', 0x46, Write8),
     
     ('PUSH_GLOBAL', 0x49, Write8),
@@ -861,3 +875,48 @@ class MV93_BE_V5( mrc.Block ):
     data_length = mrc.UInt32_P( 0x04 )
     magic2 = mrc.Const( mrc.Bytes( 0x08, length=4 ), b'MV93' )
     stream = mrc.ChunkField( CHUNK_MAP_CLASS, 0x0c, stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2, fill=b'' )
+
+
+class DirectorV4Parser( object ):
+    def __init__( self, dirfile ):
+        self.dirfile = dirfile
+        self.map_offset = dirfile.get_field_start_offset( 'map' ) + dirfile.map.get_field_start_offset( 'stream' )
+        self.riff_offsets = [self.map_offset]
+        for i, x in enumerate( dirfile.map.stream ):
+            if i == 0:
+                continue
+            self.riff_offsets.append( self.riff_offsets[-1]+dirfile.map.get_field_size( 'stream', index=i-1 ) )
+
+        _, self.imap = self.get_from_offset( self.map_offset )
+        _, self.mmap = self.get_from_offset( self.imap.obj.mmap_offset )
+        _, self.key = self.get_last_from_mmap( b'KEY*' )
+        _, self.cas = self.get_last_from_mmap( b'CAS*' )
+        _, self.score = self.get_last_from_mmap( b'VWSC' )
+        _, self.cast_order = self.get_last_from_mmap( b'Sord' )
+        #self.cast = [self.get_from_mmap_index( self.cas.obj.index[i-1] ) for i in self.cast_order.obj.index]
+        self.cast = [self.get_from_mmap_index( i ) for i in self.cas.obj.index]
+        _, self.script_context = self.get_last_from_mmap( b'Lctx' )
+        _, self.script_names = self.get_last_from_mmap( b'Lnam' )
+
+    def get_from_offset( self, offset ):
+        for i, x in enumerate( self.riff_offsets ):
+            if x == offset:
+                return i, self.dirfile.map.stream[i]
+        raise ValueError( 'Can\'t find a matching start offset' )
+
+    def get_all_from_mmap( self, chunk_id, include_missing=False ):
+        result = [(i, self.get_from_offset( x.offset )[1]) for i, x in enumerate( self.mmap.obj.entries ) if i < self.mmap.obj.entries_used and x.chunk_id == riff.Tag( chunk_id )]
+        if not include_missing:
+            result = [x for x in result if x[1].obj is not None]
+        return result
+
+    def get_last_from_mmap( self, chunk_id, include_missing=False ):
+        vals = self.get_all_from_mmap( chunk_id, include_missing )
+        if not vals:
+            return None
+        return vals[-1]
+
+    def get_from_mmap_index( self, index ):
+        return self.get_from_offset( self.mmap.obj.entries[index].offset )[1]
+
+

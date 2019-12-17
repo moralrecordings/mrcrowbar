@@ -3,6 +3,8 @@ Changelog
 
 Unreleased
 ==========
+- cli.mrcdump: Add support for hiding offsets and glyphs.
+- blocks.Block: Use better wording in debug mode.
 
 0.7.3 - 2019-12-07
 ==================

@@ -281,7 +281,7 @@ class Block( object, metaclass=BlockMeta ):
                     if test == raw_buffer:
                         logger.debug( 'Content: exact match!' )
                     elif test == raw_buffer[:len( test )]:
-                        logger.debug( 'Content: partial match!' )
+                        logger.debug( 'Content: exact match with overflow!' )
                     else:
                         logger.debug( 'Content: different!' )
                         for x in utils.hexdump_diff_iter( raw_buffer[:len( test )], test ):

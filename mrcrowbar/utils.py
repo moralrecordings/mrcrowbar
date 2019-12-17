@@ -796,7 +796,7 @@ def histdump( source, start=None, end=None, length=None, samples=0x10000, width=
         print( line )
 
 
-def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None ):
+def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None, show_offsets=True, show_glyphs=True ):
     """Return an iterator that renders a byte string in tabular hexadecimal/ASCII format.
     
     source
@@ -823,6 +823,12 @@ def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_
     address_base
         Base address to use for labels (default: start)
 
+    show_offsets
+        Display offsets at the start of each line (default: true)
+
+    show_glyphs
+        Display glyph map at the end of each line (default: true)
+
     Raises ValueError if both end and length are defined.
     """
     assert is_bytes( source )
@@ -835,11 +841,11 @@ def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_
     address_base_offset = address_base-start if address_base is not None else 0
 
     for offset in range( start, end, minor_len*major_len ):
-        yield ansi.format_hexdump_line( source, offset, end, major_len, minor_len, colour, address_base_offset=address_base_offset )
+        yield ansi.format_hexdump_line( source, offset, end, major_len, minor_len, colour, address_base_offset=address_base_offset, show_offsets=show_offsets, show_glyphs=show_glyphs )
     return
 
 
-def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None ):
+def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None, show_offsets=True, show_glyphs=True ):
     """Print a byte string in tabular hexadecimal/ASCII format.
     
     source
@@ -866,9 +872,15 @@ def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4
     address_base
         Base address to use for labels (default: start)
 
+    show_offsets
+        Display offsets at the start of each line (default: true)
+
+    show_glyphs
+        Display glyph map at the end of each line (default: true)
+
     Raises ValueError if both end and length are defined.
     """
-    for line in hexdump_iter( source, start, end, length, major_len, minor_len, colour, address_base ):
+    for line in hexdump_iter( source, start, end, length, major_len, minor_len, colour, address_base, show_offsets, show_glyphs ):
         print( line )
 
 

@@ -358,7 +358,7 @@ def format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=32, fr
 BYTE_ESCAPE_MAP = [format_escape( x ) for x in BYTE_COLOUR_MAP]
 
 def format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, colour=True,
-        prefix='', highlight_addr=None, highlight_map=None, address_base_offset=0 ):
+        prefix='', highlight_addr=None, highlight_map=None, address_base_offset=0, show_offsets=True, show_glyphs=True ):
     def get_colour( index ):
         if colour:
             if highlight_map:
@@ -384,9 +384,11 @@ def format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, col
     if end is None:
         end = len( source )
 
-    digits = ('{}{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}').format( prefix, offset+address_base_offset )
+    line = []
+    if show_offsets:
+        digits = ('{}{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}').format( prefix, offset+address_base_offset )
+        line = [format_string( digits, highlight_addr ), ' │  ']
 
-    line = [format_string( digits, highlight_addr ), ' │  ']
     prev_colour = None
     for major in range( major_len ):
         for minor in range( minor_len ):
@@ -405,7 +407,8 @@ def format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, col
     if colour:
         line.append( ANSI_FORMAT_RESET )
 
-    line.append( '│ {}'.format( get_glyph() ) )
+    if show_glyphs:
+        line.append( '│ {}'.format( get_glyph() ) )
     return ''.join( line )
 
 

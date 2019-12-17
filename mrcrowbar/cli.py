@@ -80,6 +80,16 @@ ARGS_DUMP = {
         action='store_true',
         help='Don\'t render statistics'
     ),
+    '--no-offsets': dict(
+        dest='show_offsets',
+        action='store_false',
+        help='Don\'t render line offsets'
+    ),
+    '--no-glyphs': dict(
+        dest='show_glyphs',
+        action='store_false',
+        help='Don\'t render the glyph map'
+    ),
     '--hist-w': dict(
         dest='hist_w',
         type=auto_int,
@@ -352,6 +362,7 @@ def mrcdump():
                             source, start=raw_args.start, end=raw_args.end, length=raw_args.length,
                             major_len=raw_args.major_len, minor_len=raw_args.minor_len,
                             colour=raw_args.colour, address_base=raw_args.address_base,
+                            show_offsets=raw_args.show_offsets, show_glyphs=raw_args.show_glyphs,
                         )
 
                     if not raw_args.no_hexdump and not raw_args.no_stats:

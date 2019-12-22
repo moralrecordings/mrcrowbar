@@ -919,4 +919,49 @@ class DirectorV4Parser( object ):
     def get_from_mmap_index( self, index ):
         return self.get_from_offset( self.mmap.obj.entries[index].offset )[1]
 
+    def dump_scripts( self ):
+        for script_cast in [c.obj for c in self.cast if c.obj.cast_type == CastType.SCRIPT]:
+            script_id = script_cast.detail.script_id-1
+            script = self.get_from_mmap_index( self.script_context.obj.entries[script_id].index )
+            print('SCRIPT {}'.format( script_id ))
+            print('NAMES: {}'.format( self.script_names.obj.names ))
+            print('CODE:')
+            print(script_cast.detail.code.decode('latin').replace('\r', '\n'))
+            name_lookup = lambda n: self.script_names.obj.names[n] if n in range( len( self.script_names.obj.names ) ) else 'unk_{}'.format(n)
+
+            assert riff.TagB( script.id ) == b'Lscr'
+            for j, f in enumerate(script.obj.functions):
+                if f is None:
+                    print('FUNCTION {} - None'.format(j))
+                    continue
+                print('FUNCTION {} - {}({})'.format(j, name_lookup( f.name_index ), ', '.join( [name_lookup( a ) for a in f.args.name_index] )))
+                print('VARS: {}'.format(', '.join([name_lookup( v ) for v in f.vars.name_index])))
+                for inst in f.code.instructions:
+                    if self.script_names:
+                        if inst.id in (LingoV4.CALL,):
+                            print('{} # {}()'.format( inst, name_lookup( script.obj.functions[inst.obj.value].name_index ) ))
+                        elif inst.id in (LingoV4.CALL_EXTERNAL,):
+                            print('{} # {}()'.format( inst, name_lookup( inst.obj.value ) ))
+                        elif inst.id in (LingoV4.PUSH_PROPERTY_CTX, LingoV4.PUSH_PROPERTY_OBJ, LingoV4.PUSH_PROPERTY_RO, LingoV4.PUSH_GLOBAL, LingoV4.POP_GLOBAL, LingoV4.PUSH_OBJECT, LingoV4.PUSH_NAME):
+                            print('{} # {}'.format( inst, name_lookup( inst.obj.value ) ))
+                        elif inst.id in (LingoV4.PUSH_CONST,):
+                            print('{} # {}'.format( inst, script.obj.consts[inst.obj.value // 6] ))
+                        elif inst.id in (LingoV4.PUSH_PARAM, LingoV4.POP_PARAM,):
+                            print('{} # {}'.format( inst, name_lookup( f.args.name_index[inst.obj.value // 6] ) if f.args.name_index else 'unk_{}'.format(inst.obj.value // 6) ))
+                        elif inst.id in (LingoV4.PUSH_LOCAL, LingoV4.POP_LOCAL,):
+                            print('{} # {}'.format( inst, name_lookup( f.vars.name_index[inst.obj.value // 6] ) if f.vars.name_index else 'unk_{}'.format(inst.obj.value // 6) ))
+                        else:
+                            print(inst)
+                    else:
+                        print(inst)
+            for j, c in enumerate(script.obj.consts):
+                print('CONST {}'.format(j))
+                print(c)
+            for j, g in enumerate(script.obj.globals):
+                print('GLOBAL {}'.format(j))
+                if self.script_names:
+                    print(self.script_names.obj.names[g.name_index])
+                else:
+                    print(g.name_index)
+            print()
 

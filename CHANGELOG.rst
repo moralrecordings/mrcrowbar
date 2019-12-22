@@ -6,6 +6,7 @@ Unreleased
 - cli.mrcdump: Add support for hiding offsets and glyphs.
 - blocks.Block: Use better wording in debug mode.
 - lib.platforms.director: Start tracking how V4 files are interpreted in DirectorV4Parser.
+- lib.platforms.director.DirectorV4Parser: Add code dumper
 
 0.7.3 - 2019-12-07
 ==================

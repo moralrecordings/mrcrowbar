@@ -43,6 +43,17 @@ DIRECTOR_PALETTE_RAW =  '000000111111222222444444555555777777888888aaaaaa'\
 DIRECTOR_PALETTE = [p for p in reversed( img.from_palette_bytes( bytes.fromhex( DIRECTOR_PALETTE_RAW ), stride=3, order=(0, 1, 2) ) )]
 
 
+class BuiltinPalette( IntEnum ):
+    SYSTEM_MAC = 0xff
+    SYSTEM_WIN = 0x9b
+    RAINBOW = 0xfe
+    GRAYSCALE = 0xfd
+    PASTELS = 0xfc
+    VIVID = 0xfb
+    NTSC = 0xfa
+    METALLIC = 0xf9
+
+
 class ChannelCompressor( mrc.Transform ):
     def import_data( self, buffer, parent=None ):
         result = bytearray( 50*25 )
@@ -54,18 +65,66 @@ class ChannelCompressor( mrc.Transform ):
         return mrc.TransformResult( payload=result, end_offset=pointer )
 
 
-class ChannelType( IntEnum ):
-    FRAME_SCRIPT =    0x10
+class EmptyChannelV4( mrc.Block ):
+    pass
 
+
+class SpriteType( IntEnum ):
+    INACTIVE = 0x00
+    BITMAP = 0x01
+    RECTANGLE = 0x02
+    ROUNDED_RECTANGLE = 0x03
+    OVAL = 0x04
+    LINE_TOP_BOTTOM = 0x05
+    LINE_BOTTOM_TOP = 0x06
+    TEXT = 0x07
+    BUTTON = 0x08
+    CHECKBOX = 0x09
+    RADIO_BUTTON = 0x0a
+    PICT = 0x0b
+    OUTLINED_RECTANGLE = 0x0c
+    OUTLINED_ROUNDED_RECTANGLE = 0x0d
+    OUTLINED_OVAL = 0x0e
+    THINK_LINE = 0x0f
+    CAST_MEMBER = 0x10
+    FILM_LOOP = 0x11
+    DIR_MOVIE = 0x12
+    UNUSED = 0xff
+
+
+class SpriteChannelV4( mrc.Block ):
+    script_id = mrc.UInt8( 0x00 )
+    type =      mrc.UInt8( 0x01, enum=SpriteType )
+    fg_colour = mrc.UInt8( 0x02 )
+    bg_colour = mrc.UInt8( 0x03 )
+    line_size = mrc.Bits( 0x04, 0b00000011 )
+    unk4 =      mrc.Bits( 0x04, 0b11111100 )
+    ink =       mrc.Bits( 0x05, 0b00111111 )
+    trails =    mrc.Bits( 0x05, 0b01000000 )
+    unk5 =      mrc.Bits( 0x05, 0b10000000 )
+    cast_id =   mrc.UInt16_BE( 0x06 )
+    y_pos =     mrc.UInt16_BE( 0x08 )
+    x_pos =     mrc.UInt16_BE( 0x0a )
+    height =    mrc.UInt16_BE( 0x0c )
+    width =     mrc.UInt16_BE( 0x0e )
 
 
 class ScriptChannelV4( mrc.Block ):
     index = mrc.UInt16_BE( 0x00 )
 
 
+class ChannelType( IntEnum ):
+    SPRITE =          0x00
+    FRAME_SCRIPT =    0x10
+    PALETTE =         0x20
+
+
 class ChannelV4( mrc.Block ):
     CHANNEL_MAP = {
-        ChannelType.FRAME_SCRIPT: ScriptChannelV4
+        None: EmptyChannelV4,
+#        ChannelType.SPRITE: SpriteChannelV4,
+        ChannelType.FRAME_SCRIPT: ScriptChannelV4,
+#        ChannelType.PALETTE: mrc.Unknown,
     }
 
     channel_size =      mrc.UInt16_BE( 0x00 )
@@ -79,7 +138,11 @@ class ChannelV4( mrc.Block ):
     def channel_type( self ):
         return self.channel_offset % 0x14
 
-    data =              mrc.BlockField( CHANNEL_MAP, 0x04, block_type=mrc.Ref( 'channel_type' ), default_klass=mrc.Unknown, length=mrc.Ref( 'channel_size' ) )
+    @property
+    def channel_type_wrap( self ):
+        return (ChannelType.PALETTE if self.channel_offset == 0x14 else self.channel_type) if self.channel_size else None
+
+    data =              mrc.BlockField( CHANNEL_MAP, 0x04, block_type=mrc.Ref( 'channel_type_wrap' ), default_klass=mrc.Unknown, length=mrc.Ref( 'channel_size' ) )
 
     @property
     def repr( self ):
@@ -177,43 +240,15 @@ class SoundCastV4( mrc.Block ):
 class ScriptCastV4( mrc.Block ):
     unk1        = mrc.Bytes( 0x00, length=0x14 )
     script_id   = mrc.UInt16_BE( 0x14 )
-    unk2        = mrc.UInt16_BE( 0x16 )
-    unk3        = mrc.UInt32_BE( 0x18 )
-    name_offset = mrc.UInt32_BE( 0x1c )
-    extra1_offset_raw   = mrc.UInt32_BE( 0x20 )
-    unk5        = mrc.UInt32_BE( 0x24 )
-    unk6        = mrc.UInt32_BE( 0x28 )
-    unk7        = mrc.UInt32_BE( 0x2c ) 
-    extra2_offset_raw = mrc.UInt32_BE( 0x30 )
-    end_offset_raw  = mrc.UInt32_BE( 0x34 )
-    code            = mrc.Bytes( mrc.EndOffset( 'end_offset_raw' ), length=mrc.Ref( 'name_offset' ) )
-    name            = mrc.PString( mrc.EndOffset( 'code' ) )
-    extra1      = mrc.Bytes( mrc.Ref( 'extra1_offset' ), length=mrc.Ref( 'extra1_size' ) )
-    extra2      = mrc.Bytes( mrc.Ref( 'extra2_offset' ), length=mrc.Ref( 'extra2_size' ) )
+    var_count   = mrc.UInt16_BE( 0x16 )
+    unk2        = mrc.UInt32_BE( 0x18 )
+    vars        = mrc.UInt32_BE( 0x1c, count=mrc.Ref( 'var_count' ) )
+    code        = mrc.Bytes( mrc.EndOffset( 'vars' ), length=mrc.Ref( 'code_len' ) )
+    unk3        = mrc.Bytes( mrc.EndOffset( 'code' ) )
 
     @property
-    def extra1_offset( self ):
-        return self.extra1_offset_raw + 0x38
-
-    @property
-    def extra1_size( self ):
-        return self.extra2_offset_raw-self.extra1_offset_raw
-
-    @extra1_size.setter
-    def extra1_size( self, value ):
-        self.extra2_offset_raw = value+self.extra1_offset_raw
-
-    @property
-    def extra2_offset( self ):
-        return self.extra2_offset_raw + 0x38
-
-    @property
-    def extra2_size( self ):
-        return self.end_offset_raw-self.extra2_offset_raw
-
-    @extra2_size.setter
-    def extra2_size( self, value ):
-        self.end_offset_raw = value+self.extra2_offset_raw
+    def code_len( self ):
+        return self.vars[0] if self.vars else 0
 
     @property
     def repr( self ):
@@ -262,6 +297,24 @@ class Rect( mrc.Block ):
             self.top, self.left, self.bottom, self.right, self.width, self.height )
 
 
+class ShapeType( IntEnum ):
+    RECTANGLE = 1
+    ROUND_RECT = 2
+    OVAL = 3
+    LINE = 4
+
+
+class ShapeCastV4( mrc.Block ):
+    type = mrc.UInt16_BE( 0x00, enum=ShapeType )
+    rect = mrc.BlockField( Rect, 0x02 )
+    pattern = mrc.UInt16_BE( 0x0a )
+    fg_colour = mrc.UInt8( 0x0c )
+    bg_colour = mrc.UInt8( 0x0d )
+    fill_type = mrc.UInt8( 0x0e )
+    line_thickness = mrc.UInt8( 0x0f )
+    line_direction = mrc.UInt8( 0x10 )
+
+
 class BitmapCastV4( mrc.Block ):
     _data = None
 
@@ -269,8 +322,8 @@ class BitmapCastV4( mrc.Block ):
     pitch =         mrc.Bits16( 0x00, 0b0000111111111111 )
     initial_rect =  mrc.BlockField( Rect, 0x02 )
     bounding_rect = mrc.BlockField( Rect, 0x0a )
-    reg_x =         mrc.UInt16_BE( 0x12 )
-    reg_y =         mrc.UInt16_BE( 0x14 )
+    reg_y =         mrc.UInt16_BE( 0x12 )
+    reg_x =         mrc.UInt16_BE( 0x14 )
     #bpp =          mrc.UInt16_BE( 0x16 )
     #unk4 =         mrc.Bytes( 0x18, length=0x24 )
     #name =         mrc.Bytes( 0x3e )
@@ -309,6 +362,7 @@ class CastV4( mrc.Block ):
         CastType.BITMAP: BitmapCastV4,
         CastType.SOUND: SoundCastV4,
         CastType.SCRIPT: ScriptCastV4,
+        CastType.SHAPE: ShapeCastV4,
     }
 
     size1 =     mrc.UInt16_BE( 0x00 )
@@ -377,9 +431,9 @@ class MMapEntry( mrc.Block ):
 # - index appears to be for the CAS* list
 
 class IMapV4( mrc.Block ):
-    unk1 =          mrc.UInt32_BE( 0x00 )
-    mmap_offset =   mrc.UInt32_BE( 0x04 )
-    version =       mrc.UInt32_BE( 0x08 )
+    unk1 =          mrc.UInt32_P( 0x00 )
+    mmap_offset =   mrc.UInt32_P( 0x04 )
+    version =       mrc.UInt32_P( 0x08 )
     unk2 =          mrc.Bytes( 0x0c )
 
 class MMapV4( mrc.Block ):
@@ -814,6 +868,11 @@ class DirectorV4( riff.RIFX ):
     CHUNK_MAP_CLASS = DirectorV4Map
 
 
+class DirectorV4_LE( riff.RIFX ):
+    _endian = 'little'
+    CHUNK_MAP_CLASS = DirectorV4Map
+
+
 class DirectorV5Map( riff.RIFXMap ):
     CHUNK_MAP = {
         riff.Tag( b'imap' ): IMapV4,
@@ -833,7 +892,7 @@ class DirectorV5Map( riff.RIFXMap ):
 DirectorV4Map.CHUNK_MAP[riff.Tag( b'RIFX' )] = DirectorV4Map
 
 
-class PJ93( mrc.Block ):
+class PJ93_LE( mrc.Block ):
     _endian = 'little'
     
     magic = mrc.Const( mrc.Bytes( 0x00, length=4 ), b'PJ93' )
@@ -847,7 +906,7 @@ class PJ93( mrc.Block ):
     unk1 = mrc.Bytes( 0x20, length=0xc ) 
 
 
-class MV93( mrc.Block ):
+class MV93_LE( mrc.Block ):
     _endian = 'little'
     CHUNK_MAP_CLASS = DirectorV4Map.CHUNK_MAP
 
@@ -857,7 +916,7 @@ class MV93( mrc.Block ):
     stream = mrc.ChunkField( CHUNK_MAP_CLASS, 0x0c, stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2, fill=b'' )
 
 
-class MV93_BE( mrc.Block ):
+class MV93( mrc.Block ):
     _endian = 'big'
     CHUNK_MAP_CLASS = DirectorV4Map.CHUNK_MAP
 
@@ -867,7 +926,7 @@ class MV93_BE( mrc.Block ):
     stream = mrc.ChunkField( CHUNK_MAP_CLASS, 0x0c, stream=True, id_field=mrc.UInt32_P, length_field=mrc.UInt32_P, default_klass=mrc.Unknown, alignment=0x2, fill=b'' )
 
 
-class MV93_BE_V5( mrc.Block ):
+class MV93_V5( mrc.Block ):
     _endian = 'big'
     CHUNK_MAP_CLASS = DirectorV5Map.CHUNK_MAP
 
@@ -894,7 +953,7 @@ class DirectorV4Parser( object ):
         _, self.score = self.get_last_from_mmap( b'VWSC' )
         _, self.cast_order = self.get_last_from_mmap( b'Sord' )
         #self.cast = [self.get_from_mmap_index( self.cas.obj.index[i-1] ) for i in self.cast_order.obj.index]
-        self.cast = [self.get_from_mmap_index( i ) for i in self.cas.obj.index]
+        self.cast = [self.get_from_mmap_index( i ) if i else None for i in self.cas.obj.index]
         _, self.script_context = self.get_last_from_mmap( b'Lctx' )
         _, self.script_names = self.get_last_from_mmap( b'Lnam' )
 
@@ -913,14 +972,23 @@ class DirectorV4Parser( object ):
     def get_last_from_mmap( self, chunk_id, include_missing=False ):
         vals = self.get_all_from_mmap( chunk_id, include_missing )
         if not vals:
-            return None
+            return None, None
         return vals[-1]
 
     def get_from_mmap_index( self, index ):
         return self.get_from_offset( self.mmap.obj.entries[index].offset )[1]
 
+    def get_from_mmap_list( self ):
+        result = []
+        for i in range( self.mmap.obj.entries_used ):
+            if self.mmap.obj.entries[i].offset != 0 and self.mmap.obj.entries[i].chunk_id != b'free':
+                result.append( self.get_from_offset( self.mmap.obj.entries[i].offset )[1] )
+            else:
+                result.append( None )
+        return result
+
     def dump_scripts( self ):
-        for script_cast in [c.obj for c in self.cast if c.obj.cast_type == CastType.SCRIPT]:
+        for script_cast in [c.obj for c in self.cast if c and c.obj.cast_type == CastType.SCRIPT]:
             script_id = script_cast.detail.script_id-1
             script = self.get_from_mmap_index( self.script_context.obj.entries[script_id].index )
             print('SCRIPT {}'.format( script_id ))

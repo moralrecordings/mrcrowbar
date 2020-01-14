@@ -278,7 +278,12 @@ class StreamField( Field ):
 
         if not is_array:
             if not result:
-                raise EmptyFieldError( 'No data could be extracted for this field' )
+                # in the case of an empty result for a non-array, attempt to fetch one record.
+                # this will only work if the resulting element is of size 0.
+                try:
+                    result, _ = self.get_element_from_buffer( pointer, buffer, parent )
+                except Exception:
+                    raise EmptyFieldError( 'No data could be extracted for this field' )
             else:
                 return result[0]
         return result

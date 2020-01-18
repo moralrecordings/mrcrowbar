@@ -360,7 +360,7 @@ class CastType( IntEnum ):
 class CastV4( mrc.Block ):
     CAST_MAP = {
         CastType.BITMAP: BitmapCastV4,
-        CastType.SOUND: SoundCastV4,
+        #CastType.SOUND: SoundCastV4,
         CastType.SCRIPT: ScriptCastV4,
         CastType.SHAPE: ShapeCastV4,
     }
@@ -581,13 +581,13 @@ LINGO_V4_LIST = [
     ('FIELD', 0x1b, Blank),
     ('EXEC', 0x1c, Blank),
     ('EXEC_END', 0x1d, Blank),
-    ('LIST_UNK', 0x1e, Blank),
+    ('ARRAY', 0x1e, Blank),
     ('DICT', 0x1f, Blank),
 
     # 1 byte payload
-    ('PUSH', 0x41, Write8),
-    ('ARGLIST', 0x42, Write8),
-    ('LIST', 0x43, Write8),
+    ('PUSH_INT', 0x41, Write8),
+    ('PUSH_ARGCNORET', 0x42, Write8),
+    ('PUSH_ARGC', 0x43, Write8),
     ('PUSH_CONST', 0x44, Write8),
     ('PUSH_NAME', 0x45, Write8),
     ('PUSH_OBJECT', 0x46, Write8),
@@ -624,9 +624,9 @@ LINGO_V4_LIST = [
     ('PUSH_PROPERTY_RO', 0x66, Write8),
 
     # 2 byte payload
-    ('PUSH_U16', 0x81, Write16),
-    ('ARGLIST_U16', 0x82, Write16),
-    ('LIST_U16', 0x83, Write16),
+    ('PUSH_INT_U16', 0x81, Write16),
+    ('PUSH_ARGCNORET_U16', 0x82, Write16),
+    ('PUSH_ARGC_U16', 0x83, Write16),
     ('PUSH_CONST_U16', 0x84, Write16),
 
     ('PUSH_GLOBAL_U16', 0x89, Write16),
@@ -956,6 +956,14 @@ class DirectorV4Parser( object ):
         self.cast = [self.get_from_mmap_index( i ) if i else None for i in self.cas.obj.index]
         _, self.script_context = self.get_last_from_mmap( b'Lctx' )
         _, self.script_names = self.get_last_from_mmap( b'Lnam' )
+        self.script_ids = []
+        self.scripts = []
+        self.scripts_text = []
+        for script_cast in [c.obj for c in self.cast if c and c.obj.cast_type == CastType.SCRIPT]:
+            script_id = script_cast.detail.script_id-1
+            self.script_ids.append( script_id )
+            self.scripts.append( self.get_from_mmap_index( self.script_context.obj.entries[script_id].index ) )
+            self.scripts_text.append( script_cast.detail.code.decode('latin').replace('\r', '\n') )
 
     def get_from_offset( self, offset ):
         for i, x in enumerate( self.riff_offsets ):
@@ -988,13 +996,11 @@ class DirectorV4Parser( object ):
         return result
 
     def dump_scripts( self ):
-        for script_cast in [c.obj for c in self.cast if c and c.obj.cast_type == CastType.SCRIPT]:
-            script_id = script_cast.detail.script_id-1
-            script = self.get_from_mmap_index( self.script_context.obj.entries[script_id].index )
-            print('SCRIPT {}'.format( script_id ))
+        for i, script in enumerate( self.scripts ):
+            print('SCRIPT {}'.format( self.script_ids[i] ))
             print('NAMES: {}'.format( self.script_names.obj.names ))
             print('CODE:')
-            print(script_cast.detail.code.decode('latin').replace('\r', '\n'))
+            print(self.scripts_text[i])
             name_lookup = lambda n: self.script_names.obj.names[n] if n in range( len( self.script_names.obj.names ) ) else 'unk_{}'.format(n)
 
             assert riff.TagB( script.id ) == b'Lscr'
@@ -1010,7 +1016,7 @@ class DirectorV4Parser( object ):
                             print('{} # {}()'.format( inst, name_lookup( script.obj.functions[inst.obj.value].name_index ) ))
                         elif inst.id in (LingoV4.CALL_EXTERNAL,):
                             print('{} # {}()'.format( inst, name_lookup( inst.obj.value ) ))
-                        elif inst.id in (LingoV4.PUSH_PROPERTY_CTX, LingoV4.PUSH_PROPERTY_OBJ, LingoV4.PUSH_PROPERTY_RO, LingoV4.PUSH_GLOBAL, LingoV4.POP_GLOBAL, LingoV4.PUSH_OBJECT, LingoV4.PUSH_NAME):
+                        elif inst.id in (LingoV4.PUSH_PROPERTY, LingoV4.POP_PROPERTY, LingoV4.PUSH_PROPERTY_CTX, LingoV4.POP_PROPERTY_CTX, LingoV4.PUSH_PROPERTY_OBJ, LingoV4.POP_PROPERTY_OBJ, LingoV4.PUSH_PROPERTY_RO, LingoV4.PUSH_GLOBAL, LingoV4.POP_GLOBAL, LingoV4.PUSH_OBJECT, LingoV4.PUSH_NAME):
                             print('{} # {}'.format( inst, name_lookup( inst.obj.value ) ))
                         elif inst.id in (LingoV4.PUSH_CONST,):
                             print('{} # {}'.format( inst, script.obj.consts[inst.obj.value // 6] ))

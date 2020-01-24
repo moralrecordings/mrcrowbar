@@ -1272,8 +1272,8 @@ class Bits( NumberField ):
         SIZES = {
             1: (int, 1, 'unsigned', None if endian is None else endian, range( 0, 1<<8 )),
             2: (int, 2, 'unsigned', 'big' if endian is None else endian, range( 0, 1<<16 )),
-            4: (int, 4, 'signed', 'big' if endian is None else endian, range( 0, 1<<32 )),
-            8: (int, 8, 'signed', 'big' if endian is None else endian, range( 0, 1<<64 )),
+            4: (int, 4, 'unsigned', 'big' if endian is None else endian, range( 0, 1<<32 )),
+            8: (int, 8, 'unsigned', 'big' if endian is None else endian, range( 0, 1<<64 )),
         }
         assert size in SIZES
         assert type( bits ) == int

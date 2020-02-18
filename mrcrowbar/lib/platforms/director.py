@@ -5,6 +5,8 @@ from mrcrowbar.lib.audio import base as aud
 from mrcrowbar.lib.containers import riff
 from mrcrowbar import utils
 
+import math
+
 from enum import IntEnum
 
 DIRECTOR_PALETTE_RAW =  '000000111111222222444444555555777777888888aaaaaa'\
@@ -685,12 +687,33 @@ class ScriptConstantUInt32( mrc.Block ):
         return '{}'.format( self.value )
 
 class ScriptFloat( mrc.Block ):
-    length = mrc.UInt32_BE( 0x00 )
-    data = mrc.Bytes( 0x04, length=mrc.Ref( 'length' ) )
+    length = mrc.Const( mrc.UInt32_BE( 0x00 ), 0x0a )
+    sign = mrc.Bits16( 0x04, bits=0x8000 )
+    exponent = mrc.Bits16( 0x04, bits=0x7fff )
+    integer = mrc.Bits64( 0x06, bits=0x8000000000000000 )
+    fraction = mrc.Bits64( 0x06, bits=0x7fffffffffffffff )
+
+    @property
+    def value( self ):
+        if (self.exponent == 0):
+            f64exp = 0
+        elif (self.exponent == 0x7fff):
+            f64exp = 0x7ff
+        else:
+            normexp = self.exponent - 0x3fff    # value range from -0x3ffe to 0x3fff
+            if not (-0x3fe <= normexp < 0x3ff):
+                raise ValueError( 'Exponent too big for a float64' )
+
+            f64exp = normexp + 0x3ff
+
+        f64fract = self.fraction >> 11
+        f64bin = utils.to_uint64_be( f64fract + (f64exp << 52) + 0x80000000*self.sign )
+        f64 = utils.from_float64_be( f64bin )
+        return f64
 
     @property
     def repr( self ):
-        return self.data.hex()
+        return self.value
 
 class ScriptConstantFloat( mrc.Block ):
     offset = mrc.UInt32_BE( 0x00 )

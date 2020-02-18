@@ -29,7 +29,7 @@ class SAMEncryption( mrc.Transform ):
         return mrc.TransformResult( payload=payload, end_offset=limit )
 
     def export_data( self, buffer, parent=None ):
-        payload = bytes( [bits.reverse_bits( c ^ self.KEY[i%len( self.KEY )] )]
+        payload = bytes( [bits.reverse_bits( c ^ self.KEY[i%len( self.KEY )] )
                             for i, c in enumerate( buffer )] )
         return mrc.TransformResult( payload=payload )
 

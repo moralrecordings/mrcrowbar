@@ -10,6 +10,7 @@ Unreleased
 - fields.Bits: Fix 32 and 64 bit support
 - lib.games.sam: Fix typo
 - lib.platforms.director: Fix implementation of ScriptFloat
+- blocks.Block: More debug logs
 
 0.7.3 - 2019-12-07
 ==================

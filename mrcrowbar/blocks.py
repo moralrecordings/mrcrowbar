@@ -259,11 +259,17 @@ class Block( object, metaclass=BlockMeta ):
 
         self._field_data = {}
 
+        logger.debug( '{}: loading fields'.format( self ) )
+
         for name in klass._fields:
             if raw_buffer is not None:
+                if logger.isEnabledFor( logging.DEBUG ):
+                    logger.debug( '{} [{}]: input buffer'.format( name, klass._fields[name] ) )
                 self._field_data[name] = klass._fields[name].get_from_buffer(
                     raw_buffer, parent=self
                 )
+                if logger.isEnabledFor( logging.DEBUG ):
+                    logger.debug( 'Result for {} [{}]: {}'.format( name, klass._fields[name], self._field_data[name] ) )
             else:
                 self._field_data[name] = klass._fields[name].default
         

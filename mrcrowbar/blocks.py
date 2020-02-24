@@ -353,6 +353,7 @@ class Block( object, metaclass=BlockMeta ):
         return size
 
     def get_field_obj( self, field_name ):
+        klass = self.__class__
         return klass._fields[field_name]
 
     def get_field_names( self ):

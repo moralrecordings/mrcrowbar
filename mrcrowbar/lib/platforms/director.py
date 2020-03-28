@@ -187,18 +187,17 @@ class ScoreV4( mrc.Block ):
 
 
 class SoundV4( mrc.Block ):
-    unk1 = mrc.UInt16_BE( 0x00 )
-    unk2 = mrc.UInt32_BE( 0x04 )
-    unk3 = mrc.UInt16_BE( 0x0c )
+    unk1 = mrc.Bytes( 0x00, length=0x14 )
     channels = mrc.UInt16_BE( 0x14 )
     sample_rate = mrc.UInt16_BE( 0x16 )
-    unk4 = mrc.UInt16_BE( 0x18 )
+    unk2 = mrc.Bytes( 0x18, length=0x06 )
     length = mrc.UInt32_BE( 0x1e )
-    unk5 = mrc.UInt16_BE( 0x22 )
+    unk3 = mrc.UInt16_BE( 0x22 )
     length_copy = mrc.UInt32_BE( 0x24 )
-    unk6 = mrc.UInt16_BE( 0x28 )
-    playback_rate = mrc.UInt16_BE( 0x2a )
-    unk7 = mrc.UInt16_BE( 0x2c )
+    unk4 = mrc.UInt16_BE( 0x28 )
+    unk5 = mrc.UInt16_BE( 0x2a )
+    unk6 = mrc.UInt16_BE( 0x2c )
+    unk7 = mrc.Bytes( 0x2e, length=0x12 )
     sample_bits = mrc.UInt16_BE( 0x3e )
 
     data = mrc.Bytes( 0x4e )
@@ -445,7 +444,8 @@ class MMapV4( mrc.Block ):
     unk2 =      mrc.Const( mrc.Bytes( 0x0c, length=8 ), b'\xff'*8 )
     unk3 =      mrc.UInt32_P( 0x14 )
     entries =    mrc.BlockField( MMapEntry, 0x18, count=mrc.Ref( 'entries_max' ), fill=b'\xaa'*0x14 )
-    
+    garbage =   mrc.Bytes( mrc.EndOffset( 'entries' ) )
+
     @property
     def repr( self ):
         return 'entries_max: {}, entries_used: {}'.format( self.entries_max, self.entries_used )
@@ -904,7 +904,7 @@ class DirectorV5Map( riff.RIFXMap ):
         riff.Tag( b'Sord' ): SordV4,
         riff.Tag( b'CAS*' ): CastListV4,
         riff.Tag( b'CASt' ): CastV4,
-        riff.Tag( b'snd ' ): SoundV4,
+        riff.Tag( b'snd ' ): mrc.Unknown,
         riff.Tag( b'BITD' ): BitmapV4,
         riff.Tag( b'STXT' ): TextV4,
         riff.Tag( b'Lscr' ): ScriptV5,
@@ -976,17 +976,24 @@ class DirectorV4Parser( object ):
         _, self.score = self.get_last_from_mmap( b'VWSC' )
         _, self.cast_order = self.get_last_from_mmap( b'Sord' )
         #self.cast = [self.get_from_mmap_index( self.cas.obj.index[i-1] ) for i in self.cast_order.obj.index]
-        self.cast = [self.get_from_mmap_index( i ) if i else None for i in self.cas.obj.index]
+        self.cast = [(i, self.get_from_mmap_index( i ).obj) if i else (None, None) for i in self.cas.obj.index]
         _, self.script_context = self.get_last_from_mmap( b'Lctx' )
         _, self.script_names = self.get_last_from_mmap( b'Lnam' )
         self.script_ids = []
         self.scripts = []
         self.scripts_text = []
-        for script_cast in [c.obj for c in self.cast if c and c.obj.cast_type == CastType.SCRIPT]:
+        for script_cast in [c for _, c in self.cast if c and c.cast_type == CastType.SCRIPT]:
             script_id = script_cast.detail.script_id-1
             self.script_ids.append( script_id )
             self.scripts.append( self.get_from_mmap_index( self.script_context.obj.entries[script_id].index ) )
             self.scripts_text.append( script_cast.detail.code.decode('latin').replace('\r', '\n') )
+        self.bitmaps = []
+        for index, cast in [(i, c) for i, c in self.cast if c and c.cast_type == CastType.BITMAP]:
+            bitmaps = [self.get_from_mmap_index( x.section_index ).obj for x in self.key.obj.entries if riff.TagB( x.chunk_id ) == b'BITD' and x.cast_index == index]
+            if bitmaps:
+                bitmaps[0].data = BitmapCompressor().import_data( bitmaps[0].data ).payload
+                cast.detail._data = bitmaps[0]
+            self.bitmaps.append((index, cast))
 
     def get_from_offset( self, offset ):
         for i, x in enumerate( self.riff_offsets ):

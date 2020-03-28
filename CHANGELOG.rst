@@ -12,6 +12,7 @@ Unreleased
 - lib.platforms.director: Fix implementation of ScriptFloat
 - blocks.Block: More debug logs
 - blocks.Block: Fix missing line in get_field_obj
+- lib.platforms.director: Improve SoundV4, add bitmap support to parser
 
 0.7.3 - 2019-12-07
 ==================

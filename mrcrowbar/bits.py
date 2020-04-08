@@ -82,12 +82,15 @@ class BitReader( object ):
         self.bits_remaining = 8*self.bytes_to_cache
         self.current_bits = 0
         for i in range( self.bytes_to_cache ):
-            if self.pos not in range( len( self.buffer ) ):
+            if self.eof():
                 raise IndexError( 'Hit the end of the buffer, no more bytes' )
             self.current_bits |= self.buffer[self.pos] << (8*i)
             new_pos = self.pos + (-1 if self.bytes_reverse else 1)
             self.pos = new_pos
 
+
+    def eof( self ):
+        return self.pos not in range( len( self.buffer ) )
 
     def set_offset( self, offset ):
         """Set the current read offset (in bytes) for the instance."""
@@ -99,6 +102,23 @@ class BitReader( object ):
     def get_bits( self, count ):
         """Get an integer containing the next [count] bits from the source."""
         result = 0
+        
+        """
+        x.get_bits( 3 ) # 0bABC
+        x.get_bits( 3 ) # 0bDEF
+        x.get_bits( 3 ) # 0bGHI
+        x.get_bits( 3 ) # 0bJKL
+
+        # default:
+        # HGFEDCBA xxxxLKJI
+        # bits_reverse:
+        # ABCDEFGH IJKLxxxx
+        # bytes_reverse:
+        # xxxxLKJI HGFEDCBA
+        # output_reverse:
+        # HIDEFABC xxxxJKLG
+
+        """
         for i in range( count ):
             if self.bits_remaining <= 0:
                 self._fill_buffer()
@@ -123,7 +143,7 @@ class BitReader( object ):
 class BitWriter( object ):
     """Class for writing data as a stream of bits."""
 
-    def __init__( self, bytes_reverse=False, bits_reverse=False, insert_at_msb=False ):
+    def __init__( self, bytes_reverse=False, bits_reverse=False, input_reverse=False, insert_at_msb=False ):
         """Create a BitWriter instance.
 
         bytes_reverse
@@ -133,12 +153,16 @@ class BitWriter( object ):
             If enabled, make the insert order for bits from most-significant to
             least-significant.
 
+        input_reverse
+            If enabled, process put bits starting from the most-significant bit (0x80) through least significant bit (0x01).
+
         insert_at_msb
             If enabled, start filling each byte from the most-significant bit end (0x80).
         """
         self.output = bytearray()
         self.bits_reverse = bits_reverse
         self.bytes_reverse = bytes_reverse
+        self.input_reverse = input_reverse
         self.insert_at_msb = insert_at_msb
         self.bits_remaining = 8
         self.current_bits = 0
@@ -153,11 +177,14 @@ class BitWriter( object ):
         count
             Number of bits to push to the target.
         """
-        for _ in range( count ):
+        for i in range( count ):
 
-            # bits are retrieved from the source LSB first
-            bit = (value & 1)
-            value >>= 1
+            if self.input_reverse:
+                bit = 1 if value & (1 << count - i - 1) else 0
+            else:
+                # bits are retrieved from the source LSB first
+                bit = (value & 1)
+                value >>= 1
 
             # however, bits are put into the result based on the rule
             if self.bits_reverse:

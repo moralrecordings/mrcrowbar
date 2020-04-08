@@ -13,6 +13,7 @@ Unreleased
 - blocks.Block: More debug logs
 - blocks.Block: Fix missing line in get_field_obj
 - lib.platforms.director: Improve SoundV4, add bitmap support to parser
+- encoding.regex_pattern_to_bytes: Fix fixed_string processing of backslash
 
 0.7.3 - 2019-12-07
 ==================

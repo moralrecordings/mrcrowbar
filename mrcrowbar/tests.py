@@ -2,7 +2,9 @@ import unittest
 
 import enum
 
+from mrcrowbar import bits
 from mrcrowbar import models as mrc
+from mrcrowbar import sound
 
 class TestBlock( unittest.TestCase ):
     def test_chain( self ):
@@ -417,6 +419,46 @@ class TestStore( unittest.TestCase ):
         test.elements.save()
         new_payload = b'\x03\x00\x00\x02\x00\x05\x00abghij'
         self.assertEqual( test.export_data(), new_payload )
+
+
+class TestBits( unittest.TestCase ):
+    def test_bits_read( self ):
+        data = bytes([0b10010010, 0b01001010, 0b10101010, 0b10111111])
+
+        bs = bits.BitStream( data )
+        self.assertEqual( bs.read( 3 ), 0b100 )
+        self.assertEqual( bs.read( 3 ), 0b100 )
+        self.assertEqual( bs.read( 3 ), 0b100 )
+        self.assertEqual( bs.read( 3 ), 0b100 )
+        self.assertEqual( bs.read( 14 ), 0b10101010101010 )
+
+        bs = bits.BitStream( data, io_endian='little' )
+        self.assertEqual( bs.read( 3 ), 0b001 )
+        self.assertEqual( bs.read( 3 ), 0b001 )
+        self.assertEqual( bs.read( 3 ), 0b001 )
+        self.assertEqual( bs.read( 3 ), 0b001 )
+        self.assertEqual( bs.read( 14 ), 0b01010101010101 )
+
+        bs = bits.BitStream( data, start_offset=len( data ) - 1, bytes_reverse=True )
+        self.assertEqual( bs.read( 17 ), 0b10111111101010100 )
+        self.assertEqual( bs.read( 3 ), 0b100 )
+        self.assertEqual( bs.read( 4 ), 0b1010 )
+        self.assertEqual( bs.read( 3 ), 0b100 )
+        self.assertEqual( bs.read( 3 ), 0b100 )
+
+        bs = bits.BitStream( data, start_offset=(len( data ) - 1, 7), bytes_reverse=True, io_endian='little', bit_endian='little' )
+        self.assertEqual( bs.read( 6 ), 0b111111 )
+        self.assertEqual( bs.read( 14 ), 0b10101010101010 )
+        self.assertEqual( bs.read( 3 ), 0b100 )
+        self.assertEqual( bs.read( 3 ), 0b100 )
+        self.assertEqual( bs.read( 3 ), 0b100 )
+        self.assertEqual( bs.read( 3 ), 0b100 )
+
+
+class TestSound( unittest.TestCase ):
+
+    def test_resampling( self ):
+        source = b'\x80' * sound.RESAMPLE_BUFFER + b'\x00' * sound.RESAMPLE_BUFFER
 
 
 if __name__ == '__main__':

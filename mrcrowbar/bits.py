@@ -18,8 +18,85 @@ BYTE_REVERSE = bytes.fromhex( '008040c020a060e0109050d030b070f0'\
                               '078747c727a767e7179757d737b777f7'\
                               '0f8f4fcf2faf6fef1f9f5fdf3fbf7fff' )
 
-def reverse_bits( byte ):
-    return BYTE_REVERSE[byte]
+BIT_MASK = [(1 << size) - 1 for size in range( 0, 65 )]
+
+mask = lambda size: BIT_MASK[size] if size in range( 0, 65 ) else (1 << size) - 1
+
+def reverse_bits( number, size=8 ):
+    number &= mask( size )
+    if size == 8:
+        return BYTE_REVERSE[number]
+    result = 0
+    width = (size + 7) // 8
+    shift = (8 - size)  % 8
+    for i in range( 0, width ):
+        fragment = (number >> (i * 8)) & 0xff
+        result |= BYTE_REVERSE[fragment] << ((width - i - 1) * 8)
+    result >>= shift
+    return result
+
+
+def read_bits( buffer, byte_offset, bit_offset, size, bytes_reverse=False, bit_endian='big', io_endian='big' ):
+    byte_start = byte_offset
+    bit_start = bit_offset
+
+    bit_diff = (bit_offset + size) if bit_endian == 'big' else (7 - bit_offset + size)
+
+    if bytes_reverse:
+        byte_end = byte_offset - bit_diff // 8
+    else:
+        byte_end = byte_offset + bit_diff // 8
+    bit_end = bit_diff % 8 if bit_endian == 'big' else 7 - (bit_diff % 8)
+    result = 0
+
+    first_byte = buffer[byte_start]
+    middle_bytes = range( byte_start + 1, byte_end ) if not bytes_reverse else range( byte_start - 1, byte_end, -1 )
+    end_byte = buffer[byte_end] if byte_end in range( len( buffer ) ) else 0
+
+    if bit_endian == 'big':
+        # start
+        span_mask = mask( 8 - bit_start )
+        if byte_start == byte_end:
+            span_mask ^= mask( 8 - bit_end )
+        result |= first_byte & span_mask
+        if byte_start != byte_end:
+
+            # middle
+            for i in middle_bytes:
+                result <<= 8
+                result |= buffer[i]
+
+            # end
+            span_mask = 0xff ^ mask( 8 - bit_end )
+            result <<= 8
+            result |= end_byte & span_mask
+        result >>= 8 - bit_end
+    else:
+        # start
+        span_mask = 0xff ^ mask( 7 - bit_start )
+        if byte_start == byte_end:
+            span_mask ^= 0xff ^ mask( 7 - bit_end )
+        result |= first_byte & span_mask
+        result >>= 7 - bit_start
+        if byte_start != byte_end:
+            bit_offset = bit_start + 1
+
+            # middle
+            for i in middle_bytes:
+                result |= buffer[i] << bit_offset
+                bit_offset += 8
+
+            # end
+            span_mask = mask( 7 - bit_end )
+            result |= (end_byte & span_mask) << bit_offset
+
+    if io_endian != bit_endian:
+        result = reverse_bits( result, size )
+    return result
+
+
+def write_bits( value, buffer, byte_offset, bit_offset, size, bytes_reverse=False, bit_endian='big', io_endian='big' ):
+    pass
 
 
 def unpack_bits( byte ):
@@ -38,6 +115,90 @@ def pack_bits( longbits ):
     byte = (byte | (byte>>14)) & (0x0000000f0000000f)
     byte = (byte | (byte>>28)) & (0x00000000000000ff)
     return byte
+
+
+class BitStream( object ):
+    def __init__( self, buffer, start_offset=0, bytes_reverse=False, bit_endian='big', io_endian='big' ):
+        """Create a BitStream instance.
+
+        buffer
+            Source byte string to read from.
+
+        start_offset
+            Position in the block to start reading from. Can be an integer byte offset,
+            or a tuple containing the byte and bit offsets. Defaults to 0.
+
+        bytes_reverse
+            If enabled, fetch successive bytes from the source in reverse order.
+
+        bit_endian
+            Endianness of the backing storage; either 'big' or 'little'. Defaults to big
+            (i.e. starting from the most-significant bit (0x80) through least-significant
+            bit (0x10)).
+
+        io_endian
+            Endianness of data returned from read/write; either 'big' or 'little'. Defaults
+            to big (i.e. starting from the most-significant bit (0x80) through
+            least-significant bit (0x10)).
+
+        """
+        assert is_bytes( buffer )
+        self.buffer = buffer
+        self.bytes_reverse = bytes_reverse
+        if bit_endian not in ('big', 'little'):
+            raise TypeError('bit_endian should be either \'big\' or \'little\'')
+        self.bit_endian = bit_endian
+        if io_endian not in ('big', 'little'):
+            raise TypeError('io_endian should be either \'big\' or \'little\'')
+        self.io_endian = io_endian
+        if isinstance(start_offset, int):
+            self.byte_pos = start_offset
+            self.bit_pos = 0 if bit_endian == 'big' else 7
+        elif isinstance(start_offset, tuple):
+            self.byte_pos, self.bit_pos = start_offset
+        else:
+            raise TypeError('start_offset should be of type int or tuple')
+
+    def tell():
+        """Get the current byte and bit position."""
+        return self.byte_pos, self.bit_pos
+
+
+    def read( self, count ):
+        """Get an integer containing the next [count] bits from the source."""
+        """
+        x.read( 3 ) # 0bABC
+        x.read( 3 ) # 0bDEF
+        x.read( 3 ) # 0bGHI
+        x.read( 3 ) # 0bJKL
+
+        # default:
+        # ABCDEFGH IJKLxxxx
+        # bit_endian == 'little'
+        # HGFEDCBA xxxxLKJI
+        # bytes_reverse == True:
+        # IJKLxxxx ABCDEFGH
+        # io_endian == 'little':
+        # CBAFEDIH GLKJxxxx
+        """
+        result = read_bits(
+            buffer=self.buffer,
+            byte_offset=self.byte_pos,
+            bit_offset=self.bit_pos,
+            size=count,
+            bytes_reverse=self.bytes_reverse,
+            bit_endian=self.bit_endian,
+            io_endian=self.io_endian
+        )
+        bit_diff = (self.bit_pos + count) if self.bit_endian == 'big' else (7 - self.bit_pos + count)
+
+        if self.bytes_reverse:
+            self.byte_pos -= bit_diff // 8
+        else:
+            self.byte_pos += bit_diff // 8
+
+        self.bit_pos = bit_diff % 8 if self.bit_endian == 'big' else 7 - (bit_diff % 8)
+        return result
 
 
 class BitReader( object ):
@@ -91,6 +252,7 @@ class BitReader( object ):
 
     def eof( self ):
         return self.pos not in range( len( self.buffer ) )
+
 
     def set_offset( self, offset ):
         """Set the current read offset (in bytes) for the instance."""

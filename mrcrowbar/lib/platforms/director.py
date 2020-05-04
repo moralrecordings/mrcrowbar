@@ -867,6 +867,201 @@ class ScriptV5( ScriptV4 ):
     consts = mrc.BlockField( ScriptConstantV5, mrc.Ref( 'consts_offset' ), count=mrc.Ref( 'consts_count' ) )
 
 
+class ConfigV4( mrc.Block ):
+    length = mrc.UInt16_BE( 0x00 )
+    ver1 = mrc.UInt16_BE( 0x02 )
+    movie_rect = mrc.BlockField( Rect, 0x04 )
+    cast_array_start = mrc.UInt16_BE( 0x0c )
+    cast_array_end = mrc.UInt16_BE( 0x0e )
+    frame_rate = mrc.UInt8( 0x10 )
+    light_switch = mrc.UInt8( 0x11 )
+    
+    unk1 = mrc.Int16_BE( 0x12 )
+    
+    comment_font = mrc.Int16_BE( 0x14 )
+    comment_size = mrc.Int16_BE( 0x16 )
+    comment_style = mrc.UInt8( 0x18 )
+    stage_colour = mrc.Int16_BE( 0x1a )
+    bit_depth = mrc.Int16_BE( 0x1c )
+    colour_flag = mrc.UInt8( 0x1e )
+    unk5 = mrc.UInt8( 0x1f )
+    unk6 = mrc.Int32_BE( 0x20 )
+    unk7 = mrc.Int16_BE( 0x24 )
+    unk8 = mrc.Int16_BE( 0x26 )
+    unk9 = mrc.Int32_BE( 0x28 )
+    unk10 = mrc.Int32_BE( 0x2c )
+    unk11 = mrc.Int32_BE( 0x30 )
+    unk12 = mrc.UInt8( 0x34 )
+    unk13 = mrc.Int16_BE( 0x36 )
+    unk14 = mrc.Int16_BE( 0x38 )
+    unk15 = mrc.Int16_BE( 0x3a )
+
+    checksum = mrc.UInt32_BE( 0x40 )
+
+    palette_id = mrc.UInt16_BE( 0x46 )
+
+    unk4 = mrc.Bytes( 0x48, length=0x08 )
+
+    @property
+    def checksum_v4( self ):
+        mult = lambda a, b: (a * b) & 0xffffffff
+
+        stack = []
+        ax = self.movie_rect.right
+        ax += 6
+        stack.append( ax )
+        ax = self.movie_rect.bottom
+        ax += 5
+        stack.append( ax )
+        ax = self.movie_rect.left
+        ax += 4
+        stack.append( ax )
+        ax = self.movie_rect.top
+        ax += 3
+        stack.append( ax )
+        ax = self.ver1
+        ax += 2
+        cx = self.length
+        cx += 1
+        ax *= cx
+        stack.append( ax )
+        ax = stack.pop() // stack.pop()
+        stack.append( ax )
+        ax = mult( stack.pop(), stack.pop() )
+        stack.append( ax )
+        ax = stack.pop() // stack.pop()
+        stack.append( ax )
+        ax = mult( stack.pop(), stack.pop() )
+
+        bx = ax
+        ax = self.cast_array_start
+        ax += 7
+        bx -= ax
+        stack.append( bx )
+
+        ax = self.cast_array_end
+        ax += 8
+        stack.append( ax )
+        ax = mult( stack.pop(), stack.pop() )
+
+        temp_sum = ax
+
+        ax = self.frame_rate
+        ax += 9
+        temp_sum -= ax
+
+        ax = self.light_switch
+        ax += 10
+        temp_sum -= ax
+
+        ax = self.unk1
+        ax += 11
+        temp_sum += ax
+
+        stack.append( temp_sum )
+
+        ax = self.comment_font
+        ax += 12
+
+        stack.append( ax )
+
+        temp_sum = mult( stack.pop(), stack.pop() )
+
+        ax = self.comment_size
+        ax += 13
+        temp_sum += ax
+
+        stack.append( temp_sum )
+
+        ax = self.comment_style
+        ax += 14
+        stack.append( ax )
+
+        temp_sum = mult( stack.pop(), stack.pop() )
+
+        ax = self.stage_colour
+        ax += 15
+
+        temp_sum += ax 
+
+        ax = self.bit_depth
+        ax += 16
+        temp_sum += ax
+
+        ax = self.colour_flag
+        ax += 17
+        temp_sum += ax
+
+        stack.append( temp_sum )
+
+        ax = self.unk5
+        ax += 18
+        stack.append( ax )
+
+        temp_sum = mult( stack.pop(), stack.pop() )
+
+        eax = self.unk6
+        eax += 19
+        temp_sum += eax
+        stack.append( temp_sum )
+
+        ax = self.unk7
+        ax += 20
+        stack.append( ax )
+
+        temp_sum = mult( stack.pop(), stack.pop() )
+
+        ax = self.unk8
+        ax += 21
+        temp_sum += ax
+
+        ax = self.unk9
+        ax += 22
+        temp_sum += ax
+
+        ax = self.unk10
+        ax += 23
+        temp_sum += ax
+
+        ax = self.unk11
+        ax += 24
+        temp_sum += ax
+
+        stack.append( temp_sum )
+
+        ax = self.unk12
+        ax += 25
+        stack.append( ax )
+
+        temp_sum = mult( stack.pop(), stack.pop() )
+
+        ax = self.unk13
+        ax += 26
+
+        temp_sum += ax
+        stack.append( temp_sum )
+
+        ax = self.unk14
+        ax += 27
+        stack.append( ax )
+
+        ax = mult( stack.pop(), stack.pop() )
+
+        stack.append( ax )
+
+        ax = 0xe06
+        ax = self.unk15 * ax
+        ax -= 0x00bb0000
+        stack.append( ax )
+
+        ax = mult( stack.pop(), stack.pop() )
+
+        ax ^= 0x72616c66  # 'ralf'
+
+        return ax
+
+        
+
 
 class DirectorV4Map( riff.RIFXMap ):
     CHUNK_MAP = {
@@ -883,6 +1078,7 @@ class DirectorV4Map( riff.RIFXMap ):
         riff.Tag( b'Lnam' ): ScriptNamesV4,
         riff.Tag( b'Lctx' ): ScriptContextV4,
         riff.Tag( b'VWSC' ): ScoreV4,
+        riff.Tag( b'VWCF' ): ConfigV4,
     }
 DirectorV4Map.CHUNK_MAP[riff.Tag( b'RIFX' )] = DirectorV4Map
 
@@ -911,6 +1107,7 @@ class DirectorV5Map( riff.RIFXMap ):
         riff.Tag( b'Lnam' ): ScriptNamesV4,
         riff.Tag( b'Lctx' ): ScriptContextV4,
         riff.Tag( b'VWSC' ): ScoreV4,
+        riff.Tag( b'VWCF' ): ConfigV4,
     }
 DirectorV4Map.CHUNK_MAP[riff.Tag( b'RIFX' )] = DirectorV4Map
 

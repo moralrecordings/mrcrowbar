@@ -36,7 +36,7 @@ class RGBAColour( Colour ):
 class Palette( mrc.BlockField ):
     def __init__( self, block_klass, offset, block_kwargs=None, count=None, fill=None, **kwargs ):
         assert issubclass( block_klass, Colour )
-        super().__init__( block_klass, offset, block_kwargs, count, fill, **kwargs )
+        super().__init__( block_klass, offset, block_kwargs=block_kwargs, count=count, fill=fill, **kwargs )
 
     def scrub( self, value, parent=None ):
         return [x if isinstance( x, self.block_klass ) else self.block_klass( x ) for x in value]
@@ -444,8 +444,8 @@ class Planarizer( mrc.Transform ):
         if frame_count > 1:
             end_offset = frame_offset + frame_count*frame_stride
         else:
-            bits = plane_size*8*bpp
-            end_offset = frame_offset + (bits)//8 + (1 if (bits % 8) else 0)
+            plane_bits = plane_size*8*bpp
+            end_offset = frame_offset + (plane_bits)//8 + (1 if (plane_bits % 8) else 0)
 
         return mrc.TransformResult( payload=bytes( raw_image ), end_offset=end_offset )
 

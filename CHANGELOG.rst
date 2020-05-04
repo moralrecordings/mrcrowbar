@@ -15,6 +15,8 @@ Unreleased
 - lib.platforms.director: Improve SoundV4, add bitmap support to parser
 - encoding.regex_pattern_to_bytes: Fix fixed_string processing of backslash
 - bits.BitWriter: Add input_reverse option
+- bits.BitStream: Add new, overhauled bit manipulation engine
+- lib.platforms.director.ConfigV4: Add struct, checksum generator
 
 0.7.3 - 2019-12-07
 ==================

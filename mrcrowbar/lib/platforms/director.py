@@ -881,6 +881,7 @@ class ConfigV4( mrc.Block ):
     comment_font = mrc.Int16_BE( 0x14 )
     comment_size = mrc.Int16_BE( 0x16 )
     comment_style = mrc.UInt8( 0x18 )
+    comment_style_2 = mrc.UInt8( 0x19 )
     stage_colour = mrc.Int16_BE( 0x1a )
     bit_depth = mrc.Int16_BE( 0x1c )
     colour_flag = mrc.UInt8( 0x1e )
@@ -892,12 +893,13 @@ class ConfigV4( mrc.Block ):
     unk10 = mrc.Int32_BE( 0x2c )
     unk11 = mrc.Int32_BE( 0x30 )
     unk12 = mrc.UInt8( 0x34 )
+    unk17 = mrc.UInt8( 0x35 )
     unk13 = mrc.Int16_BE( 0x36 )
     unk14 = mrc.Int16_BE( 0x38 )
-    unk15 = mrc.Int16_BE( 0x3a )
-
+    protection_bits = mrc.Int16_BE( 0x3a )
+    unk15 = mrc.UInt32_BE( 0x3c )
     checksum = mrc.UInt32_BE( 0x40 )
-
+    unk16 = mrc.UInt16_BE( 0x44 )
     palette_id = mrc.UInt16_BE( 0x46 )
 
     unk4 = mrc.Bytes( 0x48, length=0x08 )
@@ -1050,7 +1052,7 @@ class ConfigV4( mrc.Block ):
         stack.append( ax )
 
         ax = 0xe06
-        ax = self.unk15 * ax
+        ax = self.protection_bits * ax
         ax -= 0x00bb0000
         stack.append( ax )
 
@@ -1266,3 +1268,24 @@ class DirectorV4Parser( object ):
                     print(g.name_index)
             print()
 
+
+def unlock_dir_file( filename, klass=DirectorV4 ):
+    f = open( filename, 'r+b' )
+
+    data = f.read()
+    f.seek( 0 )
+    parser = DirectorV4Parser( klass( data ) )
+    index, chunk = parser.get_all_from_mmap( b'VWCF' )[0]
+    if chunk.obj.protection_bits % 23:
+        print('File is unprotected!')
+    else:
+        print('File is protected, fixing!')
+        old_data = chunk.obj.export_data()
+        chunk.obj.ver1 = 0x045D
+        chunk.obj.protection_bits += 1
+        chunk.obj.checksum = chunk.obj.checksum_v4
+        new_data = chunk.obj.export_data()
+        for location in utils.find_all( data, old_data ):
+            f.seek( location )
+            f.write( new_data )
+    f.close()

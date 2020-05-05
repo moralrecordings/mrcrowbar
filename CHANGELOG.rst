@@ -17,6 +17,8 @@ Unreleased
 - bits.BitWriter: Add input_reverse option
 - bits.BitStream: Add new, overhauled bit manipulation engine
 - lib.platforms.director.ConfigV4: Add struct, checksum generator
+- lib.images.base: Fix keyword usage, naming collision
+- lib.platforms.director.unlock_dir_file: Add helper for unlocking Director files
 
 0.7.3 - 2019-12-07
 ==================

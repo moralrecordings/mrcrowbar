@@ -581,10 +581,10 @@ LINGO_V4_LIST = [
     ('INTERSECTS', 0x19, Blank),
     ('WITHIN', 0x1a, Blank),
     ('FIELD', 0x1b, Blank),
-    ('EXEC', 0x1c, Blank),
-    ('EXEC_END', 0x1d, Blank),
-    ('ARRAY', 0x1e, Blank),
-    ('DICT', 0x1f, Blank),
+    ('TELL', 0x1c, Blank),
+    ('TELL_DONE', 0x1d, Blank),
+    ('LIST', 0x1e, Blank),
+    ('PROPLIST', 0x1f, Blank),
 
     # 1 byte payload
     ('PUSH_INT', 0x41, Write8),
@@ -1112,6 +1112,15 @@ class DirectorV5Map( riff.RIFXMap ):
         riff.Tag( b'VWCF' ): ConfigV4,
     }
 DirectorV4Map.CHUNK_MAP[riff.Tag( b'RIFX' )] = DirectorV4Map
+
+
+class DirectorV5( riff.RIFX ):
+    CHUNK_MAP_CLASS = DirectorV5Map
+
+
+class DirectorV5_LE( riff.RIFX ):
+    _endian = 'little'
+    CHUNK_MAP_CLASS = DirectorV5Map
 
 
 class PJ93_LE( mrc.Block ):

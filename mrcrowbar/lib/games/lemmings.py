@@ -27,7 +27,7 @@ logger = logging.getLogger( __name__ )
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
-from mrcrowbar import utils
+from mrcrowbar import bits, utils
 
 
 
@@ -46,36 +46,38 @@ class DATCompressor( mrc.Transform ):
         pointer = 0;
         total_num_bytes = len( buffer )
         
-        bit_count = utils.from_uint8( buffer[pointer:pointer+1] )
-        checksum = utils.from_uint8( buffer[pointer+1:pointer+2] )
-        decompressed_size = utils.from_uint32_be( buffer[pointer+2:pointer+6] )
-        compressed_size = utils.from_uint32_be( buffer[pointer+6:pointer+10] )
+        bit_count = utils.from_uint8( buffer[pointer:pointer + 1] )
+        checksum = utils.from_uint8( buffer[pointer + 1:pointer + 2] )
+        decompressed_size = utils.from_uint32_be( buffer[pointer + 2:pointer + 6] )
+        compressed_size = utils.from_uint32_be( buffer[pointer + 6:pointer + 10] )
         
         pointer += 10
         total_num_bytes -= 10
         compressed_size -= 10
         
-        compressed_data = buffer[pointer:pointer+compressed_size]
+        compressed_data = bytearray(buffer[pointer:pointer + compressed_size])
         if checksum != self._xor_checksum( compressed_data ):
             logger.warning( '{}: Checksum doesn\'t match header'.format( self ) )  
         
         pointer += compressed_size
         total_num_bytes -= compressed_size
     
-        bs = utils.BitReader( compressed_data, compressed_size-1, bytes_reverse=True, output_reverse=True )
+        # first byte of compressed data is shifted wrongly, fix
+        compressed_data[-1] = (compressed_data[-1] << (8 - bit_count)) & 0xff
+        bs = bits.BitStream( compressed_data, start_offset=(compressed_size - 1, bit_count - 1), bytes_reverse=True, bit_endian='little', io_endian='big' )
         bs.bits_remaining = bit_count
         
         def copy_prev_data( blocklen, offset_size, state ):
-            offset = bs.get_bits( offset_size )
+            offset = bs.read( offset_size )
             for i in range( blocklen ):
                 state['dptr'] -= 1
-                state['ddata'][state['dptr']] = state['ddata'][state['dptr']+offset+1]
+                state['ddata'][state['dptr']] = state['ddata'][state['dptr'] + offset + 1]
             return
         
         def dump_data( num_bytes, state ):
             for i in range( num_bytes ):
                 state['dptr'] -= 1
-                state['ddata'][state['dptr']] = bs.get_bits( 8 )
+                state['ddata'][state['dptr']] = bs.read( 8 )
             return
 
         state = { 
@@ -84,20 +86,20 @@ class DATCompressor( mrc.Transform ):
         }
 
         while True:
-            if bs.get_bits( 1 ) == 1:
-                test = bs.get_bits( 2 )
+            if bs.read( 1 ) == 1:
+                test = bs.read( 2 )
                 if test==0:
                     copy_prev_data( 3, 9, state )
                 elif test==1:
                     copy_prev_data( 4, 10, state )
                 elif test==2:
-                    copy_prev_data( bs.get_bits( 8 )+1, 12, state )
+                    copy_prev_data( bs.read( 8 ) + 1, 12, state )
                 elif test==3:
-                    dump_data( bs.get_bits( 8 )+9, state )
+                    dump_data( bs.read( 8 )+9, state )
             else:
-                test = bs.get_bits( 1 )
+                test = bs.read( 1 )
                 if test==0:
-                    dump_data( bs.get_bits( 3 )+1, state )
+                    dump_data( bs.read( 3 ) + 1, state )
                 elif test==1:
                     copy_prev_data( 2, 8, state )
             if not (state['dptr'] > 0): 

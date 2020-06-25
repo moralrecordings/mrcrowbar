@@ -439,20 +439,59 @@ class TestBits( unittest.TestCase ):
         self.assertEqual( bs.read( 3 ), 0b001 )
         self.assertEqual( bs.read( 14 ), 0b01010101010101 )
 
-        bs = bits.BitStream( data, start_offset=len( data ) - 1, bytes_reverse=True )
+        bs = bits.BitStream( data, bytes_reverse=True )
         self.assertEqual( bs.read( 17 ), 0b10111111101010100 )
         self.assertEqual( bs.read( 3 ), 0b100 )
         self.assertEqual( bs.read( 4 ), 0b1010 )
         self.assertEqual( bs.read( 3 ), 0b100 )
         self.assertEqual( bs.read( 3 ), 0b100 )
 
-        bs = bits.BitStream( data, start_offset=(len( data ) - 1, 7), bytes_reverse=True, io_endian='little', bit_endian='little' )
+        bs = bits.BitStream( data, bytes_reverse=True, io_endian='little', bit_endian='little' )
         self.assertEqual( bs.read( 6 ), 0b111111 )
         self.assertEqual( bs.read( 14 ), 0b10101010101010 )
         self.assertEqual( bs.read( 3 ), 0b100 )
         self.assertEqual( bs.read( 3 ), 0b100 )
         self.assertEqual( bs.read( 3 ), 0b100 )
         self.assertEqual( bs.read( 3 ), 0b100 )
+
+    def test_bits_write( self ):
+        target = bytes([0b10010010, 0b01001010, 0b10101010, 0b10111111])
+
+        bs = bits.BitStream( bytearray() )
+        bs.write( 3, 0b100 )
+        bs.write( 3, 0b100 )
+        bs.write( 3, 0b100 )
+        bs.write( 3, 0b100 )
+        bs.write( 14, 0b10101010101010 )
+        bs.write( 6, 0b111111 )
+        self.assertEqual( target, bs.buffer )
+
+        bs = bits.BitStream( bytearray(), io_endian='little' )
+        bs.write( 3, 0b001 )
+        bs.write( 3, 0b001 )
+        bs.write( 3, 0b001 )
+        bs.write( 3, 0b001 )
+        bs.write( 14, 0b01010101010101 )
+        bs.write( 6, 0b111111 )
+        self.assertEqual( target, bs.buffer )
+
+        bs = bits.BitStream( bytearray(), bytes_reverse=True )
+        bs.write( 17, 0b10111111101010100 )
+        bs.write( 3, 0b100 )
+        bs.write( 4, 0b1010 )
+        bs.write( 3, 0b100 )
+        bs.write( 3, 0b100 )
+        bs.write( 2, 0b10 )
+        self.assertEqual( target, bs.buffer )
+
+        bs = bits.BitStream( bytearray(), bytes_reverse=True, io_endian='little', bit_endian='little' )
+        bs.write( 6, 0b111111 )
+        bs.write( 14, 0b10101010101010 )
+        bs.write( 3, 0b100 )
+        bs.write( 3, 0b100 )
+        bs.write( 3, 0b100 )
+        bs.write( 3, 0b100 )
+        self.assertEqual( target, bs.buffer )
 
 
 class TestSound( unittest.TestCase ):

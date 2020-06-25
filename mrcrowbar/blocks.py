@@ -151,7 +151,7 @@ class Block( object, metaclass=BlockMeta ):
     _cache_bytes = False
     _bytes = None
 
-    def __init__( self, source_data=None, parent=None, preload_attrs=None, endian=None, cache_bytes=False ):
+    def __init__( self, source_data=None, parent=None, preload_attrs=None, endian=None, cache_bytes=False, path_hint=None ):
         """Base class for Blocks.
 
         source_data
@@ -175,6 +175,10 @@ class Block( object, metaclass=BlockMeta ):
         cache_bytes
             Cache the bytes equivalent of the Block. Useful for debugging the
             loading procedure. Defaults to False.
+
+        path_hint
+            Cache a string containing the path of the current Block, relative
+            to the root.
         """
         self._field_data = {}
         self._ref_cache = {}
@@ -182,6 +186,9 @@ class Block( object, metaclass=BlockMeta ):
             assert isinstance( parent, Block )
         self._parent = parent
         self._endian = endian if endian else (parent._endian if parent else self._endian)
+        self._path_hint = path_hint
+        if self._path_hint is None:
+            self._path_hint = '<{}>'.format( self.__class__.__name__ )
 
         if cache_bytes:
             self._cache_bytes = True
@@ -359,6 +366,31 @@ class Block( object, metaclass=BlockMeta ):
     def get_field_names( self ):
         klass = self.__class__
         return klass._fields.keys()
+
+    def get_field_path( self, field ):
+        klass = self.__class__
+        for field_name, field_obj in klass._fields.items():
+            if field_obj == field:
+                return '{}.{}'.format( self.get_path(), field_name )
+        return '{}.?'.format( self.get_path() )
+
+    def get_path( self ):
+        klass = self.__class__
+        if not self._parent:
+            self._path_hint = '<{}>'.format( klass.__name__ )
+        else:
+            pklass = self._parent.__class__
+            for field_name, field_obj in pklass._fields.items():
+                if field_name in self._parent._field_data:
+                    if self._parent._field_data[field_name] == self:
+                        self._path_hint = '{}.{}'.format( self._parent.get_path(), field_name )
+                    elif type( self._parent._field_data[field_name] ) == list:
+                        for i, subobject in enumerate( self._parent._field_data[field_name] ):
+                            if subobject == self:
+                                self._path_hint = '{}.{}[{}]'.format( self._parent.get_path(), field_name, i )
+                            elif hasattr( subobject, 'obj' ) and subobject.obj == self:
+                                self._path_hint = '{}.{}[{}].obj'.format( self._parent.get_path(), field_name, i )
+        return self._path_hint
 
     def get_field_start_offset( self, field_name, index=None ):
         klass = self.__class__

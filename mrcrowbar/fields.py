@@ -188,6 +188,20 @@ class Field( object ):
         """
         return None
 
+    def get_path( self, parent=None, index=None ):
+        """Return the location in the Block tree
+
+        parent
+            Parent block object where this Field is defined.
+
+        index
+            Index into the value of the Field.
+        """
+        suffix = '[{}]'.format(index) if index is not None else ''
+        if not parent:
+            return '<{}>'.format( self.__class__.__name__ ) + suffix
+        return parent.get_field_path( self ) + suffix
+
 
 class StreamField( Field ):
     def __init__( self, offset=Chain(), *, default=None, count=None, length=None, stream=False,
@@ -234,7 +248,7 @@ class StreamField( Field ):
         self.stream_end = stream_end
         self.stop_check = stop_check
 
-    def get_element_from_buffer( self, offset, buffer, parent=None ):
+    def get_element_from_buffer( self, offset, buffer, parent=None, index=None ):
         pass
 
     def get_from_buffer( self, buffer, parent=None ):
@@ -266,7 +280,7 @@ class StreamField( Field ):
             if self.stream_end is not None and buffer[pointer:pointer+len( self.stream_end )] == self.stream_end:
                 break
 
-            element, end_offset = self.get_element_from_buffer( pointer, buffer, parent )
+            element, end_offset = self.get_element_from_buffer( pointer, buffer, parent, index=len( result ) if is_array else None )
             result.append( element )
             pointer = end_offset
 
@@ -281,14 +295,14 @@ class StreamField( Field ):
                 # in the case of an empty result for a non-array, attempt to fetch one record.
                 # this will only work if the resulting element is of size 0.
                 try:
-                    result, _ = self.get_element_from_buffer( pointer, buffer, parent )
+                    result, _ = self.get_element_from_buffer( pointer, buffer, parent, index=0 )
                 except Exception:
-                    raise EmptyFieldError( 'No data could be extracted for this field' )
+                    raise EmptyFieldError( '{}: No data could be extracted'.format( self.get_path( parent ) ) )
             else:
                 return result[0]
         return result
 
-    def update_buffer_with_element( self, offset, element, buffer, parent=None ):
+    def update_buffer_with_element( self, offset, element, buffer, parent=None, index=None ):
         pass
 
     def update_buffer_with_value( self, value, buffer, parent=None ):
@@ -304,16 +318,16 @@ class StreamField( Field ):
             try:
                 it = iter( value )
             except TypeError:
-                raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
+                raise FieldValidationError( '{}: Type {} not iterable'.format( self.get_path( parent ), type( value ) ) )
             if not stream:
                 assert len( value ) <= count
         else:
             value = [value]
 
         pointer = offset
-        for element in value:
+        for index, element in enumerate( value ):
             start_offset = pointer
-            end_offset = self.update_buffer_with_element( pointer, element, buffer, parent )
+            end_offset = self.update_buffer_with_element( pointer, element, buffer, parent, index=index if is_array else None )
             pointer = end_offset
 
             if alignment is not None:
@@ -340,7 +354,7 @@ class StreamField( Field ):
         if length is not None and length != target_length:
             property_set( self.length, parent, target_length )
 
-    def validate_element( self, element, parent=None ):
+    def validate_element( self, element, parent=None, index=None ):
         pass
 
     def validate( self, value, parent=None ):
@@ -353,16 +367,16 @@ class StreamField( Field ):
             try:
                 it = iter( value )
             except TypeError:
-                raise FieldValidationError( 'Type {} not iterable'.format( type( value ) ) )
+                raise FieldValidationError( '{}: Type {} not iterable'.format( self.get_path( parent ), type( value ) ) )
             if count is not None and (not isinstance( self.count, Ref )) and (len( value ) != count):
-                raise FieldValidationError( 'Count defined as a constant, was expecting {} list entries but got {}!'.format( length, len( value ) ) )
+                raise FieldValidationError( '{}: Count defined as a constant, was expecting {} list entries but got {}!'.format( self.get_path( parent ), length, len( value ) ) )
         else:
             value = [value]
 
-        for element in value:
-            self.validate_element( element, parent=parent )
+        for index, element in enumerate( value ):
+            self.validate_element( element, parent=parent, index=index if is_array else None )
 
-    def get_element_size( self, element, parent=None ):
+    def get_element_size( self, element, parent=None, index=None ):
         pass
 
     def get_start_offset( self, value, parent=None, index=None ):
@@ -375,12 +389,12 @@ class StreamField( Field ):
         pointer = offset
         if index is not None:
             if not is_array:
-                raise IndexError( 'Can\'t use index for a non-array' )
+                raise IndexError( '{}: Can\'t use index for a non-array'.format( self.get_path( parent ) ) )
             elif index not in range( len( value ) ):
-                raise IndexError( 'Index {} is not within range( 0, {} )'.format( index, len( value ) ) )
-            for element in value[:index]:
+                raise IndexError( '{}: Index {} is not within range( 0, {} )'.format( self.get_path( parent ), index, len( value ) ) )
+            for el_index, element in enumerate( value[:index] ):
                 start_offset = pointer
-                pointer += self.get_element_size( element, parent )
+                pointer += self.get_element_size( element, parent, index=el_index if is_array else None )
                 # if an alignment is set, do some aligning
                 if alignment is not None:
                     width = (pointer-start_offset) % alignment
@@ -399,16 +413,16 @@ class StreamField( Field ):
 
         if index is not None:
             if not is_array:
-                raise IndexError( 'Can\'t use index for a non-array BlockField' )
+                raise IndexError( '{}: Can\'t use index for a non-array BlockField'.format( self.get_path( parent ) ) )
             elif index not in range( 0, len( value ) ):
-                raise IndexError( 'Index {} is not within range( 0, {} )'.format( index, len( value ) ) )
+                raise IndexError( '{}: Index {} is not within range( 0, {} )'.format( self.get_path( parent ), index, len( value ) ) )
             value = [value[index]]
         else:
             value = value if is_array else [value]
 
-        for element in value:
+        for el_index, element in enumerate( value ):
             start_offset = pointer
-            pointer += self.get_element_size( element, parent )
+            pointer += self.get_element_size( element, parent, index=el_index if is_array else None )
             # if an alignment is set, do some aligning
             if alignment is not None:
                 width = (pointer-start_offset) % alignment
@@ -506,7 +520,7 @@ class ChunkField( StreamField ):
         self.id_size = id_size
         self.fill = fill
 
-    def get_element_from_buffer( self, offset, buffer, parent=None ):
+    def get_element_from_buffer( self, offset, buffer, parent=None, index=None ):
         chunk_map = property_get( self.chunk_map, parent )
         fill = property_get( self.fill, parent )
 
@@ -524,7 +538,7 @@ class ChunkField( StreamField ):
                     chunk_id = test_id
                     break
             if not chunk_id:
-                raise ParseError( 'Could not find matching chunk at offset {}'.format( pointer ) )
+                raise ParseError( '{}: Could not find matching chunk at offset {}'.format( self.get_path( parent, index ), pointer ) )
             pointer += len( chunk_id )
 
         if chunk_id in chunk_map:
@@ -532,7 +546,7 @@ class ChunkField( StreamField ):
         elif self.default_klass:
             chunk_klass = self.default_klass
         else:
-            raise ParseError( 'No chunk class match for ID {}'.format( chunk_id ) )
+            raise ParseError( '{}: No chunk class match for ID {}'.format( self.get_path( parent, index ), chunk_id ) )
 
         if self.length_field:
             size = self.length_field.get_from_buffer( buffer[pointer:], parent=parent )
@@ -542,15 +556,15 @@ class ChunkField( StreamField ):
             if chunk_buffer == fill:
                 result = Chunk( id=chunk_id, obj=None )
                 return result, pointer
-            chunk = chunk_klass( chunk_buffer, parent=parent, cache_bytes=parent._cache_bytes )
+            chunk = chunk_klass( chunk_buffer, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ) )
         else:
-            chunk = chunk_klass( buffer[pointer:], parent=parent, cache_bytes=parent._cache_bytes )
+            chunk = chunk_klass( buffer[pointer:], parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ) )
             pointer += chunk.get_size()
         result = Chunk( id=chunk_id, obj=chunk )
 
         return result, pointer
 
-    def update_buffer_with_element( self, offset, element, buffer, parent=None ):
+    def update_buffer_with_element( self, offset, element, buffer, parent=None, index=None ):
         chunk_map = property_get( self.chunk_map, parent )
         fill = property_get( self.fill, parent )
 
@@ -565,7 +579,7 @@ class ChunkField( StreamField ):
             if fill is not None:
                 payload = fill
             else:
-                raise ValueError( 'Object part of Chunk can\'t be None unless there\'s a fill set' )
+                raise ValueError( '{}: Object part of Chunk can\'t be None unless there\'s a fill set'.format( self.get_path( parent, index ) ) )
         else:
             payload = element.obj.export_data()
 
@@ -581,7 +595,7 @@ class ChunkField( StreamField ):
         buffer[offset:offset+len( data )] = data
         return offset+len( data )
 
-    def validate_element( self, element, parent=None ):
+    def validate_element( self, element, parent=None, index=None ):
         chunk_map = property_get( self.chunk_map, parent )
         fill = property_get( self.fill, parent )
 
@@ -599,7 +613,7 @@ class ChunkField( StreamField ):
         if self.id_size:
             assert len( element.id ) == self.id_size
 
-    def get_element_size( self, element, parent=None ):
+    def get_element_size( self, element, parent=None, index=None ):
         fill = property_get( self.fill, parent )
 
         size = 0
@@ -687,7 +701,7 @@ class BlockField( StreamField ):
         self.default_klass = default_klass
         self.transform = transform
 
-    def get_element_from_buffer( self, offset, buffer, parent=None ):
+    def get_element_from_buffer( self, offset, buffer, parent=None, index=None ):
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         fill = property_get( self.fill, parent )
@@ -699,20 +713,20 @@ class BlockField( StreamField ):
         # if we have an inline transform, apply it
         elif self.transform:
             data = self.transform.import_data( buffer[offset:], parent=parent )
-            block = klass( source_data=data.payload, parent=parent, cache_bytes=parent._cache_bytes, **self.block_kwargs )
+            block = klass( source_data=data.payload, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), **self.block_kwargs )
             return block, offset+data.end_offset
         # otherwise, create a block
-        block = klass( source_data=buffer[offset:], parent=parent, cache_bytes=parent._cache_bytes, **self.block_kwargs )
+        block = klass( source_data=buffer[offset:], parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), **self.block_kwargs )
         size = block.get_size()
         if size == 0:
             if stream:
-                raise ParseError( 'Can\'t stream 0 byte Blocks ({}) from a BlockField'.format( klass ) )
+                raise ParseError( '{}: Can\'t stream 0 byte Blocks ({}) from a BlockField'.format(self.get_path( parent, index ), klass ) )
             elif count and len( result ) == 0:
-                logger.warning( '{}: copying 0 byte Blocks ({}) from a BlockField, this is probably not what you want'.format( self, klass ) )
+                logger.warning( '{}: copying 0 byte Blocks ({}) from a BlockField, this is probably not what you want'.format( self.get_path( parent, index ), klass ) )
 
         return block, offset+size
         
-    def update_buffer_with_element( self, offset, element, buffer, parent=None ):
+    def update_buffer_with_element( self, offset, element, buffer, parent=None, index=None ):
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         fill = property_get( self.fill, parent )
@@ -723,7 +737,7 @@ class BlockField( StreamField ):
             if fill:
                 data = fill
             else:
-                raise ParseError( 'A fill pattern needs to be specified to use None as a list entry' )
+                raise ParseError( '{}: A fill pattern needs to be specified to use None as a list entry'.format( self.get_path( parent, index ) ) )
         else:
             data = element.export_data()
             if self.transform:
@@ -749,12 +763,12 @@ class BlockField( StreamField ):
             if element is not None:
                 element.update_deps()
 
-    def validate_element( self, element, parent=None ):
+    def validate_element( self, element, parent=None, index=None ):
         klass = self.get_klass( parent )
         if (element is not None) and (not isinstance( element, klass )):
-             raise FieldValidationError( 'Expecting block class {}, not {}'.format( klass, type( element ) ) )
+            raise FieldValidationError( '{}: Expecting block class {}, not {}'.format( self.get_path( parent, index ), klass, type( element ) ) )
 
-    def get_element_size( self, element, parent=None ):
+    def get_element_size( self, element, parent=None, index=None ):
         fill = property_get( self.fill, parent )
         if self.transform:
             data = self.transform.export_data( element.export_data(), parent=parent ).payload
@@ -763,7 +777,7 @@ class BlockField( StreamField ):
             if fill:
                 return len( fill )
             else:
-                raise ParseError( 'A fill pattern needs to be specified to use None as a list entry' )
+                raise ParseError( '{}: A fill pattern needs to be specified to use None as a list entry'.format( self.get_path( parent, index ) ) )
         else:
             return element.get_size()
 
@@ -776,7 +790,7 @@ class BlockField( StreamField ):
             elif self.default_klass:
                 return self.default_klass
             else:
-                raise ParseError( 'No block klass match for type {}'.format( block_type ) )
+                raise ParseError( '{}: No block klass match for type {}'.format( self.get_path( parent ), block_type ) )
         return block_klass
 
     def serialise( self, value, parent=None ):
@@ -892,7 +906,7 @@ class StringField( StreamField ):
             if fill:
                 return fill
             else:
-                raise ParseError( 'A fill pattern needs to be specified to use None as a list entry' )
+                raise ParseError( '{}: A fill pattern needs to be specified to use None as a list entry'.format( self.get_path( parent ) ) )
 
         if encoding:
             data = data.encode( encoding )
@@ -913,7 +927,7 @@ class StringField( StreamField ):
                 result = result.decode( encoding )
         return result
 
-    def get_element_from_buffer( self, offset, buffer, parent=None ):
+    def get_element_from_buffer( self, offset, buffer, parent=None, index=None ):
         fill = property_get( self.fill, parent )
         encoding = property_get( self.encoding, parent )
         element_length = property_get( self.element_length, parent )
@@ -952,16 +966,16 @@ class StringField( StreamField ):
             pointer += len( data )
 
         if zero_pad:
-            index = data.find( b'\x00' )
-            if index >= 0:
-                data = data[:index]
+            zero_index = data.find( b'\x00' )
+            if zero_index >= 0:
+                data = data[:zero_index]
 
         if encoding:
             data = data.decode( encoding )
 
         return data, pointer
 
-    def update_buffer_with_element( self, offset, element, buffer, parent=None ):
+    def update_buffer_with_element( self, offset, element, buffer, parent=None, index=None ):
         fill = property_get( self.fill, parent )
         encoding = property_get( self.encoding, parent )
         element_length = property_get( self.element_length, parent )
@@ -974,7 +988,7 @@ class StringField( StreamField ):
             if fill:
                 data.extend( fill )
             else:
-                raise ParseError( 'A fill pattern needs to be specified to use None as a list entry' )
+                raise ParseError( '{}: A fill pattern needs to be specified to use None as a list entry'.format( self.get_path( parent, index ) ) )
         else:
             if encoding:
                 element = element.encode( encoding )
@@ -1003,7 +1017,7 @@ class StringField( StreamField ):
         buffer[offset:offset+len( data )] = data
         return offset+len( data )
 
-    def validate_element( self, element, parent=None ):
+    def validate_element( self, element, parent=None, index=None ):
         fill = property_get( self.fill, parent )
         zero_pad = property_get( self.zero_pad, parent )
         encoding = property_get( self.encoding, parent )
@@ -1016,11 +1030,11 @@ class StringField( StreamField ):
             # try to encode string, throw UnicodeEncodeError if fails
             element = element.encode( encoding )
         elif not common.is_bytes( element ):
-            raise FieldValidationError( 'Expecting bytes, not {}'.format( type( value ) ) )
+            raise FieldValidationError( '{}: Expecting bytes, not {}'.format( self.get_path( parent, index ), type( value ) ) )
 
         if element_length is not None:
             if not zero_pad and element_length < len( element ):
-                raise FieldValidationError( 'Elements must have a size of {} but found {}!'.format( element_length, len( element ) ) )
+                raise FieldValidationError( '{}: Elements must have a size of {} but found {}!'.format( self.get_path( parent, index ), element_length, len( element ) ) )
 
     @property
     def repr( self ):
@@ -1042,7 +1056,7 @@ class StringField( StreamField ):
         offset = property_get( self.offset, parent, caller=self )
         return offset
 
-    def get_element_size( self, element, parent=None ):
+    def get_element_size( self, element, parent=None, index=None ):
         fill = property_get( self.fill, parent )
 
         size = 0
@@ -1155,7 +1169,7 @@ class NumberField( StreamField ):
         self.range = range
         self.enum = enum
 
-    def get_element_from_buffer( self, offset, buffer, parent=None ):
+    def get_element_from_buffer( self, offset, buffer, parent=None, index=None ):
         format_type = property_get( self.format_type, parent )
         field_size = property_get( self.field_size, parent )
         signedness = property_get( self.signedness, parent )
@@ -1173,19 +1187,19 @@ class NumberField( StreamField ):
         element = encoding.unpack( (format_type, field_size, signedness, endian), data )
         # friendly warnings if the imported data fails the range check
         if self.range and (element not in self.range):
-            logger.warning( '{}: value {} outside of range {}'.format( self, element, self.range ) )
+            logger.warning( '{}: value {} outside of range {}'.format( self.get_path( parent, index ), element, self.range ) )
 
         # friendly warning if the imported data fails the enum check
         if self.enum:
             if (element not in [x.value for x in self.enum]):
-                logger.warning( '{}: value {} not castable to {}'.format( self, element, self.enum ) )
+                logger.warning( '{}: value {} not castable to {}'.format( self.get_path( parent, index ), element, self.enum ) )
             else:
                 # cast to enum because why not
                 element = self.enum( element )
 
         return element, offset+self.field_size
 
-    def update_buffer_with_element( self, offset, element, buffer, parent=None ):
+    def update_buffer_with_element( self, offset, element, buffer, parent=None, index=None ):
         field_size = property_get( self.field_size, parent )
         format_type = property_get( self.format_type, parent )
         field_size = property_get( self.field_size, parent )
@@ -1214,21 +1228,21 @@ class NumberField( StreamField ):
         if count is not None and count != len( value ):
             property_set( self.count, parent, len( value ) )
 
-    def validate_element( self, element, parent=None ):
+    def validate_element( self, element, parent=None, index=None ):
         if self.enum:
             if (element not in [x.value for x in self.enum]):
-                raise FieldValidationError( 'Value {} not castable to {}'.format( element, self.enum ) )
+                raise FieldValidationError( '{}: Value {} not castable to {}'.format( self.get_path( parent, index ), element, self.enum ) )
             element = self.enum( element ).value
         if (type( element ) != self.format_type):
-            raise FieldValidationError( 'Expecting type {}, not {}'.format( self.format_type, type( element ) ) )
+            raise FieldValidationError( '{}: Expecting type {}, not {}'.format( self.get_path( parent, index ), self.format_type, type( element ) ) )
 
         if self.format_range is not None and (element not in self.format_range):
-            raise FieldValidationError( 'Value {} not in format range ({})'.format( element, self.format_range ) )
+            raise FieldValidationError( '{}: Value {} not in format range ({})'.format( self.get_path( parent, index ), element, self.format_range ) )
         if self.range is not None and (element not in self.range):
-            raise FieldValidationError( 'Value {} not in range ({})'.format( element, self.range ) )
+            raise FieldValidationError( '{}: Value {} not in range ({})'.format( self.get_path( parent, index ), element, self.range ) )
         return
 
-    def get_element_size( self, element, parent=None ):
+    def get_element_size( self, element, parent=None, index=None ):
         field_size = property_get( self.field_size, parent )
         return field_size
 
@@ -1291,20 +1305,20 @@ class Bits( NumberField ):
 
         super().__init__( *SIZES[size], offset=offset, default=default, bitmask=bitmask, **kwargs )
 
-    def get_element_from_buffer( self, offset, buffer, parent=None ):
-        result, end_offset = super().get_element_from_buffer( offset, buffer, parent )
+    def get_element_from_buffer( self, offset, buffer, parent=None, index=None ):
+        result, end_offset = super().get_element_from_buffer( offset, buffer, parent, index=index )
         element = 0
         for i, x in enumerate( self.bits ):
             element += (1 << i) if (result & x) else 0
         if self.enum_t:
             if (element not in [x.value for x in self.enum_t]):
-                logger.warning( '{}: value {} not castable to {}'.format( self, element, self.enum_t ) )
+                logger.warning( '{}: Value {} not castable to {}'.format( self.get_path( parent, index ), element, self.enum_t ) )
             else:
                 # cast to enum because why not
                 element = self.enum_t( element )
         return element, end_offset
 
-    def update_buffer_with_element( self, offset, element, buffer, parent=None ):
+    def update_buffer_with_element( self, offset, element, buffer, parent=None, index=None ):
         assert element in self.check_range
         if self.enum_t:
             element = self.enum_t( element ).value
@@ -1313,14 +1327,14 @@ class Bits( NumberField ):
             if (element & (1 << i)):
                 packed |= x
 
-        return super().update_buffer_with_element( offset, packed, buffer, parent )
+        return super().update_buffer_with_element( offset, packed, buffer, parent, index=index )
 
-    def validate_element( self, value, parent=None ):
+    def validate_element( self, value, parent=None, index=None ):
         if self.enum_t:
             if (value not in [x.value for x in self.enum_t]):
-                raise FieldValidationError( 'Value {} not castable to {}'.format( value, self.enum_t ) )
+                raise FieldValidationError( '{}: Value {} not castable to {}'.format( self.get_path( parent, index ), value, self.enum_t ) )
             value = self.enum_t( value ).value
-        super().validate_element( value, parent )
+        super().validate_element( value, parent, index=index )
 
     @property
     def repr( self ):
@@ -1331,7 +1345,7 @@ class Bits( NumberField ):
 
     @property
     def serialised( self ):
-        return common.serialise( self, ('offset', 'default', 'bits', 'size', 'enum', 'endian') )
+        return common.serialise( self, ('offset', 'default', 'count', 'length', 'stream', 'alignment', 'stream_end', 'stop_check', 'format_type', 'field_size', 'signedness', 'endian', 'format_range', 'bitmask', 'range', 'enum', 'bits', 'enum_t') )
 
 
 class Bits8( Bits ):

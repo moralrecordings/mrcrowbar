@@ -15,7 +15,7 @@ The `README <https://moral.net.au/mrcrowbar>`_ has a pretty good example, omitte
 Contributing 
 ============
 
-If you've developed models using Mr. Crowbar and want to share them with people, that's pretty great! The main source code tree is a Mercurial repository hosted on `BitBucket <https://bitbucket.org/moralrecordings/mrcrowbar>`_, with a Git mirror available on `GitHub <https://github.com/moralrecordings/mrcrowbar>`_. For either site, pull requests are more than welcome, along with feature requests and discussion. The framework is still being cooked, so not all of the interfaces are set in stone yet, but we will try to limit breaking API changes to major point releases.
+If you've developed models using Mr. Crowbar and want to share them with people, that's pretty great! The main source code tree is a Git repository hosted on `GitHub <https://github.com/moralrecordings/mrcrowbar>`_. Pull requests, feature requests and discussion are more than welcome. The framework is still being cooked, so not all of the interfaces are set in stone yet, but we will try to limit breaking API changes to major point releases.
 
 Licensing
 =========

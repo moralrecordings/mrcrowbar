@@ -1182,9 +1182,11 @@ class DirectorV4Parser( object ):
         _, self.key = self.get_last_from_mmap( b'KEY*' )
         _, self.cas = self.get_last_from_mmap( b'CAS*' )
         _, self.score = self.get_last_from_mmap( b'VWSC' )
+        _, self.config = self.get_last_from_mmap( b'VWCF' )
         _, self.cast_order = self.get_last_from_mmap( b'Sord' )
         #self.cast = [self.get_from_mmap_index( self.cas.obj.index[i-1] ) for i in self.cast_order.obj.index]
         self.cast = [(i, self.get_from_mmap_index( i ).obj) if i else (None, None) for i in self.cas.obj.index]
+        self.cast_map = {self.config.obj.cast_array_start + i: self.get_from_mmap_index( x ).obj for i, x in enumerate( self.cas.obj.index ) if x != 0}
         _, self.script_context = self.get_last_from_mmap( b'Lctx' )
         _, self.script_names = self.get_last_from_mmap( b'Lnam' )
         self.script_ids = []
@@ -1199,7 +1201,7 @@ class DirectorV4Parser( object ):
         for index, cast in [(i, c) for i, c in self.cast if c and c.cast_type == CastType.BITMAP]:
             bitmaps = [self.get_from_mmap_index( x.section_index ).obj for x in self.key.obj.entries if riff.TagB( x.chunk_id ) == b'BITD' and x.cast_index == index]
             if bitmaps:
-                bitmaps[0].data = BitmapCompressor().import_data( bitmaps[0].data ).payload
+                #bitmaps[0].data = BitmapCompressor().import_data( bitmaps[0].data ).payload
                 cast.detail._data = bitmaps[0]
             self.bitmaps.append((index, cast))
 

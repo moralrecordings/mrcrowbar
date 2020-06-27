@@ -41,7 +41,7 @@ YODA_PALETTE = img.from_palette_bytes( bytes.fromhex( YODA_PALETTE_RAW ), stride
 YODA_PALETTE[0] = img.Transparent()
 
 class VERS( mrc.Block ):
-    data = mrc.Bytes( 0x00, count=4 )
+    data = mrc.Bytes( 0x00, length=4 )
 
 
 class STUP( mrc.Block ):

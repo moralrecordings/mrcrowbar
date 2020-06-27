@@ -273,7 +273,7 @@ class SoundRef( mrc.Block ):
     offset              = mrc.UInt16_LE( 0x00 )
     priority            = mrc.UInt8( 0x02 )
     rate                = mrc.UInt8( 0x03 )
-    name                = mrc.Bytes( 0x04, 0x0c )
+    name                = mrc.Bytes( 0x04, length=0x0c )
 
 
 class PreviewCompressor( mrc.Transform ):
@@ -322,10 +322,10 @@ class LevelTile( mrc.Block ):
 
 
 class ScoresItems( mrc.Block ):
-    joystick        = mrc.UInt16_LE( 0x00, range( 0, 1 ) )
-    battery         = mrc.UInt16_LE( 0x02, range( 0, 1 ) )
-    vacuum          = mrc.UInt16_LE( 0x04, range( 0, 1 ) )
-    liquor          = mrc.UInt16_LE( 0x06, range( 0, 1 ) )
+    joystick        = mrc.UInt16_LE( 0x00, range=range( 0, 1 ) )
+    battery         = mrc.UInt16_LE( 0x02, range=range( 0, 1 ) )
+    vacuum          = mrc.UInt16_LE( 0x04, range=range( 0, 1 ) )
+    liquor          = mrc.UInt16_LE( 0x06, range=range( 0, 1 ) )
 
 
 class ScoresName( mrc.Block ):

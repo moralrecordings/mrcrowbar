@@ -55,7 +55,7 @@ class DATCompressor( mrc.Transform ):
         total_num_bytes -= 10
         compressed_size -= 10
         
-        compressed_data = bytearray(buffer[pointer:pointer + compressed_size])
+        compressed_data = bytearray( buffer[pointer:pointer + compressed_size] )
         if checksum != self._xor_checksum( compressed_data ):
             logger.warning( '{}: Checksum doesn\'t match header'.format( self ) )  
         
@@ -65,7 +65,6 @@ class DATCompressor( mrc.Transform ):
         # first byte of compressed data is shifted wrongly, fix
         compressed_data[-1] = (compressed_data[-1] << (8 - bit_count)) & 0xff
         bs = bits.BitStream( compressed_data, start_offset=(compressed_size - 1, bit_count - 1), bytes_reverse=True, bit_endian='little', io_endian='big' )
-        bs.bits_remaining = bit_count
         
         def copy_prev_data( blocklen, offset_size, state ):
             offset = bs.read( offset_size )
@@ -113,19 +112,19 @@ class DATCompressor( mrc.Transform ):
 
         decompressed_size = len( buffer )
 
-        bs = utils.BitWriter( bits_reverse=True )
+        bs = bits.BitStream( bit_endian='big', io_endian='little' )
 
         pointer = 0
 
         def encode_raw_data( length, bs ):
-            assert length <= 255+9
+            assert length <= 255 + 9
 
             if length > 8:
-                bs.put_bits( length-9, 8 )
-                bs.put_bits( 0x7, 3 )
+                bs.write( length - 9, 8 )
+                bs.write( 0x7, 3 )
             elif length > 0:
-                bs.put_bits( length-1, 3 )
-                bs.put_bits( 0x0, 2 )
+                bs.write( length - 1, 3 )
+                bs.write( 0x0, 2 )
 
         def find_reference():
             # main form of compression is of the form:
@@ -148,13 +147,13 @@ class DATCompressor( mrc.Transform ):
             
             for i in range( pointer+1, pointer+max_offset ):
                 temp_len = 0
-                while (temp_len < max_length) and (i+temp_len < decompressed_size):
+                while (temp_len < max_length) and (i + temp_len < decompressed_size):
                     # record short references
                     if (temp_len >= 2) and (temp_len <= 4):
-                        if short_offset[temp_len-2] == 0:
-                            short_offset[temp_len-2] = i-pointer
+                        if short_offset[temp_len - 2] == 0:
+                            short_offset[temp_len - 2] = i - pointer
 
-                    if buffer[pointer+temp_len] != buffer[i+temp_len]:
+                    if buffer[pointer+temp_len] != buffer[i + temp_len]:
                         break
                     temp_len += 1
                 
@@ -164,7 +163,7 @@ class DATCompressor( mrc.Transform ):
                 # largest reference so far? use it 
                 if temp_len > length:
                     length = temp_len
-                    offset = i-pointer
+                    offset = i - pointer
 
             assert length < max_length
             assert offset < max_offset
@@ -172,9 +171,9 @@ class DATCompressor( mrc.Transform ):
             # no long references? try short
             if (offset == 0):
                 for i in (2, 1, 0):
-                    max_short_offset = (1 << (i+8))+1
+                    max_short_offset = (1 << (i + 8)) + 1
                     if (short_offset[i] > 0) and (short_offset[i] < max_short_offset):
-                        length = i+2
+                        length = i + 2
                         offset = short_offset[i]
                         break
 
@@ -188,22 +187,22 @@ class DATCompressor( mrc.Transform ):
                     encode_raw_data( raw, bs )
                     raw = 0
                 if length > 4:
-                    bs.put_bits( ref-1, 12 )
-                    bs.put_bits( length-1, 8 )
-                    bs.put_bits( 0x6, 3 )
+                    bs.write( ref - 1, 12 )
+                    bs.write( length - 1, 8 )
+                    bs.write( 0x6, 3 )
                 elif length == 4:
-                    bs.put_bits( ref-1, 10 )
-                    bs.put_bits( 0x5, 3 )
+                    bs.write( ref - 1, 10 )
+                    bs.write( 0x5, 3 )
                 elif length == 3:
-                    bs.put_bits( ref-1, 9 )
-                    bs.put_bits( 0x4, 3 )
+                    bs.write( ref - 1, 9 )
+                    bs.write( 0x4, 3 )
                 elif length == 2:
-                    bs.put_bits( ref-1, 8 )
-                    bs.put_bits( 0x1, 2 )
+                    bs.write( ref - 1, 8 )
+                    bs.write( 0x1, 2 )
 
                 pointer += length
             else:
-                bs.put_bits( buffer[pointer], 8 )
+                bs.write( buffer[pointer], 8 )
 
                 raw += 1
                 if raw == 264:
@@ -214,20 +213,20 @@ class DATCompressor( mrc.Transform ):
 
         encode_raw_data( raw, bs )
 
-    
-        compressed_data = bs.get_buffer()
+        compressed_data = bytearray( bs.get_buffer() )
+        compressed_data[-1] = compressed_data[-1] >> (8 - bs.tell()[1])
+
         compressed_size = len( compressed_data ) + 10
         checksum = self._xor_checksum( compressed_data )
 
         output = bytearray( 6 )
-        output[0:1] = utils.to_uint8( 8-(bs.bits_remaining % 8) )
+        output[0:1] = utils.to_uint8( bs.tell()[1] )
         output[1:2] = utils.to_uint8( checksum )
         output[2:6] = utils.to_uint32_be( decompressed_size )
         output[6:10] = utils.to_uint32_be( compressed_size )
         output.extend( compressed_data )
 
         return mrc.TransformResult( payload=bytes( output ) )
-            
 
 
 class SpecialCompressor( mrc.Transform ):

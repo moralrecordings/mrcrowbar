@@ -159,6 +159,10 @@ def write_bits( value, buffer, byte_offset, bit_offset, size, bytes_reverse=Fals
     return
 
 
+def reverse_bytes( buffer ):
+    return bytes( reversed( map( buffer, reverse_bits ) ) )
+
+
 def unpack_bits( byte ):
     """Expand a bitfield into a 64-bit int (8 bool bytes)."""
     longbits = byte & (0x00000000000000ff)
@@ -258,13 +262,13 @@ class BitStream( object ):
 
         return result
 
-    def write( self, count, value ):
+    def write( self, value, count ):
         """Write an unsigned integer containing [count] bits to the source."""
         """
-        x.write( 3, 0bABC )
-        x.write( 3, 0bDEF )
-        x.write( 3, 0bGHI )
-        x.write( 3, 0bJKL )
+        x.write( 0bABC, 3 )
+        x.write( 0bDEF, 3 )
+        x.write( 0bGHI, 3 )
+        x.write( 0bJKL, 3 )
 
         # default:
         # ABCDEFGH IJKLxxxx
@@ -350,6 +354,8 @@ class BitReader( object ):
         self.bytes_to_cache = bytes_to_cache
         self._fill_buffer()
 
+    def eof( self ):
+        return self.pos not in range( len( self.buffer ) )
 
     def _fill_buffer( self ):
         self.bits_remaining = 8*self.bytes_to_cache

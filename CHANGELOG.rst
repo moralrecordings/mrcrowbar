@@ -21,6 +21,7 @@ Unreleased
 - lib.platforms.director.unlock_dir_file: Add helper for unlocking Director files
 - lib.games.lemmings: Replace BitReader with BitStream
 - fields: Annotate errors with position in the block tree
+- blocks: Improve docstrings
 
 0.7.3 - 2019-12-07
 ==================

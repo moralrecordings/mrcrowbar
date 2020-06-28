@@ -182,11 +182,11 @@ def pack_bits( longbits ):
 
 
 class BitStream( object ):
-    def __init__( self, buffer, start_offset=None, bytes_reverse=False, bit_endian='big', io_endian='big' ):
+    def __init__( self, buffer=None, start_offset=None, bytes_reverse=False, bit_endian='big', io_endian='big' ):
         """Create a BitStream instance.
 
         buffer
-            Source byte string to read from.
+            Byte array to read/write from. Defaults to an empty array.
 
         start_offset
             Position in the block to start reading from. Can be an integer byte offset,
@@ -207,8 +207,11 @@ class BitStream( object ):
             least-significant bit (0x10)).
 
         """
-        assert is_bytes( buffer )
-        self.buffer = buffer
+        if buffer is None:
+            self.buffer = bytearray()
+        else:
+            assert is_bytes( buffer )
+            self.buffer = buffer
         self.bytes_reverse = bytes_reverse
         if bit_endian not in ('big', 'little'):
             raise TypeError( 'bit_endian should be either \'big\' or \'little\'' )
@@ -227,7 +230,7 @@ class BitStream( object ):
         else:
             raise TypeError('start_offset should be of type int or tuple')
 
-    def tell():
+    def tell( self ):
         """Get the current byte and bit position."""
         return self.byte_pos, self.bit_pos
 
@@ -315,6 +318,9 @@ class BitStream( object ):
             self.byte_pos += bit_diff // 8
 
         self.bit_pos = bit_diff % 8 if self.bit_endian == 'big' else 7 - (bit_diff % 8)
+
+    def get_buffer( self ):
+        return bytes( self.buffer )
 
 
 class BitReader( object ):

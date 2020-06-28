@@ -306,6 +306,7 @@ class Block( object, metaclass=BlockMeta ):
 #            raw_buffer.release()
         return
 
+    load = import_data
 
     def export_data( self ):
         """Export data to a byte array."""
@@ -332,6 +333,8 @@ class Block( object, metaclass=BlockMeta ):
         for name, check in klass._checks.items():
             check.update_buffer( output, parent=self )
         return output
+
+    dump = export_data
 
     def update_deps( self ):
         """Update dependencies on all the fields on this Block instance."""
@@ -360,14 +363,27 @@ class Block( object, metaclass=BlockMeta ):
         return size
 
     def get_field_obj( self, field_name ):
+        """Return a Field object associated with this Block class.
+
+        field_name
+            Name of the Field.
+        """
         klass = self.__class__
         return klass._fields[field_name]
 
     def get_field_names( self ):
+        """Get the list of Fields associated with this Block class."""
         klass = self.__class__
         return klass._fields.keys()
 
     def get_field_path( self, field ):
+        """Return the path of this Block and a child Field in the current object tree.
+
+        Used for error messages.
+
+        field
+            Field object on the object to reference.
+        """
         klass = self.__class__
         for field_name, field_obj in klass._fields.items():
             if field_obj == field:
@@ -375,6 +391,9 @@ class Block( object, metaclass=BlockMeta ):
         return '{}.?'.format( self.get_path() )
 
     def get_path( self ):
+        """Return the path of this Block in the current object tree.
+
+        Used for error messages."""
         klass = self.__class__
         if not self._parent:
             self._path_hint = '<{}>'.format( klass.__name__ )
@@ -393,29 +412,166 @@ class Block( object, metaclass=BlockMeta ):
         return self._path_hint
 
     def get_field_start_offset( self, field_name, index=None ):
+        """Return the start offset of where a Field's data is to be stored in the Block.
+
+        field_name
+            Name of the Field to inspect.
+
+        index
+            Index of the Python object to measure from. Used if the Field
+            takes a list of objects.
+        """
         klass = self.__class__
         return klass._fields[field_name].get_start_offset( self._field_data[field_name], parent=self, index=index )
 
     def get_field_size( self, field_name, index=None ):
+        """Return the size of a Field's data (in bytes).
+
+        field_name
+            Name of the Field to inspect.
+
+        index
+            Index of the Python object to measure from. Used if the Field
+            takes a list of objects.
+        """
         klass = self.__class__
         return klass._fields[field_name].get_size( self._field_data[field_name], parent=self, index=index )
 
     def get_field_end_offset( self, field_name, index=None ):
+        """Return the end offset of a Field's data. Useful for chainloading.
+
+        field_name
+            Name of the Field to inspect.
+
+        index
+            Index of the Python object to measure from. Used if the Field
+            takes a list of objects.
+        """
         klass = self.__class__
         return klass._fields[field_name].get_end_offset( self._field_data[field_name], parent=self, index=index )
 
-    def update_deps_on_field( self, field_name ):
-        klass = self.__class__
-        return klass._fields[field_name].update_deps( self._field_data[field_name], parent=self )
-
     def scrub_field( self, field_name ):
+        """Return a Field's data coerced to the correct type (if necessary).
+
+        field_name
+            Name of the Field to inspect.
+
+        Throws FieldValidationError if value can't be coerced.
+        """
+
         klass = self.__class__
         self._field_data[field_name] = klass._fields[field_name].scrub( self._field_data[field_name], parent=self )
         return self._field_data[field_name]
 
+    def update_deps_on_field( self, field_name ):
+        """Update all dependent variables derived from the value of a Field.
+
+        field_name
+            Name of the Field to inspect.
+        """
+        klass = self.__class__
+        return klass._fields[field_name].update_deps( self._field_data[field_name], parent=self )
+
     def validate_field( self, field_name ):
+        """Validate that a correctly-typed Python object meets the constraints for a Field.
+
+        field_name
+            Name of the Field to inspect.
+
+        Throws FieldValidationError if a constraint fails.
+
+        """
         klass = self.__class__
         return klass._fields[field_name].validate( self._field_data[field_name], parent=self )
+
+    def hexdump( self, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None, show_offsets=True, show_glyphs=True ):
+        """Print the exported data in tabular hexadecimal/ASCII format.
+
+        start
+            Start offset to read from (default: start)
+
+        end
+            End offset to stop reading at (default: end)
+
+        length
+            Length to read in (optional replacement for end)
+
+        major_len
+            Number of hexadecimal groups per line
+
+        minor_len
+            Number of bytes per hexadecimal group
+
+        colour
+            Add ANSI colour formatting to output (default: true)
+
+        address_base
+            Base address to use for labels (default: start)
+
+        show_offsets
+            Display offsets at the start of each line (default: true)
+
+        show_glyphs
+            Display glyph map at the end of each line (default: true)
+
+        Raises ValueError if both end and length are defined.
+        """
+        utils.hexdump(
+            self.export_data(), start=start, end=end,
+            length=length, major_len=major_len, minor_len=minor_len,
+            colour=colour, address_base=address_base,
+            show_offsets=show_offsets, show_glyphs=show_glyphs
+        )
+
+    def histdump( self, start=None, end=None, length=None, samples=0x10000, width=64, address_base=None ):
+        """Print the histogram of the exported data.
+
+        start
+            Start offset to read from (default: start)
+
+        end
+            End offset to stop reading at (default: end)
+
+        length
+            Length to read in (optional replacement for end)
+
+        samples
+            Number of samples per histogram slice (default: 0x10000)
+
+        width
+            Width of rendered histogram (default: 64)
+
+        address_base
+            Base address to use for labelling (default: start)
+        """
+        utils.histdump(
+            self.export_data(), start=start, end=end, length=length,
+            samples=samples, width=width, address_base=address_base
+        )
+
+    def search( self, pattern, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
+        """Find the Fields that match a byte pattern.
+
+        pattern
+            Pattern to match, as a Python string
+
+        encoding
+            Convert strings in the pattern to a specific Python encoding (default: utf8)
+
+        fixed_string
+            Interpret the pattern as a fixed string (disable regular expressions)
+
+        hex_format
+            Interpret the pattern as raw hexidecimal (default: false)
+
+        ignore_case
+            Perform a case-insensitive search
+        """
+        return [x for x in utils.search_iter(
+            pattern, source, prefix='<{}>'.format( self.__class__.__name__ ),
+            depth=None, encoding=encoding, fixed_string=fixed_string,
+            hex_format=hex_format, ignore_cast=ignore_case
+        )]
 
 
 class Unknown( Block ):

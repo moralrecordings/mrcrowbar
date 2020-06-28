@@ -104,7 +104,7 @@ class Field( object ):
         return 0
 
     def get_size( self, value, parent=None, index=None ):
-        """Return the size of the field data (in bytes).
+        """Return the size of the Field's data (in bytes).
 
         value
             Input Python object to process.
@@ -137,7 +137,7 @@ class Field( object ):
         return self.get_start_offset( value, parent, index ) + self.get_size( value, parent, index )
 
     def scrub( self, value, parent=None ):
-        """Return the value coerced to the correct type of the field (if necessary).
+        """Return the value coerced to the correct type of the Field (if necessary).
 
         value
             Input Python object to process.
@@ -151,7 +151,7 @@ class Field( object ):
         return value
 
     def update_deps( self, value, parent=None ):
-        """Update all dependent variables with data derived from the value of the field.
+        """Update all dependent variables derived from the value of the Field.
 
         value
             Input Python object to process.
@@ -163,7 +163,7 @@ class Field( object ):
         return
 
     def validate( self, value, parent=None ):
-        """Validate that a correctly-typed Python object meets the constraints for the field.
+        """Validate that a correctly-typed Python object meets the constraints for the Field.
 
         value
             Input Python object to process.

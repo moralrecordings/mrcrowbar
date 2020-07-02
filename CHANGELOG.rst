@@ -1,8 +1,8 @@
 Changelog
 #########
 
-Unreleased
-==========
+0.8.0 - 2020-07-03
+==================
 - cli.mrcdump: Add support for hiding offsets and glyphs.
 - blocks.Block: Use better wording in debug mode.
 - lib.platforms.director: Start tracking how V4 files are interpreted in DirectorV4Parser.
@@ -22,6 +22,7 @@ Unreleased
 - lib.games.lemmings: Replace BitReader with BitStream
 - fields: Annotate errors with position in the block tree
 - blocks: Improve docstrings
+- bits.BitStream: Implement seek(), remove old BitReader/BitWriter classes
 
 0.7.3 - 2019-12-07
 ==================

@@ -809,7 +809,10 @@ class ScriptFunction( mrc.Block ):
 class ScriptV4( mrc.Block ):
     unk1 = mrc.Bytes( 0x00, length=0x10 )
     code_store_offset = mrc.UInt16_BE( 0x10 )
-    unk2 = mrc.Bytes( 0x12, length=0x2e )
+    unk2 = mrc.Bytes( 0x12, length=0x1c )
+    cast_id = mrc.UInt16_BE( 0x2e )
+    factory_name_id = mrc.Int16_BE( 0x30 )
+    unk9 = mrc.Bytes( 0x32, length=0xe )
 
     globals_offset = mrc.UInt16_BE( 0x40 )
     globals_count = mrc.UInt16_BE( 0x42 )

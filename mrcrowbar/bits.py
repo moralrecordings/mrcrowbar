@@ -319,6 +319,9 @@ class BitStream( object ):
 
         self.bit_pos = bit_diff % 8 if self.bit_endian == 'big' else 7 - (bit_diff % 8)
 
+    def in_bounds( self ):
+        return self.byte_pos in range( len( self.buffer ) )
+
     def get_buffer( self ):
         return bytes( self.buffer )
 

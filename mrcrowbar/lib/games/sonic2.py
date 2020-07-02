@@ -1,10 +1,9 @@
 
 import itertools
 
-from mrcrowbar import models as mrc, utils
+from mrcrowbar import models as mrc, bits, utils
 from mrcrowbar.lib.hardware import megadrive as md
 from mrcrowbar.lib.images import base as img
-from mrcrowbar.utils import BitReader
 
 
 class LevelPalette( mrc.Block ):
@@ -30,13 +29,13 @@ class EnigmaCompressor( mrc.Transform ):
         incremental_copy = mrc.UInt16_BE( 0x02 ).get_from_buffer( buffer )
         literal_copy = mrc.UInt16_BE( 0x04 ).get_from_buffer( buffer )
 
-        bs = BitStream( buffer[0x06:], 0, bits_reverse=True )
+        bs = bits.BitStream( buffer[0x06:], 0, bit_endian='big' )
         output = bytearray()
         #while True:
-        #    test = bs.get_bits( 1 )
+        #    test = bs.read( 1 )
         #    if test == 1:
-        #        test = bs.get_bits( 2 )
-        #        repeat_count = bs.get_bits( 4 )+1
+        #        test = bs.read( 2 )
+        #        repeat_count = bs.read( 4 )+1
         #        if (test == 3) and (repeat_count == 0x0f):
         #            break
         #        
@@ -52,8 +51,8 @@ class EnigmaCompressor( mrc.Transform ):
         #        else:
         #
         #    else:
-        #        test = bs.get_bits( 1 )
-        #        repeat_count = bs.get_bits( 4 )+1
+        #        test = bs.read( 1 )
+        #        repeat_count = bs.read( 4 )+1
         #        if test == 0:
         #            for i in range( repeat_count ):
         #                output.append( (incremental_copy >> 8) )
@@ -107,7 +106,7 @@ class NemesisCompressor( mrc.Transform ):
                 }
                 index += 2
 
-        bs = BitReader( buffer[index+1:], 0, bits_reverse=True )
+        bs = bits.BitStream( buffer[index+1:], 0, bit_endian='big' )
 
         state = {
             'output': bytearray( 64*pattern_count ),
@@ -134,7 +133,7 @@ class NemesisCompressor( mrc.Transform ):
         while state['output_index'] < 64*pattern_count:
             test = ''
             for i in range( max_key_size ):
-                test += '1' if bs.get_bits( 1 ) else '0'
+                test += '1' if bs.read( 1 ) else '0'
                 if test in lut or test == '111111':
                     break
 
@@ -142,8 +141,8 @@ class NemesisCompressor( mrc.Transform ):
                 for i in range( lut[test]['copy_count'] ):
                     push_pal( lut[test]['pal_index'], state )
             elif test == '111111':
-                copy_count = bs.get_bits( 3 )
-                pal_index = bs.get_bits( 4 )
+                copy_count = bs.read( 3 )
+                pal_index = bs.read( 4 )
                 for i in range( copy_count ):
                     push_pal( pal_index, state )
             else:

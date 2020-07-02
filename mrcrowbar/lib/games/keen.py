@@ -27,7 +27,7 @@ logger = logging.getLogger( __name__ )
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
-from mrcrowbar import utils
+from mrcrowbar import bits, utils
 
 
 class RLECompressor( mrc.Transform ):
@@ -78,7 +78,7 @@ class LZWCompressor( mrc.Transform ):
 
         output = bytearray()
 
-        bs = utils.BitReader( buffer, 6, bits_reverse=True, output_reverse=True )
+        bs = bits.BitStream( buffer, 6, bit_endian='big', io_endian='big' )
         state = {'usebits': 9}
 
         def add_to_lookup( state, entry ):
@@ -91,12 +91,12 @@ class LZWCompressor( mrc.Transform ):
             return
                     
 
-        fcode = bs.get_bits( state['usebits'] )
+        fcode = bs.read( state['usebits'] )
         match = lookup[fcode]
         logger.debug( 'fcode={},match={}'.format( fcode, match ) )
         output.extend( match )
         while True:
-            ncode = bs.get_bits( state['usebits'] )
+            ncode = bs.read( state['usebits'] )
             logger.debug( 'ncode={}'.format( ncode ) )
             if ncode == 257:
                 # end of data

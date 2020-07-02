@@ -493,6 +493,22 @@ class TestBits( unittest.TestCase ):
         bs.write( 0b100, 3 )
         self.assertEqual( target, bs.buffer )
 
+    def test_bits_seek( self ):
+        target = bytes([0b10010010, 0b01001010, 0b10101010, 0b10111111])
+        bs = bits.BitStream( target )
+
+        bs.seek( (3, 4) )
+        self.assertEqual( bs.tell(), (3, 4) )
+        bs.seek( (1, 2) )
+        self.assertEqual( bs.tell(), (1, 2) )
+        bs.seek( (1, 2), origin='current' )
+        self.assertEqual( bs.tell(), (2, 4) )
+        bs.seek( (-1, -4), origin='current' )
+        self.assertEqual( bs.tell(), (1, 0) )
+        bs.seek( (-1, -2), origin='end' )
+        self.assertEqual( bs.tell(), (2, 6) )
+
+
 
 class TestSound( unittest.TestCase ):
 

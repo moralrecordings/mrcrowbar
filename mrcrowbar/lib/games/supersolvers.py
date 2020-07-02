@@ -1,5 +1,5 @@
 from mrcrowbar import models as mrc
-from mrcrowbar import utils
+from mrcrowbar import utils, bits
 
 class AECompressor( mrc.Transform ):
     def import_data( self, buffer ):
@@ -54,7 +54,7 @@ class DictCompressor( mrc.Transform ):
         lookup_pointer = 0
         bit_size = 9
 
-        bitstore = utils.BitReader( src, start_offset=2, bits_reverse=True, output_reverse=True )
+        bs = bits.BitStream( src, start_offset=2, bit_endian='big', io_endian='big' )
         eof = False
 
         loop = 0
@@ -67,7 +67,7 @@ class DictCompressor( mrc.Transform ):
                 test = 0
 
                 try:
-                    test = bitstore.get_bits( bit_size )
+                    test = bs.read( bit_size )
                 except IndexError:
                     eof = True 
                     break

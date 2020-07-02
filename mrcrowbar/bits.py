@@ -186,10 +186,10 @@ class BitStream( object ):
         """Create a BitStream instance.
 
         buffer
-            Byte array to read/write from. Defaults to an empty array.
+            Target byte array to read/write from. Defaults to an empty array.
 
         start_offset
-            Position in the block to start reading from. Can be an integer byte offset,
+            Position in the target to start reading from. Can be an integer byte offset,
             or a tuple containing the byte and bit offsets. Defaults to the start of the
             stream, depending on the endianness and ordering options.
 
@@ -261,7 +261,7 @@ class BitStream( object ):
             io_endian=self.io_endian
         )
 
-        self.seek( count, origin="current" )
+        self.seek( (count // 8, count % 8), origin="current" )
 
         return result
 
@@ -307,9 +307,37 @@ class BitStream( object ):
             io_endian=self.io_endian
         )
 
-        self.seek( count, origin="current" )
+        self.seek( (count // 8, count % 8), origin="current" )
 
-    def seek( self, count, origin="start" ):
+    def seek( self, offset, origin="start" ):
+        """Seek to a location in the target.
+
+        offset
+            Relative offset in the target to move to. Can be an integer byte offset,
+            or a tuple containing the byte and bit offsets.
+
+        origin
+            Position to measure the offset from. Can be either "start", "current" or "end".
+            Defaults to "start".
+        """
+        if isinstance( offset, int ):
+            count = offset * 8
+        elif isinstance( offset, tuple ):
+            count = offset[0] * 8 + offset[1]
+        else:
+            raise TypeError("offset should be of type int or tuple")
+
+        if origin not in ("start", "current", "end"):
+            raise TypeError('origin should be one of "start", "current" or "end"')
+
+        if origin in ("start", "end"):
+            if (origin == "start") ^ (self.bytes_reverse == False):
+                self.byte_pos = len( self.buffer )
+                self.bit_pos = 0
+            else:
+                self.byte_pos = 0
+                self.bit_pos = 0
+
         bit_diff = (self.bit_pos + count) if self.bit_endian == 'big' else (7 - self.bit_pos + count)
 
         if self.bytes_reverse:
@@ -320,192 +348,10 @@ class BitStream( object ):
         self.bit_pos = bit_diff % 8 if self.bit_endian == 'big' else 7 - (bit_diff % 8)
 
     def in_bounds( self ):
+        """Returns True if the current position is within the bounds of the target."""
         return self.byte_pos in range( len( self.buffer ) )
 
     def get_buffer( self ):
+        """Return a byte string containing the target."""
         return bytes( self.buffer )
 
-
-class BitReader( object ):
-    """Class for reading data as a stream of bits."""
-
-    def __init__( self, buffer, start_offset, bytes_reverse=False, bits_reverse=False, output_reverse=False, bytes_to_cache=1 ):
-        """Create a BitReader instance.
-
-        buffer
-            Source byte string to read from.
-
-        start_offset
-            Position in the block to start reading from.
-
-        bytes_reverse
-            If enabled, fetch successive bytes from the source in reverse order.
-
-        bits_reverse
-            If enabled, fetch bits starting from the most-significant bit (0x80)
-            through least-significant bit (0x01).
-
-        output_reverse
-            If enabled, return fetched bits starting from the most-significant bit
-            (0x80) through least-significant bit (0x01).
-
-        bytes_to_cache
-            Number of bytes to cache. Defaults to 1. Only useful for algorithms which
-            change the position pointer mid-read.
-        """
-        assert is_bytes( buffer )
-        assert start_offset in range( len( buffer ) )
-        self.buffer = buffer
-        self.bits_reverse = bits_reverse
-        self.bytes_reverse = bytes_reverse
-        self.output_reverse = output_reverse
-        self.pos = start_offset
-        self.bytes_to_cache = bytes_to_cache
-        self._fill_buffer()
-
-    def eof( self ):
-        return self.pos not in range( len( self.buffer ) )
-
-    def _fill_buffer( self ):
-        self.bits_remaining = 8*self.bytes_to_cache
-        self.current_bits = 0
-        for i in range( self.bytes_to_cache ):
-            if self.eof():
-                raise IndexError( 'Hit the end of the buffer, no more bytes' )
-            self.current_bits |= self.buffer[self.pos] << (8*i)
-            new_pos = self.pos + (-1 if self.bytes_reverse else 1)
-            self.pos = new_pos
-
-
-    def eof( self ):
-        return self.pos not in range( len( self.buffer ) )
-
-
-    def set_offset( self, offset ):
-        """Set the current read offset (in bytes) for the instance."""
-        assert offset in range( len( self.buffer ) )
-        self.pos = offset
-        self._fill_buffer()
-
-
-    def get_bits( self, count ):
-        """Get an integer containing the next [count] bits from the source."""
-        result = 0
-        
-        """
-        x.get_bits( 3 ) # 0bABC
-        x.get_bits( 3 ) # 0bDEF
-        x.get_bits( 3 ) # 0bGHI
-        x.get_bits( 3 ) # 0bJKL
-
-        # default:
-        # HGFEDCBA xxxxLKJI
-        # bits_reverse:
-        # ABCDEFGH IJKLxxxx
-        # bytes_reverse:
-        # xxxxLKJI HGFEDCBA
-        # output_reverse:
-        # HIDEFABC xxxxJKLG
-
-        """
-        for i in range( count ):
-            if self.bits_remaining <= 0:
-                self._fill_buffer()
-            if self.bits_reverse:
-                bit = (1 if (self.current_bits & (0x80 << 8*(self.bytes_to_cache-1))) else 0)
-                self.current_bits <<= 1
-                self.current_bits &= 0xff
-            else:
-                bit = (self.current_bits & 1)
-                self.current_bits >>= 1
-
-            self.bits_remaining -= 1
-
-            if self.output_reverse:
-                result <<= 1
-                result |= bit
-            else:
-                result |= bit << i
-        return result
-
-
-class BitWriter( object ):
-    """Class for writing data as a stream of bits."""
-
-    def __init__( self, bytes_reverse=False, bits_reverse=False, input_reverse=False, insert_at_msb=False ):
-        """Create a BitWriter instance.
-
-        bytes_reverse
-            If enabled, write bytes to the target in reverse order.
-
-        bits_reverse
-            If enabled, make the insert order for bits from most-significant to
-            least-significant.
-
-        input_reverse
-            If enabled, process put bits starting from the most-significant bit (0x80) through least significant bit (0x01).
-
-        insert_at_msb
-            If enabled, start filling each byte from the most-significant bit end (0x80).
-        """
-        self.output = bytearray()
-        self.bits_reverse = bits_reverse
-        self.bytes_reverse = bytes_reverse
-        self.input_reverse = input_reverse
-        self.insert_at_msb = insert_at_msb
-        self.bits_remaining = 8
-        self.current_bits = 0
-
-    def put_bits( self, value, count ):
-        """Push bits into the target.
-
-        value
-            Integer containing bits to push, ordered from least-significant bit to
-            most-significant bit.
-
-        count
-            Number of bits to push to the target.
-        """
-        for i in range( count ):
-
-            if self.input_reverse:
-                bit = 1 if value & (1 << count - i - 1) else 0
-            else:
-                # bits are retrieved from the source LSB first
-                bit = (value & 1)
-                value >>= 1
-
-            # however, bits are put into the result based on the rule
-            if self.bits_reverse:
-                if self.insert_at_msb:
-                    self.current_bits |= (bit << (self.bits_remaining-1))
-                else:
-                    self.current_bits <<= 1
-                    self.current_bits |= bit
-            else:
-                if self.insert_at_msb:
-                    self.current_bits >>= 1
-                    self.current_bits |= (bit << 7)
-                else:
-                    self.current_bits |= (bit << (8-self.bits_remaining))
-
-            self.bits_remaining -= 1
-            if self.bits_remaining <= 0:
-                self.output.append( self.current_bits )
-
-                self.current_bits = 0
-                self.bits_remaining = 8
-
-    def get_buffer( self ):
-        """Return a byte string containing the target as currently written."""
-        last_byte = self.current_bits if (self.bits_remaining < 8) else None
-
-        result = self.output
-        if last_byte is not None:
-            result = bytearray( result )
-            result.append( last_byte )
-
-        if self.bytes_reverse:
-            return bytes( reversed( result ) )
-        else:
-            return bytes( result )

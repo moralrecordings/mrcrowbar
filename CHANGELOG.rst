@@ -1,6 +1,10 @@
 Changelog
 #########
 
+Unreleased
+==========
+- common.bounds: Allow negative indexing for hexdumps etc.
+
 0.8.0 - 2020-07-03
 ==================
 - cli.mrcdump: Add support for hiding offsets and glyphs.

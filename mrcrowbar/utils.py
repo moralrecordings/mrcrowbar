@@ -206,8 +206,6 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
-    start = max( start, 0 )
-    end = min( end, len( source ) )
     if len( source ) == 0 or (start == end == 0):
         return
     address_base_offset = address_base-start if address_base is not None else 0
@@ -400,8 +398,6 @@ def listdump_grep_iter( pattern, source, start=None, end=None, length=None, enco
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
-    start = max( start, 0 )
-    end = min( end, len( source ) )
     if len( source ) == 0 or (start == end == 0):
         return
     address_base_offset = address_base-start if address_base is not None else 0
@@ -757,8 +753,6 @@ def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, w
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
-    start = max( start, 0 )
-    end = min( end, len( source ) )
     if len( source ) == 0 or (start == end == 0):
         return
     address_base_offset = address_base-start if address_base is not None else 0
@@ -834,8 +828,6 @@ def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
-    start = max( start, 0 )
-    end = min( end, len( source ) )
     if len( source ) == 0 or (start == end == 0):
         return
     address_base_offset = address_base-start if address_base is not None else 0

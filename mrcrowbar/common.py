@@ -28,15 +28,26 @@ def read( fp ):
 
 
 def bounds( start, end, length, src_size ):
+    if length < 0:
+        raise ValueError( 'Length can\'t be a negative number!' )
     start = 0 if (start is None) else start
+
     if (end is not None) and (length is not None):
         raise ValueError( 'Can\'t define both an end and a length!' )
     elif (length is not None):
-        end = start+length
+        end = start + length
     elif (end is not None):
         pass
     else:
         end = src_size
+
+    if start < 0:
+        start += src_size
+    if end < 0:
+        end += src_size
+    start = max( start, 0 )
+    end = min( end, src_size )
+
     return start, end
 
 

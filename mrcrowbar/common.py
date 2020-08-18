@@ -28,7 +28,7 @@ def read( fp ):
 
 
 def bounds( start, end, length, src_size ):
-    if length < 0:
+    if length is not None and length < 0:
         raise ValueError( 'Length can\'t be a negative number!' )
     start = 0 if (start is None) else start
 

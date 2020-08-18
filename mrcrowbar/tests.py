@@ -119,6 +119,28 @@ class TestChunk( unittest.TestCase ):
         self.assertEqual( test.bonus, b'end' )
         self.assertEqual( test.export_data(), payload )
 
+    def test_strict( self ):
+        class Inner( mrc.Block ):
+            field = mrc.UInt32_BE( 0x00 )
+
+        class Outer( mrc.Block ):
+            CHUNK_MAP = {
+                b'TEST': Inner
+            }
+            field = mrc.ChunkField( CHUNK_MAP, 0x00 )
+
+        payload = b'TEST\x12'
+
+        test = Outer( payload )
+        self.assertIsInstance( test.field[0].obj, mrc.Unknown )
+
+        self.assertEqual( test.export_data(), payload )
+
+        with self.assertRaises( Exception ):
+            test = Outer( payload, strict=True )
+
+
+
 
 class TestBlockField( unittest.TestCase ):
     def test_block_count( self ):
@@ -204,6 +226,23 @@ class TestBlockField( unittest.TestCase ):
         self.assertEqual( test.field[1].field2, 0x78 )
         self.assertEqual( test.padding, b'\xde\xf0' )
         self.assertEqual( test.export_data(), payload )
+
+    def test_strict( self ):
+        class Inner( mrc.Block ):
+            field = mrc.UInt32_BE( 0x00 )
+
+        class Outer( mrc.Block ):
+            field = mrc.BlockField( Inner, 0x00 )
+
+        payload = b'\x12'
+
+        test = Outer( payload )
+        self.assertIsInstance( test.field, mrc.Unknown )
+
+        self.assertEqual( test.export_data(), payload )
+
+        with self.assertRaises( Exception ):
+            test = Outer( payload, strict=True )
 
 
 class TestStringField( unittest.TestCase ):

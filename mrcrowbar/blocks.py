@@ -151,7 +151,7 @@ class Block( object, metaclass=BlockMeta ):
     _cache_bytes = False
     _bytes = None
 
-    def __init__( self, source_data=None, parent=None, preload_attrs=None, endian=None, cache_bytes=False, path_hint=None ):
+    def __init__( self, source_data=None, *, parent=None, preload_attrs=None, endian=None, cache_bytes=False, path_hint=None, strict=False ):
         """Base class for Blocks.
 
         source_data
@@ -179,6 +179,10 @@ class Block( object, metaclass=BlockMeta ):
         path_hint
             Cache a string containing the path of the current Block, relative
             to the root.
+
+        strict
+            Throw an exception if parsing a BlockField fails, instead of
+            logging a warning and returning an Unknown. Defaults to False.
         """
         self._field_data = {}
         self._ref_cache = {}
@@ -189,6 +193,7 @@ class Block( object, metaclass=BlockMeta ):
         self._path_hint = path_hint
         if self._path_hint is None:
             self._path_hint = '<{}>'.format( self.__class__.__name__ )
+        self._strict = strict
 
         if cache_bytes:
             self._cache_bytes = True

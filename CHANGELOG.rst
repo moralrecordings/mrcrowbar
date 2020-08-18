@@ -4,6 +4,7 @@ Changelog
 Unreleased
 ==========
 - common.bounds: Allow negative indexing for hexdumps etc.
+- blocks.Block: Fall back to Unknown for child Blocks that fail to parse
 
 0.8.0 - 2020-07-03
 ==================

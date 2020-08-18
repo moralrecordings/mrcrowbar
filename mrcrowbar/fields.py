@@ -189,7 +189,7 @@ class Field( object ):
         return None
 
     def get_path( self, parent=None, index=None ):
-        """Return the location in the Block tree
+        """Return the location in the Block tree.
 
         parent
             Parent block object where this Field is defined.
@@ -201,6 +201,16 @@ class Field( object ):
         if not parent:
             return '<{}>'.format( self.__class__.__name__ ) + suffix
         return parent.get_field_path( self ) + suffix
+
+    def get_strict( self, parent=None ):
+        """Return whether the parent Block is loading in strict mode.
+
+        parent
+            Parent block object where this Field is defined.
+        """
+        if not parent:
+            return False
+        return parent._strict
 
 
 class StreamField( Field ):
@@ -413,7 +423,7 @@ class StreamField( Field ):
 
         if index is not None:
             if not is_array:
-                raise IndexError( '{}: Can\'t use index for a non-array BlockField'.format( self.get_path( parent ) ) )
+                raise IndexError( '{}: Can\'t use index for a non-array'.format( self.get_path( parent ) ) )
             elif index not in range( 0, len( value ) ):
                 raise IndexError( '{}: Index {} is not within range( 0, {} )'.format( self.get_path( parent ), index, len( value ) ) )
             value = [value[index]]
@@ -548,6 +558,19 @@ class ChunkField( StreamField ):
         else:
             raise ParseError( '{}: No chunk class match for ID {}'.format( self.get_path( parent, index ), chunk_id ) )
 
+        def constructor( source_data ):
+            try:
+                block = chunk_klass( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ) )
+            except Exception as e:
+                if self.get_strict( parent ):
+                    raise e
+                else:
+                    logger.warning( '{}: failed to create Block ({}) for Chunk {}, falling back to Unknown'.format( self.get_path( parent, index ), chunk_klass, chunk_id ) )
+                    logger.warning( '{}: "{}"'.format( self.get_path( parent, index ), str( e ) ) )
+                    from mrcrowbar.blocks import Unknown
+                    block = Unknown( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ) )
+            return block
+
         if self.length_field:
             size = self.length_field.get_from_buffer( buffer[pointer:], parent=parent )
             pointer += self.length_field.field_size
@@ -556,9 +579,9 @@ class ChunkField( StreamField ):
             if chunk_buffer == fill:
                 result = Chunk( id=chunk_id, obj=None )
                 return result, pointer
-            chunk = chunk_klass( chunk_buffer, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ) )
+            chunk = constructor( chunk_buffer )
         else:
-            chunk = chunk_klass( buffer[pointer:], parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ) )
+            chunk = constructor( buffer[pointer:] )
             pointer += chunk.get_size()
         result = Chunk( id=chunk_id, obj=chunk )
 
@@ -596,6 +619,7 @@ class ChunkField( StreamField ):
         return offset+len( data )
 
     def validate_element( self, element, parent=None, index=None ):
+        from mrcrowbar.blocks import Unknown
         chunk_map = property_get( self.chunk_map, parent )
         fill = property_get( self.fill, parent )
 
@@ -608,7 +632,7 @@ class ChunkField( StreamField ):
         if element.obj is None:
             assert fill is not None
         else:
-            assert isinstance( element.obj, chunk_klass )
+            assert isinstance( element.obj, chunk_klass ) or (not self.get_strict( parent ) and isinstance( element.obj, Unknown ))
 
         if self.id_size:
             assert len( element.id ) == self.id_size
@@ -707,16 +731,29 @@ class BlockField( StreamField ):
         fill = property_get( self.fill, parent )
         klass = self.get_klass( parent )
 
+        def constructor( source_data ):
+            try:
+                block = klass( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), **self.block_kwargs )
+            except Exception as e:
+                if self.get_strict( parent ):
+                    raise e
+                else:
+                    logger.warning( '{}: failed to create Block ({}), falling back to Unknown'.format( self.get_path( parent, index ), klass ) )
+                    logger.warning( '{}: "{}"'.format( self.get_path( parent, index ), str( e ) ) )
+                    from mrcrowbar.blocks import Unknown
+                    block = Unknown( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), **self.block_kwargs )
+            return block
+
         # add an empty list entry if we find the fill pattern
         if fill and buffer[offset:offset+len( fill )] == fill:
             return None, offset+len( fill )
         # if we have an inline transform, apply it
         elif self.transform:
             data = self.transform.import_data( buffer[offset:], parent=parent )
-            block = klass( source_data=data.payload, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), **self.block_kwargs )
+            block = constructor( data.payload )
             return block, offset+data.end_offset
         # otherwise, create a block
-        block = klass( source_data=buffer[offset:], parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), **self.block_kwargs )
+        block = constructor( buffer[offset:] )
         size = block.get_size()
         if size == 0:
             if stream:
@@ -764,9 +801,14 @@ class BlockField( StreamField ):
                 element.update_deps()
 
     def validate_element( self, element, parent=None, index=None ):
+        from mrcrowbar.blocks import Unknown
         klass = self.get_klass( parent )
-        if (element is not None) and (not isinstance( element, klass )):
-            raise FieldValidationError( '{}: Expecting block class {}, not {}'.format( self.get_path( parent, index ), klass, type( element ) ) )
+        if (element is not None):
+            test = isinstance( element, klass )
+            if not self.get_strict( parent ):
+                test = test or isinstance( element, Unknown )
+            if not test:
+                raise FieldValidationError( '{}: Expecting block class {}, not {}'.format( self.get_path( parent, index ), klass, type( element ) ) )
 
     def get_element_size( self, element, parent=None, index=None ):
         fill = property_get( self.fill, parent )

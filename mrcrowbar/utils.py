@@ -87,14 +87,14 @@ def grep( pattern, source, encoding='utf8', fixed_string=False, hex_format=False
     return [x for x in grep_iter( pattern, source, encoding, fixed_string, hex_format, ignore_case )]
 
 
-def find_all_iter( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False ):
+def find_iter( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False ):
     """Return an iterator that finds every location of a substring in a source byte string.
 
     source
-        Source byte string to search.
+        Source byte string or Python string to search.
 
     substring
-        Pattern to match, as a Python byte string
+        Substring to match, as a byte string or a Python string
 
     start
         Start offset to read from (default: start)
@@ -111,26 +111,30 @@ def find_all_iter( source, substring, start=None, end=None, length=None, overlap
     ignore_case
         Perform a case-insensitive search
     """
-    assert is_bytes( source )
-    assert is_bytes( substring )
     start, end = bounds( start, end, length, len( source ) )
 
-    pattern = substring.hex()
-    if overlap:
-        pattern = r'(?=({}))'.format( pattern )
+    if ignore_case:
+        source = source.lower()
+        substring = substring.lower()
+    pointer = start
+    result = source.find( substring, pointer, end )
+    while result != -1:
+        yield (result, result + len( substring ))
+        if overlap:
+            pointer = result + 1
+        else:
+            pointer = result + len( substring )
+        result = source.find( substring, pointer, end )
 
-    for match in grep_iter( pattern, source[start:end], hex_format=True, ignore_case=ignore_case ):
-        yield match.span()[0]
 
-
-def find_all( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False ):
-    """Find every location of a substring in a source byte string.
+def find( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False ):
+    """Find every location of a substring in a source string.
 
     source
         Source byte string to search.
 
     substring
-        Pattern to match, as a Python byte string
+        Substring to match, as a Python byte string
 
     start
         Start offset to read from (default: start)
@@ -147,7 +151,141 @@ def find_all( source, substring, start=None, end=None, length=None, overlap=Fals
     ignore_case
         Perform a case-insensitive search
     """
-    return [x for x in find_all_iter( source, substring, start, end, length, overlap, ignore_case )]
+    return [x for x in find_iter( source, substring, start, end, length, overlap, ignore_case )]
+
+
+def find_encoded_iter( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'] ):
+    """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings.
+
+    source
+        Source byte string to search.
+
+    substring
+        Substring to match, as a Python string
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    overlap
+        Whether to return overlapping matches (default: false)
+
+    encodings
+        A list of encodings to try, or 'all' for every supported encoding (default: ['utf_8'])
+    """
+    assert is_bytes( source )
+
+    if encodings == 'all':
+        encodings = enco.CODECS
+    subs = {}
+    for encoding in encodings:
+        try:
+            test = substring.encode(encoding)
+            if test not in subs:
+                subs[test] = []
+            subs[test].append(encoding)
+        except UnicodeEncodeError:
+            continue
+
+    for test in subs:
+        for x in find_iter( source, test, start, end, length, overlap, ignore_case ):
+            yield (x[0], x[1], subs[test])
+
+
+def find_encoded( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'] ):
+    """Find every location of a substring in a source byte string, checking against multiple encodings.
+
+    source
+        Source byte string to search.
+
+    substring
+        Substring to match, as a Python string
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    overlap
+        Whether to return overlapping matches (default: false)
+
+    encodings
+        A list of encodings to try, or 'all' for every supported encoding (default: ['utf_8'])
+    """
+    return [x for x in find_encoded_iter( source, substring, start, end, length, overlap, ignore_case, encodings )]
+
+
+def find_unknown_iter( source, substring, start=None, end=None, length=None, overlap=False, char_size=1 ):
+    """Return an iterator that finds every location of a substring in a source byte string, guessing the encoding.
+
+    source
+        Source byte string to search.
+
+    substring
+        Substring to match, as a Python string
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    overlap
+        Whether to return overlapping matches (default: false)
+
+    char_size
+        Size in bytes of each character in the source (default: 1)
+    """
+    unk_dict, pattern = enco.regex_unknown_encoding_match( substring, char_size=char_size )
+    if overlap:
+        pattern = b'(?=(' + pattern + b'))'
+    regex = re.compile( pattern, flags=re.DOTALL )
+    for match in regex.finditer( source ):
+        groups = match.groups()
+        span_0, span_1 = match.span()
+        if overlap:
+            span_1 += len( groups[0] )
+            groups = groups[1:]
+        yield (span_0, span_1, {key: groups[unk_dict[key]] for key in unk_dict})
+
+
+def find_unknown( source, substring, start=None, end=None, length=None, overlap=False, char_size=1 ):
+    """Find every location of a substring in a source byte string, guessing the encoding.
+
+    source
+        Source byte string to search.
+
+    substring
+        Substring to match, as a Python string
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    overlap
+        Whether to return overlapping matches (default: false)
+
+    char_size
+        Size in bytes of each character in the source (default: 1)
+    """
+    return [x for x in find_unknown_iter( source, substring, start, end, length, overlap, char_size )]
 
 
 def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):

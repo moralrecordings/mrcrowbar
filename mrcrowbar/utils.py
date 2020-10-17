@@ -173,7 +173,10 @@ def find_encoded_iter( source, substring, start=None, end=None, length=None, ove
         Length to read in (optional replacement for end)
 
     overlap
-        Whether to return overlapping matches (default: false)
+        Return overlapping matches (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
 
     encodings
         A list of encodings to try, or 'all' for every supported encoding (default: ['utf_8'])
@@ -185,10 +188,10 @@ def find_encoded_iter( source, substring, start=None, end=None, length=None, ove
     subs = {}
     for encoding in encodings:
         try:
-            test = substring.encode(encoding)
+            test = substring.encode( encoding )
             if test not in subs:
                 subs[test] = []
-            subs[test].append(encoding)
+            subs[test].append( encoding )
         except UnicodeEncodeError:
             continue
 
@@ -216,7 +219,10 @@ def find_encoded( source, substring, start=None, end=None, length=None, overlap=
         Length to read in (optional replacement for end)
 
     overlap
-        Whether to return overlapping matches (default: false)
+        Return overlapping matches (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
 
     encodings
         A list of encodings to try, or 'all' for every supported encoding (default: ['utf_8'])
@@ -243,7 +249,7 @@ def find_unknown_iter( source, substring, start=None, end=None, length=None, ove
         Length to read in (optional replacement for end)
 
     overlap
-        Whether to return overlapping matches (default: false)
+        Return overlapping matches (default: false)
 
     char_size
         Size in bytes of each character in the source (default: 1)
@@ -280,7 +286,7 @@ def find_unknown( source, substring, start=None, end=None, length=None, overlap=
         Length to read in (optional replacement for end)
 
     overlap
-        Whether to return overlapping matches (default: false)
+        Return overlapping matches (default: false)
 
     char_size
         Size in bytes of each character in the source (default: 1)

@@ -357,74 +357,13 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
 
     regex_iter = grep_iter( pattern, source[start:end], encoding, fixed_string, hex_format, ignore_case )
 
-
-    class HighlightBuffer( object ):
-        def __init__( self ):
-            self.lines = []
-            self.last_printed = -1
-            self.output_buffer = {}
-            self.printed = False
-
-        def update( self, marker ):
-            cutoff = marker - (marker % stride) - stride
-            if cutoff < start:
-                return
-            keys = [x for x in self.output_buffer.keys() if x <= cutoff and x > self.last_printed]
-            keys.sort()
-            if keys and not self.printed:
-                if title:
-                    self.lines.append( title )
-                self.printed = True
-            for i, key in enumerate( keys ):
-                if key - self.last_printed > stride:
-                    self.lines.append( '...' )
-                if self.output_buffer[key]:
-                    self.lines.append( ansi.format_hexdump_line( source, key, end, major_len, minor_len, colour, prefix='!', highlight_addr=DIFF_COLOUR_MAP[0], highlight_map=self.output_buffer[key], address_base_offset=address_base_offset ) )
-                else:
-                    self.lines.append( ansi.format_hexdump_line( source, key, end, major_len, minor_len, colour, prefix=' ', address_base_offset=address_base_offset ) )
-                del self.output_buffer[key]
-                self.last_printed = key
-
-        def push( self, span ):
-            block_start = span[0] - (span[0] % stride)
-            block_end = max( 0, (span[1]-1) - ((span[1]-1) % stride) )
-            for i in range( block_start, block_end+stride, stride ):
-                if i not in self.output_buffer:
-                    self.output_buffer[i] = {}
-                if self.output_buffer[i] is not None:
-                    for j in range( max( i, span[0] ), min( i+stride, span[1] ) ):
-                        self.output_buffer[i][j] = DIFF_COLOUR_MAP[0]
-            for b in [block_start-(x+1)*stride for x in range( before )]:
-                if b not in self.output_buffer and b > self.last_printed:
-                    self.output_buffer[b] = {}
-            for a in [block_end+(x+1)*stride for x in range( after )]:
-                if a not in self.output_buffer:
-                    self.output_buffer[a] = {}
-
-            self.update( span[0] )
-
-        def pop( self ):
-            lines = self.lines
-            self.lines = []
-            return lines
-
-        def flush( self ):
-            self.update( len( source )+stride )
-            if self.printed:
-                if self.last_printed < len( source ) - (len( source ) % stride):
-                    self.lines.append( '...' )
-                self.lines.append( '' )
-            return self.pop()
-    
-    hb = HighlightBuffer()
+    hb = ansi.HexdumpHighlightBuffer( source, start, end, None, major_len, minor_len, colour, address_base, before, after, title )
     for match in regex_iter:
-        hb.push( (match.span()[0]+start, match.span()[1]+start) )
+        hb.add_span( (match.span()[0]+start, match.span()[1]+start) )
 
-        for line in hb.pop():
-            yield line
+        yield from hb.flush()
 
-    for line in hb.flush():
-        yield line
+    yield from hb.flush( final=True )
 
 
 def hexdump_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
@@ -706,6 +645,37 @@ def search( pattern, source, prefix='source', depth=None, encoding='utf8', fixed
         Perform a case-insensitive search
     """
     return [x for x in search_iter( pattern, source, prefix, depth, encoding, fixed_string, hex_format, ignore_case )]
+
+
+def listdump_find_encoded_iter( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'] ):
+    """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings, and renders the result in list format.
+
+    source
+        Source byte string or Python string to search.
+
+    substring
+        Substring to match, as a byte string or a Python string
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    overlap
+        Whether to return overlapping matches (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
+
+    encodings
+        A list of encodings to try, or 'all' for every supported encoding (default: ['utf_8'])
+    """
+    pass
+
 
 
 def basic_diff( source1, source2, start=None, end=None ):

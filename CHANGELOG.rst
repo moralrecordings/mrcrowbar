@@ -6,6 +6,7 @@ Unreleased
 - common.bounds: Allow negative indexing for hexdumps etc.
 - blocks.Block: Fall back to Unknown for child Blocks that fail to parse
 - utils: Add find, find_encoded and find_unknown functions
+- ansi.HexdumpHighlightBuffer: Split out logic for rendering highlighted hexdumps
 
 0.8.0 - 2020-07-03
 ==================

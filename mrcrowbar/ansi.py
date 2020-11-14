@@ -1,6 +1,7 @@
 import math
 
 from mrcrowbar import colour, statistics
+from mrcrowbar.common import is_bytes, bounds
 
 #: Container for ANSI escape sequences for text formatting
 ANSI_FORMAT_BASE = '\x1b[{}m'
@@ -442,3 +443,77 @@ def format_histdump_line( source, offset, length=None, end=None, width=64, addre
     digits = ('{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}').format( offset+address_base_offset )
     stat = statistics.Stats(data)
     return ('{} │ {} │ {:.10f}').format( digits, format_histogram_line( stat.histogram( width ), palette ), stat.entropy )
+
+HIGHLIGHT_COLOUR = 9
+
+class HexdumpHighlightBuffer( object ):
+    def __init__( self, source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
+        assert is_bytes( source )
+        self.source = source
+        self.start, self.end = bounds( start, end, length, len( source ) )
+
+        if len( source ) == 0 or (start == end == 0):
+            return
+        self.address_base_offset = address_base-start if address_base is not None else 0
+        self.major_len = major_len
+        self.minor_len = minor_len
+        self.colour = colour
+        self.before = before
+        self.after = after
+        self.title = title
+        self.stride = minor_len*major_len
+        self.lines = []
+        self.last_printed = -1
+        self.output_buffer = {}
+        self.printed = False
+
+    def update( self, marker ):
+        cutoff = marker - (marker % self.stride) - self.stride
+        if cutoff < self.start:
+            return
+        keys = [x for x in self.output_buffer.keys() if x <= cutoff and x > self.last_printed]
+        keys.sort()
+        if keys and not self.printed:
+            if self.title:
+                self.lines.append( self.title )
+            self.printed = True
+        for i, key in enumerate( keys ):
+            if key - self.last_printed > self.stride:
+                self.lines.append( '...' )
+            if self.output_buffer[key]:
+                self.lines.append( format_hexdump_line( self.source, key, self.end, self.major_len, self.minor_len, self.colour, prefix='!', highlight_addr=HIGHLIGHT_COLOUR, highlight_map=self.output_buffer[key], address_base_offset=self.address_base_offset ) )
+            else:
+                self.lines.append( format_hexdump_line( self.source, key, self.end, self.major_len, self.minor_len, self.colour, prefix=' ', address_base_offset=self.address_base_offset ) )
+            del self.output_buffer[key]
+            self.last_printed = key
+
+    def add_span( self, span ):
+        block_start = span[0] - (span[0] % self.stride)
+        block_end = max( 0, (span[1]-1) - ((span[1]-1) % self.stride) )
+        for i in range( block_start, block_end+self.stride, self.stride ):
+            if i not in self.output_buffer:
+                self.output_buffer[i] = {}
+            if self.output_buffer[i] is not None:
+                for j in range( max( i, span[0] ), min( i+self.stride, span[1] ) ):
+                    self.output_buffer[i][j] = HIGHLIGHT_COLOUR
+        for b in [block_start-(x+1)*self.stride for x in range( self.before )]:
+            if b not in self.output_buffer and b > self.last_printed:
+                self.output_buffer[b] = {}
+        for a in [block_end+(x+1)*self.stride for x in range( self.after )]:
+            if a not in self.output_buffer:
+                self.output_buffer[a] = {}
+
+        self.update( span[0] )
+
+    def flush( self, final=False ):
+        if final:
+            self.update( len( self.source )+self.stride )
+            if self.printed:
+                if self.last_printed < len( self.source ) - (len( self.source ) % self.stride):
+                    self.lines.append( '...' )
+                self.lines.append( '' )
+        lines = self.lines
+        self.lines = []
+        return lines
+        return self.pop()
+

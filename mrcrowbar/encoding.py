@@ -116,6 +116,13 @@ def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_string=False, hex_fo
     if hex_format:
         pattern = pattern.replace( ' ', '' ).replace( '\t', '' ).replace( '\n', '' ).replace( '\r', '' )
     
+    # strip out the automatic byte-order mark
+    encoding_test = encoding.lower().replace( ' ', '' ).replace( '-', '' ).replace( '_', '' ) 
+    if encoding_test == 'utf16':
+        encoding = 'utf-16-le'
+    elif encoding_test == 'utf32':
+        encoding = 'utf-32-le'
+
     pointer = 0
     repeat_block = False
     while pointer < len( pattern ):

@@ -303,14 +303,96 @@ ARGS_GREP = {
         default=2,
         help='Number of lines following a match to show (default: 2)'
     ),
-    '--no-hexdump': dict(
-        dest='no_hexdump',
-        action='store_true',
-        help='Don\'t render a hex dump'
+    '--format': dict(
+        dest='format',
+        default='hex',
+        choices=('hex', 'text', 'json'),
+        help='Output format (default: hex)'
     ),
     '--version': dict(
         action='version',
         version='%(prog)s {}'.format( __version__ )
+    ),
+}
+
+ARGS_FIND = {
+    'string': dict(
+        metavar='STRING',
+        help='String to match',
+    ),
+    'source': dict(
+        metavar='FILE',
+        nargs='+',
+        help='File to inspect',
+    ),
+    ('-r', '--recursive'): dict(
+        dest='recursive',
+        action='store_true',
+        help='Read all files under each directory, recursively'
+    ),
+    ('-o', '--overlap'): dict(
+        dest='overlap',
+        action='store_true',
+        help='Return overlapping matches'
+    ),
+    ('-i', '--ignore-case'): dict(
+        dest='ignore_case',
+        action='store_true',
+        help='Perform a case-insensitive search'
+    ),
+    ('-e', '--encoding'): dict(
+        dest='encoding',
+        help='Comma-seperated list of encodings to try, or "all" for every supported encoding (default: utf8)',
+        default='utf_8',
+    ),
+    '--start': dict(
+        metavar='INT',
+        dest='start',
+        type=auto_int,
+        help='Start offset to read from (default: file start)',
+    ),
+    '--end': dict(
+        metavar='INT',
+        dest='end',
+        type=auto_int,
+        help='End offset to stop reading at (default: end)',
+    ),
+    '--length': dict(
+        metavar='INT',
+        dest='length',
+        type=auto_int,
+        help='Length to read in (optional replacement for --end)'
+    ),
+    '--before': dict(
+        metavar='INT',
+        dest='before',
+        type=auto_int,
+        default=2,
+        help='Number of lines preceeding a match to show (default: 2)'
+    ),
+    '--after': dict(
+        metavar='INT',
+        dest='after',
+        type=auto_int,
+        default=2,
+        help='Number of lines following a match to show (default: 2)'
+    ),
+    ('-b', '--brute'): dict(
+        dest='brute',
+        action='store_true',
+        help='Brute-force an encoding based on recurring letter patterns'
+    ),
+    ('-c', '--char-size'): dict(
+        dest='char_size',
+        type=int,
+        help='Size in bytes of each character for brute-forcing (default: 1)',
+        default=1,
+    ),
+    ('-f', '--format'): dict(
+        dest='format',
+        default='hex',
+        choices=('hex', 'text', 'json'),
+        help='Output format (default: hex)'
     ),
 }
 
@@ -338,7 +420,7 @@ mrcdiff_parser = lambda: get_parser( args=ARGS_DIFF, description='Compare the co
 mrchist_parser = lambda: get_parser( args=ARGS_HIST, description='Display the contents of a file as a histogram map.' )
 mrcpix_parser = lambda: get_parser( args=ARGS_PIX, description='Display the contents of a file as a 256 colour image.' )
 mrcgrep_parser = lambda: get_parser( args=ARGS_GREP, description='Display the contents of a file that match a pattern.', epilog=EPILOG_GREP )
-
+mrcfind_parser = lambda: get_parser( args=ARGS_FIND, description='Display the contents of a file that matches a string, checking against multiple encodings.' )
 
 
 def mrcdump():
@@ -454,24 +536,49 @@ def mrcgrep():
                 if multi:
                     title = src.name
                 with common.read( src ) as source:
-                    if raw_args.no_hexdump:
-                        utils.listdump_grep( raw_args.pattern, source,
-                            encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
-                            hex_format=raw_args.hex_format,
-                            start=raw_args.start, end=raw_args.end,
-                            length=raw_args.length,
-                            title=title,
-                            ignore_case=raw_args.ignore_case
-                        )
-                    else:
-                        utils.hexdump_grep( raw_args.pattern, source,
-                            encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
-                            hex_format=raw_args.hex_format,
-                            start=raw_args.start, end=raw_args.end,
-                            length=raw_args.length,
-                            before=raw_args.before, after=raw_args.after,
-                            title=title,
-                            ignore_case=raw_args.ignore_case
-                        )
+                     utils.grepdump( raw_args.pattern, source,
+                           encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
+                           hex_format=raw_args.hex_format,
+                           start=raw_args.start, end=raw_args.end,
+                           length=raw_args.length,
+                           before=raw_args.before, after=raw_args.after,
+                           title=title,
+                           ignore_case=raw_args.ignore_case,
+                           format=raw_args.format
+                     )
         except OSError as e:
             logger.warning( '{}'.format( e ) )
+
+
+def mrcfind():
+    parser = mrcfind_parser()
+    raw_args = parser.parse_args()
+
+    source_paths = raw_args.source
+    multi = len( raw_args.source ) != 1 or raw_args.recursive
+    if raw_args.recursive:
+        source_paths = common.file_path_recurse( *source_paths )
+
+    for i, path in enumerate( source_paths ):
+        try:
+            with open( path, 'rb' ) as src:
+                title = None
+                if multi:
+                    title = src.name
+                with common.read( src ) as source:
+                    utils.finddump(
+                        raw_args.string, source,
+                        start=raw_args.start,
+                        end=raw_args.end,
+                        length=raw_args.length,
+                        overlap=raw_args.overlap,
+                        ignore_case=raw_args.ignore_case,
+                        encodings=raw_args.encoding.split(','),
+                        brute=raw_args.brute,
+                        char_size=raw_args.char_size,
+                        title=title,
+                        format=raw_args.format,
+                    )
+        except OSError as e:
+            logger.warning( '{}'.format( e ) )
+

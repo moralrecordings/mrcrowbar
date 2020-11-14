@@ -7,6 +7,10 @@ Unreleased
 - blocks.Block: Fall back to Unknown for child Blocks that fail to parse
 - utils: Add find, find_encoded and find_unknown functions
 - ansi.HexdumpHighlightBuffer: Split out logic for rendering highlighted hexdumps
+- encoding.regex_pattern_to_bytes: Fix matching for UTF16 and UTF32
+- utils: Merge hexdump_grep and listdump_grep into grepdump
+- utils: Merge find_encoded and find_unknown into find
+- cli: Add mrcfind tool
 
 0.8.0 - 2020-07-03
 ==================

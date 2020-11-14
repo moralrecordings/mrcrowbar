@@ -43,6 +43,7 @@ setup(
             'mrchist = mrcrowbar.cli:mrchist',
             'mrcpix = mrcrowbar.cli:mrcpix',
             'mrcgrep = mrcrowbar.cli:mrcgrep',
+            'mrcfind = mrcrowbar.cli:mrcfind',
         ],
     },
 )

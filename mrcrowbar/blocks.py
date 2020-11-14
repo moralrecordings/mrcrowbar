@@ -302,7 +302,7 @@ class Block( object, metaclass=BlockMeta ):
                         logger.debug( 'Content: exact match with overflow!' )
                     else:
                         logger.debug( 'Content: different!' )
-                        for x in utils.hexdump_diff_iter( raw_buffer[:len( test )], test ):
+                        for x in utils.diffdump_iter( raw_buffer[:len( test )], test ):
                             logger.debug( x )
                 elif test != raw_buffer[:len( test )]:
                     logger.info( '{} export produced changed output from import'.format( self ) )
@@ -577,6 +577,20 @@ class Block( object, metaclass=BlockMeta ):
             depth=None, encoding=encoding, fixed_string=fixed_string,
             hex_format=hex_format, ignore_cast=ignore_case
         )]
+
+    def diffdump( self, target, prefix='source', depth=None ):
+        """Find differences between this Block and another.
+
+        target
+            The second Block.
+
+        prefix
+            The name of the base element to display.
+
+        depth
+            Maximum number of levels to traverse.
+        """
+        return utils.objdiffdump( self, target, prefix, depth )
 
 
 class Unknown( Block ):

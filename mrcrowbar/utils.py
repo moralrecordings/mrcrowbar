@@ -1,6 +1,7 @@
 """General utility functions useful for reverse engineering."""
 
 import io
+import json
 import logging
 import math
 import mmap
@@ -87,14 +88,14 @@ def grep( pattern, source, encoding='utf8', fixed_string=False, hex_format=False
     return [x for x in grep_iter( pattern, source, encoding, fixed_string, hex_format, ignore_case )]
 
 
-def find_iter( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False ):
-    """Return an iterator that finds every location of a substring in a source byte string.
-
-    source
-        Source byte string or Python string to search.
+def find_iter( substring, source, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'], brute=False, char_size=1 ):
+    """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings.
 
     substring
-        Substring to match, as a byte string or a Python string
+        Substring to match, as a Python string or byte string
+
+    source
+        Source Python string or byte string to search
 
     start
         Start offset to read from (default: start)
@@ -106,108 +107,87 @@ def find_iter( source, substring, start=None, end=None, length=None, overlap=Fal
         Length to read in (optional replacement for end)
 
     overlap
-        Whether to return overlapping matches (default: false)
+        Return overlapping matches (default: false)
 
     ignore_case
-        Perform a case-insensitive search
+        Perform a case-insensitive search (default: false)
+
+    encodings
+        A list of encodings to try, or 'all' for every supported encoding (default: ['utf_8'])
+
+    brute
+        Brute-force an encoding based on recurring letter patterns (default: false)
+
+    char_size
+        Size in bytes for each character for brute-forcing (default: 1)
     """
     start, end = bounds( start, end, length, len( source ) )
 
     if ignore_case:
         source = source.lower()
         substring = substring.lower()
-    pointer = start
-    result = source.find( substring, pointer, end )
-    while result != -1:
-        yield (result, result + len( substring ))
-        if overlap:
-            pointer = result + 1
+
+    if not brute:
+        subs = {}
+        if isinstance( source, str ) and isinstance( substring, str ):
+            subs[substring] = 'str'
+        elif isinstance( source, bytes ) and isinstance( substring, bytes ):
+            subs[substring] = 'bytes'
+        elif not is_bytes( source ):
+            raise TypeError( 'Source should be of type bytes, or both source and substring should be of type str!' )
         else:
-            pointer = result + len( substring )
-        result = source.find( substring, pointer, end )
+            if encodings == 'all':
+                encodings = enco.CODECS
+            elif isinstance( encodings, str ):
+                encodings = [encodings]
+            for encoding in encodings:
+                # strip out the automatic byte-order mark
+                encoding_test = encoding.lower().replace( ' ', '' ).replace( '-', '' ).replace( '_', '' ) 
+                if encoding_test == 'utf16':
+                    encoding = 'utf-16-le'
+                elif encoding_test == 'utf32':
+                    encoding = 'utf-32-le'
+
+                try:
+                    test = substring.encode( encoding )
+                    if test not in subs:
+                        subs[test] = []
+                    subs[test].append( encoding )
+                except UnicodeEncodeError:
+                    continue
+
+        for test in subs:
+            pointer = start
+            result = source.find( test, pointer, end )
+            while result != -1:
+                yield (result, result + len( test ), substring, subs[test])
+                if overlap:
+                    pointer = result + 1
+                else:
+                    pointer = result + len( test )
+                result = source.find( test, pointer, end )
+    else:
+        unk_dict, pattern = enco.regex_unknown_encoding_match( substring, char_size=char_size )
+        if overlap:
+            pattern = b'(?=(' + pattern + b'))'
+        regex = re.compile( pattern, flags=re.DOTALL )
+        for match in regex.finditer( source[start:end] ):
+            groups = match.groups()
+            span_0, span_1 = match.span()
+            if overlap:
+                span_1 += len( groups[0] )
+                groups = groups[1:]
+            yield (span_0 + start, span_1 + start, substring, {key: groups[unk_dict[key]] for key in unk_dict})
 
 
-def find( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False ):
-    """Find every location of a substring in a source string.
-
-    source
-        Source byte string to search.
-
-    substring
-        Substring to match, as a Python byte string
-
-    start
-        Start offset to read from (default: start)
-
-    end
-        End offset to stop reading at (default: end)
-
-    length
-        Length to read in (optional replacement for end)
-
-    overlap
-        Whether to return overlapping matches (default: false)
-
-    ignore_case
-        Perform a case-insensitive search
-    """
-    return [x for x in find_iter( source, substring, start, end, length, overlap, ignore_case )]
-
-
-def find_encoded_iter( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'] ):
-    """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings.
-
-    source
-        Source byte string to search.
-
-    substring
-        Substring to match, as a Python string
-
-    start
-        Start offset to read from (default: start)
-
-    end
-        End offset to stop reading at (default: end)
-
-    length
-        Length to read in (optional replacement for end)
-
-    overlap
-        Return overlapping matches (default: false)
-
-    ignore_case
-        Perform a case-insensitive search
-
-    encodings
-        A list of encodings to try, or 'all' for every supported encoding (default: ['utf_8'])
-    """
-    assert is_bytes( source )
-
-    if encodings == 'all':
-        encodings = enco.CODECS
-    subs = {}
-    for encoding in encodings:
-        try:
-            test = substring.encode( encoding )
-            if test not in subs:
-                subs[test] = []
-            subs[test].append( encoding )
-        except UnicodeEncodeError:
-            continue
-
-    for test in subs:
-        for x in find_iter( source, test, start, end, length, overlap, ignore_case ):
-            yield (x[0], x[1], subs[test])
-
-
-def find_encoded( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'] ):
+def find( substring, source, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'], brute=False, char_size=1 ):
     """Find every location of a substring in a source byte string, checking against multiple encodings.
 
-    source
-        Source byte string to search.
-
     substring
-        Substring to match, as a Python string
+        Substring to match, as a Python string or byte string
+
+    source
+        Source Python string or byte string to search
 
     start
         Start offset to read from (default: start)
@@ -226,76 +206,18 @@ def find_encoded( source, substring, start=None, end=None, length=None, overlap=
 
     encodings
         A list of encodings to try, or 'all' for every supported encoding (default: ['utf_8'])
-    """
-    return [x for x in find_encoded_iter( source, substring, start, end, length, overlap, ignore_case, encodings )]
 
-
-def find_unknown_iter( source, substring, start=None, end=None, length=None, overlap=False, char_size=1 ):
-    """Return an iterator that finds every location of a substring in a source byte string, guessing the encoding.
-
-    source
-        Source byte string to search.
-
-    substring
-        Substring to match, as a Python string
-
-    start
-        Start offset to read from (default: start)
-
-    end
-        End offset to stop reading at (default: end)
-
-    length
-        Length to read in (optional replacement for end)
-
-    overlap
-        Return overlapping matches (default: false)
+    brute
+        Brute-force an encoding based on recurring letter patterns (default: false)
 
     char_size
-        Size in bytes of each character in the source (default: 1)
+        Size in bytes for each character for brute-forcing (default: 1)
     """
-    unk_dict, pattern = enco.regex_unknown_encoding_match( substring, char_size=char_size )
-    if overlap:
-        pattern = b'(?=(' + pattern + b'))'
-    regex = re.compile( pattern, flags=re.DOTALL )
-    for match in regex.finditer( source ):
-        groups = match.groups()
-        span_0, span_1 = match.span()
-        if overlap:
-            span_1 += len( groups[0] )
-            groups = groups[1:]
-        yield (span_0, span_1, {key: groups[unk_dict[key]] for key in unk_dict})
+    return [x for x in find_iter( substring, source, start, end, length, overlap, ignore_case, encodings, brute, char_size )]
 
 
-def find_unknown( source, substring, start=None, end=None, length=None, overlap=False, char_size=1 ):
-    """Find every location of a substring in a source byte string, guessing the encoding.
-
-    source
-        Source byte string to search.
-
-    substring
-        Substring to match, as a Python string
-
-    start
-        Start offset to read from (default: start)
-
-    end
-        End offset to stop reading at (default: end)
-
-    length
-        Length to read in (optional replacement for end)
-
-    overlap
-        Return overlapping matches (default: false)
-
-    char_size
-        Size in bytes of each character in the source (default: 1)
-    """
-    return [x for x in find_unknown_iter( source, substring, start, end, length, overlap, char_size )]
-
-
-def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
-    """Return an iterator that searches a byte string for a pattern and renders the result in tabular hexadecimal/ASCII format.
+def grepdump_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None, format='hex' ):
+    """Return an iterator that searches a byte string for a pattern and renders the result.
 
     pattern
         Pattern to match, as a Python string
@@ -345,6 +267,9 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
     title
         Name to print as a heading if there's a match. Useful for file names.
 
+    format
+        Output format; one of 'hex', 'text' or 'json' (default: 'hex')
+
     Raises ValueError if both end and length are defined.
     """
     assert is_bytes( source )
@@ -354,19 +279,41 @@ def hexdump_grep_iter( pattern, source, start=None, end=None, length=None, encod
         return
     address_base_offset = address_base-start if address_base is not None else 0
     stride = minor_len*major_len
+    assert format in ('hex', 'text', 'json')
 
     regex_iter = grep_iter( pattern, source[start:end], encoding, fixed_string, hex_format, ignore_case )
 
-    hb = ansi.HexdumpHighlightBuffer( source, start, end, None, major_len, minor_len, colour, address_base, before, after, title )
-    for match in regex_iter:
-        hb.add_span( (match.span()[0]+start, match.span()[1]+start) )
+    if format == 'hex':
+        hb = ansi.HexdumpHighlightBuffer( source, start, end, None, major_len, minor_len, colour, address_base, before, after, title )
+        for match in regex_iter:
+            hb.add_span( (match.span()[0]+start, match.span()[1]+start) )
 
-        yield from hb.flush()
+            yield from hb.flush()
 
-    yield from hb.flush( final=True )
+        yield from hb.flush( final=True )
+
+    elif format == 'text':
+        for match in regex_iter:
+            start_off = match.span()[0]+start+address_base_offset
+            end_off = match.span()[1]+start+address_base_offset
+            digits = '{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}'
+            line = (digits+':'+digits).format( start_off, end_off )
+            line += ':{}'.format( repr( match.group( 0 ) ) )
+            if title:
+                line = '{}:'.format( title ) + line
+            yield line
+
+    elif format == 'json':
+        for match in regex_iter:
+            yield json.dumps({
+                'title': title, 
+                'start_offset': match.span()[0] + start + address_base_offset,
+                'end_offset': match.span()[1] + start + address_base_offset,
+                'match': match.group( 0 ).hex()
+            })
 
 
-def hexdump_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
+def grepdump( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None, format='hex' ):
     """Search a byte string for a pattern and print the result in tabular hexadecimal/ASCII format.
 
     pattern
@@ -417,142 +364,13 @@ def hexdump_grep( pattern, source, start=None, end=None, length=None, encoding='
     title
         Name to print as a heading if there's a match. Useful for file names.
 
-    Raises ValueError if both end and length are defined.
-    """
-
-    for line in hexdump_grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, ignore_case, major_len, minor_len, colour, address_base, before, after, title ):
-        print( line )
-
-
-def listdump_grep_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, address_base=None, title=None ):
-    """Return an iterator that searches a byte string for a pattern and renders the result in list format.
-
-    pattern
-        Pattern to match, as a Python string
-
-    source
-        The byte string to print.
-
-    start
-        Start offset to read from (default: start)
-
-    end
-        End offset to stop reading at (default: end)
-
-    length
-        Length to read in (optional replacement for end)
-
-    encoding
-        Convert strings in the pattern to a specific Python encoding (default: utf8)
-
-    fixed_string
-        Interpret the pattern as a fixed string (disable regular expressions)
-
-    hex_format
-        Interpret the pattern as raw hexidecimal (default: false)
-
-    ignore_case
-        Perform a case-insensitive search
-
-    major_len
-        Number of hexadecimal groups per line
-
-    minor_len
-        Number of bytes per hexadecimal group
-
-    colour
-        Add ANSI colour formatting to output (default: true)
-
-    address_base
-        Base address to use for labels (default: start)
-
-    before
-        Number of lines of context preceeding a match to show
-
-    after
-        Number of lines of context following a match to show
-
-    title
-        Name to print as a heading if there's a match. Useful for file names.
+    format
+        Output format; one of 'hex', 'text' or 'json' (default: 'hex')
 
     Raises ValueError if both end and length are defined.
     """
 
-    assert is_bytes( source )
-    start, end = bounds( start, end, length, len( source ) )
-
-    if len( source ) == 0 or (start == end == 0):
-        return
-    address_base_offset = address_base-start if address_base is not None else 0
-
-    regex_iter = grep_iter( pattern, source[start:end], encoding, fixed_string, hex_format, ignore_case )
-
-    for match in regex_iter:
-        start_off = match.span()[0]+start+address_base_offset
-        end_off = match.span()[1]+start+address_base_offset
-        digits = '{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}'
-        line = (digits+':'+digits).format( start_off, end_off )
-        line += ':{}'.format( repr( match.group( 0 ) ) )
-        if title:
-            line = '{}:'.format( title ) + line
-        yield line
-
-
-def listdump_grep( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, address_base=None, title=None ):
-    """Search a byte string for a pattern and print the result in list format.
-
-    pattern
-        Pattern to match, as a Python string
-
-    source
-        The byte string to print.
-
-    start
-        Start offset to read from (default: start)
-
-    end
-        End offset to stop reading at (default: end)
-
-    length
-        Length to read in (optional replacement for end)
-
-    encoding
-        Convert strings in the pattern to a specific Python encoding (default: utf8)
-
-    fixed_string
-        Interpret the pattern as a fixed string (disable regular expressions)
-
-    hex_format
-        Interpret the pattern as raw hexidecimal (default: false)
-
-    ignore_case
-        Perform a case-insensitive search
-
-    major_len
-        Number of hexadecimal groups per line
-
-    minor_len
-        Number of bytes per hexadecimal group
-
-    colour
-        Add ANSI colour formatting to output (default: true)
-
-    address_base
-        Base address to use for labels (default: start)
-
-    before
-        Number of lines of context preceeding a match to show
-
-    after
-        Number of lines of context following a match to show
-
-    title
-        Name to print as a heading if there's a match. Useful for file names.
-
-    Raises ValueError if both end and length are defined.
-    """
-
-    for line in list_grep_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, ignore_case, address_base, title ):
+    for line in grepdump_iter( pattern, source, start, end, length, encoding, fixed_string, hex_format, ignore_case, major_len, minor_len, colour, address_base, before, after, title, format ):
         print( line )
 
 
@@ -647,14 +465,14 @@ def search( pattern, source, prefix='source', depth=None, encoding='utf8', fixed
     return [x for x in search_iter( pattern, source, prefix, depth, encoding, fixed_string, hex_format, ignore_case )]
 
 
-def listdump_find_encoded_iter( source, substring, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'] ):
-    """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings, and renders the result in list format.
-
-    source
-        Source byte string or Python string to search.
+def finddump_iter( substring, source, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'], brute=False, char_size=1, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None, format='hex' ):
+    """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings, and renders the result.
 
     substring
         Substring to match, as a byte string or a Python string
+
+    source
+        Source byte string or Python string to search.
 
     start
         Start offset to read from (default: start)
@@ -673,13 +491,150 @@ def listdump_find_encoded_iter( source, substring, start=None, end=None, length=
 
     encodings
         A list of encodings to try, or 'all' for every supported encoding (default: ['utf_8'])
+
+    brute
+        Brute-force an encoding based on recurring letter patterns (default: false)
+
+    char_size
+        Size in bytes for each character for brute-forcing (default: 1)
+    
+    major_len
+        Number of hexadecimal groups per line
+
+    minor_len
+        Number of bytes per hexadecimal group
+
+    colour
+        Add ANSI colour formatting to output (default: true)
+
+    address_base
+        Base address to use for labels (default: start)
+
+    before
+        Number of lines of context preceeding a match to show
+
+    after
+        Number of lines of context following a match to show
+
+    title
+        Name to print as a heading if there's a match. Useful for file names.
+
+    format
+        Output format; one of 'hex', 'text' or 'json' (default: 'hex')
+
     """
-    pass
+    assert is_bytes( source )
+    start, end = bounds( start, end, length, len( source ) )
+
+    if len( source ) == 0 or (start == end == 0):
+        return
+    address_base_offset = address_base-start if address_base is not None else 0
+    stride = minor_len*major_len
+    assert format in ('hex', 'text', 'json')
+
+    findings = find_iter( substring, source, start, end, None, overlap, ignore_case, encodings, brute, char_size )
+
+    if format == 'hex':
+        for match in findings:
+            header = repr( match[2] ) + ' - ' + repr( match[3] ) 
+            if title:
+                header = title + ' - ' + header
+            print( header )
+            hb = ansi.HexdumpHighlightBuffer( source, start, end, None, major_len, minor_len, colour, address_base, before, after )
+            hb.add_span( (match[0], match[1]) )
+
+            yield from hb.flush( final=True )
 
 
+    elif format == 'text':
+        for match in findings:
+            start_off = match[0] + address_base_offset
+            end_off = match[1] + address_base_offset
+            digits = '{:0'+str( max( 8, math.floor( math.log( end + address_base_offset )/math.log( 16 ) ) ) )+'x}'
+            line = (digits+':'+digits).format( start_off, end_off )
+            line += ':{}'.format( repr( source[match[0]:match[1]] ) )
+            if title:
+                line = '{}:'.format( title ) + line
+            yield line
 
-def basic_diff( source1, source2, start=None, end=None ):
-    """Perform a basic diff between two equal-sized binary strings and
+    elif format == 'json':
+        for match in findings:
+            result = {
+                'title': title,
+                'start_offset': match[0] + address_base_offset,
+                'end_offset': match[1] + address_base_offset,
+                'match': source[match[0]:match[1]].hex(),
+            }
+            if isinstance( match[3], list ):
+                result['encodings'] = match[3]
+            elif isinstance( match[3], dict ):
+                result['alphabet'] = {k: v.hex() for k,v in match[3].items()}
+            yield json.dumps(result)
+
+
+def finddump( substring, source, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'], brute=False, char_size=1, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None, format='hex' ):
+    """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings, and renders the result.
+
+    substring
+        Substring to match, as a byte string or a Python string
+
+    source
+        Source byte string or Python string to search.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+
+    length
+        Length to read in (optional replacement for end)
+
+    overlap
+        Whether to return overlapping matches (default: false)
+
+    ignore_case
+        Perform a case-insensitive search
+
+    encodings
+        A list of encodings to try, or 'all' for every supported encoding (default: ['utf_8'])
+
+    brute
+        Brute-force an encoding based on recurring letter patterns (default: false)
+
+    char_size
+        Size in bytes for each character for brute-forcing (default: 1)
+
+    major_len
+        Number of hexadecimal groups per line
+
+    minor_len
+        Number of bytes per hexadecimal group
+
+    colour
+        Add ANSI colour formatting to output (default: true)
+
+    address_base
+        Base address to use for labels (default: start)
+
+    before
+        Number of lines of context preceeding a match to show
+
+    after
+        Number of lines of context following a match to show
+
+    title
+        Name to print as a heading if there's a match. Useful for file names.
+
+    format
+        Output format; one of 'hex', 'text' or 'json' (default: 'hex')
+    """
+    for x in finddump_iter( substring, source, start, end, length, overlap, ignore_case, encodings, brute, char_size, major_len, minor_len, colour, address_base, before, after, title, format ):
+        print( x )
+
+
+def diff( source1, source2, start=None, end=None ):
+    """Perform a diff between two equal-sized binary strings and
     return a list of (offset, size) tuples denoting the differences.
 
     source1
@@ -717,7 +672,7 @@ def basic_diff( source1, source2, start=None, end=None ):
     return results
 
 
-def diff_iter( source1, source2, prefix='source', depth=None ):
+def objdiff_iter( source1, source2, prefix='source', depth=None ):
     """Return an iterator that finds differences between two objects.
 
     source1
@@ -744,7 +699,7 @@ def diff_iter( source1, source2, prefix='source', depth=None ):
                 prefix_mod = prefix+'[{}]'.format( i )
 
                 if i < len( source1 ) and i < len( source2 ):
-                    yield from diff_iter( source1[i], source2[i], prefix=prefix_mod, depth=depth )
+                    yield from objdiff_iter( source1[i], source2[i], prefix=prefix_mod, depth=depth )
                 elif i >= len( source2 ):
                     yield (prefix_mod, abbr( source1[i] ), None)
                 else:
@@ -766,13 +721,13 @@ def diff_iter( source1, source2, prefix='source', depth=None ):
                 for i in range( len( s1[1] ) ):
                     assert s1[1][i][0] == s2[1][i][0]
                     if s1[1][i][1] != s2[1][i][1]:
-                        yield from diff_iter( getattr( source1, s1[1][i][0] ), getattr( source2, s1[1][i][0] ), prefix='{}.{}'.format( prefix, s1[1][i][0] ), depth=depth )
+                        yield from objdiff_iter( getattr( source1, s1[1][i][0] ), getattr( source2, s1[1][i][0] ), prefix='{}.{}'.format( prefix, s1[1][i][0] ), depth=depth )
         else:
             if source1 != source2:
                 yield (prefix, source1, source2)
 
 
-def diff( source1, source2, prefix='source', depth=None ):
+def objdiff( source1, source2, prefix='source', depth=None ):
     """Find differences between two objects.
 
     source1
@@ -787,10 +742,10 @@ def diff( source1, source2, prefix='source', depth=None ):
     depth
         Maximum number of levels to traverse.
     """
-    return [x for x in diff_iter( source1, source2, prefix, depth )]
+    return [x for x in objdiff_iter( source1, source2, prefix, depth )]
 
 
-def diffdump_iter( source1, source2, prefix='source', depth=None ):
+def objdiffdump_iter( source1, source2, prefix='source', depth=None ):
     """Return an iterator that renders a list of differences between two objects.
 
     source1
@@ -821,7 +776,7 @@ def diffdump_iter( source1, source2, prefix='source', depth=None ):
     return same
 
 
-def diffdump( source1, source2, prefix='source', depth=None ):
+def objdiffdump( source1, source2, prefix='source', depth=None ):
     """Print a list of differences between two objects.
 
     source1
@@ -836,7 +791,7 @@ def diffdump( source1, source2, prefix='source', depth=None ):
     depth
         Maximum number of levels to traverse.
     """
-    for line in diffdump_iter( source1, source2, prefix, depth ):
+    for line in objdiffdump_iter( source1, source2, prefix, depth ):
         print( line )
 
 
@@ -990,8 +945,8 @@ def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4
         print( line )
 
 
-def hexdump_diff_iter( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2, address_base=None ):
-    """Return an iterator that renders the differences between two byte strings and renders the result in tabular hexadecimal/ASCII format.
+def diffdump_iter( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2, address_base=None ):
+    """Return an iterator that renders the differences between two byte strings.
 
     source1
         First byte string source
@@ -1081,8 +1036,8 @@ def hexdump_diff_iter( source1, source2, start=None, end=None, length=None, majo
     return
 
 
-def hexdump_diff( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2, address_base=None ):
-    """Print the differences between two byte strings in tabular hexadecimal/ASCII format.
+def diffdump( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2, address_base=None ):
+    """Print the differences between two byte strings.
 
     source1
         First byte string source

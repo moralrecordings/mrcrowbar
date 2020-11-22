@@ -92,7 +92,7 @@ def find_iter( substring, source, start=None, end=None, length=None, overlap=Fal
     """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings.
 
     substring
-        Substring to match, as a Python string or byte string
+        Substring(s) to match, as a single Python string/byte string or a list
 
     source
         Source Python string or byte string to search
@@ -123,68 +123,109 @@ def find_iter( substring, source, start=None, end=None, length=None, overlap=Fal
     """
     start, end = bounds( start, end, length, len( source ) )
 
+    substrings = substring if isinstance( substring, list ) else []
+
     if ignore_case:
         source = source.lower()
-        substring = substring.lower()
+        substrings = [s.lower() for s in substrings]
 
     if not brute:
-        subs = {}
-        if isinstance( source, str ) and isinstance( substring, str ):
-            subs[substring] = 'str'
-        elif isinstance( source, bytes ) and isinstance( substring, bytes ):
-            subs[substring] = 'bytes'
-        elif not is_bytes( source ):
-            raise TypeError( 'Source should be of type bytes, or both source and substring should be of type str!' )
-        else:
-            if encodings == 'all':
-                encodings = enco.CODECS
-            elif isinstance( encodings, str ):
-                encodings = [encodings]
-            for encoding in encodings:
-                # strip out the automatic byte-order mark
-                encoding_test = encoding.lower().replace( ' ', '' ).replace( '-', '' ).replace( '_', '' ) 
-                if encoding_test == 'utf16':
-                    encoding = 'utf-16-le'
-                elif encoding_test == 'utf32':
-                    encoding = 'utf-32-le'
+        for substring in substrings:
+            subs = {}
+            if isinstance( source, str ) and isinstance( substring, str ):
+                subs[substring] = 'str'
+            elif isinstance( source, bytes ) and isinstance( substring, bytes ):
+                subs[substring] = 'bytes'
+            elif not is_bytes( source ):
+                raise TypeError( 'Source should be of type bytes, or both source and substring should be of type str!' )
+            else:
+                if encodings == 'all':
+                    encodings = enco.CODECS
+                elif isinstance( encodings, str ):
+                    encodings = [encodings]
+                for encoding in encodings:
+                    # strip out the automatic byte-order mark
+                    encoding_test = encoding.lower().replace( ' ', '' ).replace( '-', '' ).replace( '_', '' )
+                    if encoding_test == 'utf16':
+                        encoding = 'utf-16-le'
+                    elif encoding_test == 'utf32':
+                        encoding = 'utf-32-le'
 
-                try:
-                    test = substring.encode( encoding )
-                    if test not in subs:
-                        subs[test] = []
-                    subs[test].append( encoding )
-                except UnicodeEncodeError:
-                    continue
+                    try:
+                        test = substring.encode( encoding )
+                        if test not in subs:
+                            subs[test] = []
+                        subs[test].append( encoding )
+                    except UnicodeEncodeError:
+                        continue
 
-        for test in subs:
-            pointer = start
-            result = source.find( test, pointer, end )
-            while result != -1:
-                yield (result, result + len( test ), substring, subs[test])
-                if overlap:
-                    pointer = result + 1
-                else:
-                    pointer = result + len( test )
+            for test in subs:
+                pointer = start
                 result = source.find( test, pointer, end )
+                while result != -1:
+                    yield (result, result + len( test ), substring, subs[test])
+                    if overlap:
+                        pointer = result + 1
+                    else:
+                        pointer = result + len( test )
+                    result = source.find( test, pointer, end )
     else:
-        unk_dict, pattern = enco.regex_unknown_encoding_match( substring, char_size=char_size )
-        if overlap:
-            pattern = b'(?=(' + pattern + b'))'
-        regex = re.compile( pattern, flags=re.DOTALL )
-        for match in regex.finditer( source[start:end] ):
-            groups = match.groups()
-            span_0, span_1 = match.span()
+        matches = []
+
+        # create a mapping of substring letters to substrings
+        letter_map = {}
+        if len( substrings ) > 1:
+            for index, sub in enumerate( substrings ):
+                for letter in sub:
+                    if letter not in letter_map:
+                        letter_map[letter] = set()
+                    letter_map[letter].add( index )
+
+        for substring in substrings:
+            submatches = []
+            unk_dict, pattern = enco.regex_unknown_encoding_match( substring, char_size=char_size )
             if overlap:
-                span_1 += len( groups[0] )
-                groups = groups[1:]
-            yield (span_0 + start, span_1 + start, substring, {key: groups[unk_dict[key]] for key in unk_dict})
+                pattern = b'(?=(' + pattern + b'))'
+            regex = re.compile( pattern, flags=re.DOTALL )
+            for match in regex.finditer( source[start:end] ):
+                groups = match.groups()
+                span_0, span_1 = match.span()
+                if overlap:
+                    span_1 += len( groups[0] )
+                    groups = groups[1:]
+                submatches.append((span_0 + start, span_1 + start, substring, {key: groups[unk_dict[key]] for key in unk_dict}))
+            matches.append(submatches)
+
+        # repeat until all eliminations are made
+        changed = True
+        while changed:
+            changed = False
+            # filter out matches that don't have a letter occuring in all substrings
+            for letter, subs in letter_map.items():
+                subs = list( subs )
+                if len( subs ) == 1:
+                    continue
+                # find the letter mappings that appear in all substrings
+                mappings = set( m[3][letter] for m in matches[subs[0]] )
+                for sub_id in subs[1:]:
+                    mappings.intersection_update( set( m[3][letter] for m in matches[sub_id] ) )
+
+                # remove the letter mappings which are unique
+                for sub_id in subs:
+                    new_matches = [m for m in matches[sub_id] if m[3][letter] in mappings]
+                    if len( new_matches ) != len( matches[sub_id] ):
+                        changed = True
+                    matches[sub_id] = new_matches
+
+        for submatches in matches:
+            yield from submatches
 
 
 def find( substring, source, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'], brute=False, char_size=1 ):
     """Find every location of a substring in a source byte string, checking against multiple encodings.
 
     substring
-        Substring to match, as a Python string or byte string
+        Substring to match, as a single Python string/byte string or a list
 
     source
         Source Python string or byte string to search
@@ -469,7 +510,7 @@ def finddump_iter( substring, source, start=None, end=None, length=None, overlap
     """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings, and renders the result.
 
     substring
-        Substring to match, as a byte string or a Python string
+        Substring(s) to match, as a single Python string/byte string or a list
 
     source
         Source byte string or Python string to search.
@@ -576,7 +617,7 @@ def finddump( substring, source, start=None, end=None, length=None, overlap=Fals
     """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings, and renders the result.
 
     substring
-        Substring to match, as a byte string or a Python string
+        Substring(s) to match, as a single Python string/byte string or a list
 
     source
         Source byte string or Python string to search.

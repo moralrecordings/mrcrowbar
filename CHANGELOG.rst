@@ -11,6 +11,7 @@ Unreleased
 - utils: Merge hexdump_grep and listdump_grep into grepdump
 - utils: Merge find_encoded and find_unknown into find
 - cli: Add mrcfind tool
+- utils.find_iter: Add support for multiple search terms
 
 0.8.0 - 2020-07-03
 ==================

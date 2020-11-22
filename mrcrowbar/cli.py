@@ -318,12 +318,17 @@ ARGS_GREP = {
 ARGS_FIND = {
     'string': dict(
         metavar='STRING',
-        help='String to match',
+        help='String to search for, or multiple strings separated by a comma',
     ),
     'source': dict(
         metavar='FILE',
         nargs='+',
         help='File to inspect',
+    ),
+    '--delimiter': dict(
+        dest='delimiter',
+        default=',',
+        help="Delimiter used to split the string (default: ,)",
     ),
     ('-r', '--recursive'): dict(
         dest='recursive',
@@ -567,7 +572,7 @@ def mrcfind():
                     title = src.name
                 with common.read( src ) as source:
                     utils.finddump(
-                        raw_args.string, source,
+                        raw_args.string.split(raw_args.delimiter), source,
                         start=raw_args.start,
                         end=raw_args.end,
                         length=raw_args.length,

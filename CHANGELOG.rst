@@ -12,6 +12,7 @@ Unreleased
 - utils: Merge find_encoded and find_unknown into find
 - cli: Add mrcfind tool
 - utils.find_iter: Add support for multiple search terms
+- cli: Rework arguments, remove stats from hexdump
 
 0.8.0 - 2020-07-03
 ==================

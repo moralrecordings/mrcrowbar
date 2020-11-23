@@ -9,51 +9,53 @@ logger = logging.getLogger( __name__ )
 
 auto_int = lambda s: int( s, base=0 )
 
-ARGS_COMMON = {
-    '--start': dict(
+ARGS_RANGE = {
+    ('--start', '-C'): dict(
         metavar='INT',
         dest='start',
         type=auto_int,
         help='Start offset to read from (default: file start)',
     ),
-    '--end': dict(
+    ('--end', '-D'): dict(
         metavar='INT',
         dest='end',
         type=auto_int,
-        help='End offset to stop reading at (default: end)',
+        help='End offset to stop reading at (default: file end)',
     ),
-    '--address-base': dict(
+    ('--address-base', '-R'): dict(
         metavar='INT',
         dest='address_base',
         type=auto_int,
         help='Base address to use for labelling (default: start)',
     ),
-    '--length': dict(
+    ('--length', '-n'): dict(
         metavar='INT',
         dest='length',
         type=auto_int,
         help='Length to read in (optional replacement for --end)'
     ),
-    '--major-len': dict(
+}
+ARGS_COMMON = {
+    ('--major-len', '-J'): dict(
         metavar='INT',
         dest='major_len',
         type=auto_int,
         default=8,
         help='Number of hexadecimal groups per line (default: 8)',
     ),
-    '--minor-len': dict(
+    ('--minor-len', '-N'): dict(
         metavar='INT',
         dest='minor_len',
         type=auto_int,
         default=4,
         help='Number of bytes per hexadecimal group (default: 4)',
     ),
-    '--plain': dict(
+    ('--plain', '-p'): dict(
         dest='colour',
         action='store_false',
         help='Disable ANSI colour formatting'
     ),
-    '--version': dict(
+    ('--version', '-V'): dict(
         action='version',
         version='%(prog)s {}'.format( __version__ )
     ),
@@ -65,44 +67,23 @@ ARGS_DUMP = {
         nargs='+',
         help='File to inspect',
     ),
-    ('-r', '--recursive'): dict(
+    ('--recursive', '-r'): dict(
         dest='recursive',
         action='store_true',
         help='Read all files under each directory, recursively'
     ),
-    '--no-hexdump': dict(
-        dest='no_hexdump',
-        action='store_true',
-        help='Don\'t render a hex dump'
-    ),
-    '--no-stats': dict(
-        dest='no_stats',
-        action='store_true',
-        help='Don\'t render statistics'
-    ),
-    '--no-offsets': dict(
+    ('--no-offsets', '-O'): dict(
         dest='show_offsets',
         action='store_false',
         help='Don\'t render line offsets'
     ),
-    '--no-glyphs': dict(
+    ('--no-glyphs', '-G'): dict(
         dest='show_glyphs',
         action='store_false',
         help='Don\'t render the glyph map'
     ),
-    '--hist-w': dict(
-        dest='hist_w',
-        type=auto_int,
-        default=64,
-        help='Histogram width (default: 64)'
-    ),
-    '--hist-h': dict(
-        dest='hist_h',
-        type=auto_int,
-        default=12,
-        help='Histogram height (default: 12)'
-    ),
 }
+ARGS_DUMP.update( ARGS_RANGE )
 ARGS_DUMP.update( ARGS_COMMON )
 
 ARGS_DIFF = {
@@ -116,26 +97,27 @@ ARGS_DIFF = {
         type=argparse.FileType( mode='rb' ),
         help='File to compare against',
     ),
-    '--before': dict(
+    ('--before', '-B'): dict(
         metavar='INT',
         dest='before',
         type=auto_int,
         default=2,
         help='Number of lines preceeding a match to show (default: 2)'
     ),
-    '--after': dict( 
+    ('--after', '-A'): dict(
         metavar='INT',
         dest='after',
         type=auto_int,
         default=2,
         help='Number of lines following a match to show (default: 2)'
     ),
-    '--all': dict(
+    ('--all', '-a'): dict(
         dest='show_all',
         action='store_true',
         help='Show all lines'
     ),
 }
+ARGS_DIFF.update( ARGS_RANGE )
 ARGS_DIFF.update( ARGS_COMMON )
 
 ARGS_HIST = {
@@ -144,54 +126,42 @@ ARGS_HIST = {
         nargs='+',
         help='File to inspect',
     ),
-    '--start': dict(
-        metavar='INT',
-        dest='start',
-        type=auto_int,
-        help='Start offset to read from (default: file start)',
-    ),
-    '--end': dict(
-        metavar='INT',
-        dest='end',
-        type=auto_int,
-        help='End offset to stop reading at (default: end)',
-    ),
-    '--address-base': dict(
-        metavar='INT',
-        dest='address_base',
-        type=auto_int,
-        help='Base address to use for labelling (default: start)',
-    ),
-    '--length': dict(
-        metavar='INT',
-        dest='length',
-        type=auto_int,
-        help='Length to read in (optional replacement for --end)'
-    ),
-    '--samples': dict(
+    ('--samples', '-s'): dict(
         metavar='INT',
         dest='samples',
         type=auto_int,
         default=0x10000,
         help='Number of samples per histogram slice (default: 65536)'
     ),
-    '--width': dict(
+    ('--summary', '-m'): dict(
+        action='store_true',
+        help='Show a single histogram for the full range instead of slices',
+    ),
+    ('--width', '-W'): dict(
         metavar='INT',
         dest='width',
         type=auto_int,
         default=64,
         help='Histogram width (default: 64)'
     ),
-    ('-r', '--recursive'): dict(
+    ('--height', '-H'): dict(
+        metavar='INT',
+        dest='height',
+        type=auto_int,
+        default=12,
+        help='Histogram height (default: 12)'
+    ),
+    ('--recursive', '-r'): dict(
         dest='recursive',
         action='store_true',
         help='Read all files under each directory, recursively'
     ),
-    '--version': dict(
+    ('--version', '-V'): dict(
         action='version',
         version='%(prog)s {}'.format( __version__ )
     ),
 }
+ARGS_HIST.update( ARGS_RANGE )
 
 ARGS_PIX = {
    'source': dict(
@@ -199,41 +169,24 @@ ARGS_PIX = {
         nargs='+',
         help='File to inspect',
     ),
-    '--start': dict(
-        metavar='INT',
-        dest='start',
-        type=auto_int,
-        help='Start offset to read from (default: file start)',
+    ('--recursive', '-r'): dict(
+        dest='recursive',
+        action='store_true',
+        help='Read all files under each directory, recursively'
     ),
-    '--end': dict(
-        metavar='INT',
-        dest='end',
-        type=auto_int,
-        help='End offset to stop reading at (default: end)',
-    ),
-    '--length': dict(
-        metavar='INT',
-        dest='length',
-        type=auto_int,
-        help='Length to read in (optional replacement for --end)'
-    ),
-    '--width': dict(
+    ('--width', '-W'): dict(
         metavar='INT',
         dest='width',
         type=auto_int,
         default=64,
         help='Image width (default: 64)'
     ),
-    ('-r', '--recursive'): dict(
-        dest='recursive',
-        action='store_true',
-        help='Read all files under each directory, recursively'
-    ),
-    '--version': dict(
+    ('--version', '-V'): dict(
         action='version',
         version='%(prog)s {}'.format( __version__ )
     ),
 }
+ARGS_PIX.update( ARGS_RANGE )
 
 ARGS_GREP = {
     'pattern': dict(
@@ -245,75 +198,55 @@ ARGS_GREP = {
         nargs='+',
         help='File to inspect',
     ),
-    ('-r', '--recursive'): dict(
+    ('--recursive', '-r'): dict(
         dest='recursive',
         action='store_true',
         help='Read all files under each directory, recursively'
     ),
-    ('-F', '--fixed-string'): dict(
+    ('--fixed-string', '-F'): dict(
         dest='fixed_string',
         action='store_true',
         help='Interpret PATTERN as fixed string (disable regular expressions)'
     ),
-    ('-H', '--hex-format'): dict(
+    ('--hex-format', '-H'): dict(
         dest='hex_format',
         action='store_true',
         help='Interpret strings in PATTERN as hexadecimal'
     ),
-    ('-i', '--ignore-case'): dict(
+    ('--ignore-case', '-i'): dict(
         dest='ignore_case',
         action='store_true',
         help='Perform a case-insensitive search'
     ),
-    '--encoding': dict(
+    ('--encoding', '-e'): dict(
         metavar='ENCODING',
         dest='encoding',
         default='utf8',
         help='Convert strings in PATTERN to a specific Python encoding (default: utf8)'
     ),
-    '--start': dict(
-        metavar='INT',
-        dest='start',
-        type=auto_int,
-        help='Start offset to read from (default: file start)',
-    ),
-    '--end': dict(
-        metavar='INT',
-        dest='end',
-        type=auto_int,
-        help='End offset to stop reading at (default: end)',
-    ),
-    '--length': dict(
-        metavar='INT',
-        dest='length',
-        type=auto_int,
-        help='Length to read in (optional replacement for --end)'
-    ),
-    '--before': dict(
+    ('--before', '-B'): dict(
         metavar='INT',
         dest='before',
         type=auto_int,
         default=2,
         help='Number of lines preceeding a match to show (default: 2)'
     ),
-    '--after': dict(
+    ('--after', '-A'): dict(
         metavar='INT',
         dest='after',
         type=auto_int,
         default=2,
         help='Number of lines following a match to show (default: 2)'
     ),
-    '--format': dict(
+    ('--format', '-f'): dict(
         dest='format',
         default='hex',
         choices=('hex', 'text', 'json'),
         help='Output format (default: hex)'
     ),
-    '--version': dict(
-        action='version',
-        version='%(prog)s {}'.format( __version__ )
-    ),
 }
+ARGS_GREP.update( ARGS_RANGE )
+ARGS_GREP.update( ARGS_COMMON )
 
 ARGS_FIND = {
     'string': dict(
@@ -325,81 +258,64 @@ ARGS_FIND = {
         nargs='+',
         help='File to inspect',
     ),
-    '--delimiter': dict(
+    ('--delimiter', '-d'): dict(
         dest='delimiter',
         default=',',
-        help="Delimiter used to split the string (default: ,)",
+        help="Delimiter used to split the search string (default: ,)",
     ),
-    ('-r', '--recursive'): dict(
+    ('--recursive', '-r'): dict(
         dest='recursive',
         action='store_true',
         help='Read all files under each directory, recursively'
     ),
-    ('-o', '--overlap'): dict(
+    ('--overlap', '-o'): dict(
         dest='overlap',
         action='store_true',
         help='Return overlapping matches'
     ),
-    ('-i', '--ignore-case'): dict(
+    ('--ignore-case', '-i'): dict(
         dest='ignore_case',
         action='store_true',
         help='Perform a case-insensitive search'
     ),
-    ('-e', '--encoding'): dict(
+    ('--encoding', '-e'): dict(
         dest='encoding',
         help='Comma-seperated list of encodings to try, or "all" for every supported encoding (default: utf8)',
         default='utf_8',
     ),
-    '--start': dict(
-        metavar='INT',
-        dest='start',
-        type=auto_int,
-        help='Start offset to read from (default: file start)',
-    ),
-    '--end': dict(
-        metavar='INT',
-        dest='end',
-        type=auto_int,
-        help='End offset to stop reading at (default: end)',
-    ),
-    '--length': dict(
-        metavar='INT',
-        dest='length',
-        type=auto_int,
-        help='Length to read in (optional replacement for --end)'
-    ),
-    '--before': dict(
+    ('--before', '-B'): dict(
         metavar='INT',
         dest='before',
         type=auto_int,
         default=2,
         help='Number of lines preceeding a match to show (default: 2)'
     ),
-    '--after': dict(
+    ('--after', '-A'): dict(
         metavar='INT',
         dest='after',
         type=auto_int,
         default=2,
         help='Number of lines following a match to show (default: 2)'
     ),
-    ('-b', '--brute'): dict(
+    ('--brute', '-b'): dict(
         dest='brute',
         action='store_true',
         help='Brute-force an encoding based on recurring letter patterns'
     ),
-    ('-c', '--char-size'): dict(
+    ('--char-size', '-c'): dict(
         dest='char_size',
         type=int,
         help='Size in bytes of each character for brute-forcing (default: 1)',
         default=1,
     ),
-    ('-f', '--format'): dict(
+    ('--format', '-f'): dict(
         dest='format',
         default='hex',
         choices=('hex', 'text', 'json'),
         help='Output format (default: hex)'
     ),
 }
+ARGS_FIND.update( ARGS_COMMON )
 
 def get_parser( args, **kwargs ):
     parser = argparse.ArgumentParser( **kwargs )
@@ -424,7 +340,7 @@ mrcdump_parser = lambda: get_parser( args=ARGS_DUMP, description='Examine the co
 mrcdiff_parser = lambda: get_parser( args=ARGS_DIFF, description='Compare the contents of two files as hexadecimal.' )
 mrchist_parser = lambda: get_parser( args=ARGS_HIST, description='Display the contents of a file as a histogram map.' )
 mrcpix_parser = lambda: get_parser( args=ARGS_PIX, description='Display the contents of a file as a 256 colour image.' )
-mrcgrep_parser = lambda: get_parser( args=ARGS_GREP, description='Display the contents of a file that match a pattern.', epilog=EPILOG_GREP )
+mrcgrep_parser = lambda: get_parser( args=ARGS_GREP, description='Display the contents of a file that matches a regular expression pattern.', epilog=EPILOG_GREP )
 mrcfind_parser = lambda: get_parser( args=ARGS_FIND, description='Display the contents of a file that matches a string, checking against multiple encodings.' )
 
 
@@ -443,21 +359,12 @@ def mrcdump():
                 if multi:
                     print( src.name )
                 with common.read( src ) as source:
-
-                    if not raw_args.no_hexdump:
-                        utils.hexdump(
-                            source, start=raw_args.start, end=raw_args.end, length=raw_args.length,
-                            major_len=raw_args.major_len, minor_len=raw_args.minor_len,
-                            colour=raw_args.colour, address_base=raw_args.address_base,
-                            show_offsets=raw_args.show_offsets, show_glyphs=raw_args.show_glyphs,
-                        )
-
-                    if not raw_args.no_hexdump and not raw_args.no_stats:
-                        print()
-
-                    if not raw_args.no_stats:
-                        print( 'Source stats:' )
-                        utils.stats( source, raw_args.start, raw_args.end, raw_args.length, raw_args.hist_w, raw_args.hist_h )
+                    utils.hexdump(
+                        source, start=raw_args.start, end=raw_args.end, length=raw_args.length,
+                        major_len=raw_args.major_len, minor_len=raw_args.minor_len,
+                        colour=raw_args.colour, address_base=raw_args.address_base,
+                        show_offsets=raw_args.show_offsets, show_glyphs=raw_args.show_glyphs,
+                    )
                 print()
         except OSError as e:
             logger.warning( '{}'.format( e ) )
@@ -493,10 +400,13 @@ def mrchist():
                 if multi:
                     print( src.name )
                 with common.read( src ) as source:
-                    utils.histdump( source, start=raw_args.start, end=raw_args.end,
-                        length=raw_args.length, samples=raw_args.samples, width=raw_args.width,
-                        address_base=raw_args.address_base,
-                    )
+                    if raw_args.summary:
+                        utils.stats( source, start=raw_args.start, end=raw_args.end, length=raw_args.length, width=raw_args.width, height=raw_args.height )
+                    else:
+                        utils.histdump( source, start=raw_args.start, end=raw_args.end,
+                            length=raw_args.length, samples=raw_args.samples, width=raw_args.width,
+                            address_base=raw_args.address_base,
+                        )
                 print()
         except OSError as e:
             logger.warning( '{}'.format( e ) )

@@ -34,7 +34,7 @@ DIFF_COLOUR_MAP = (9, 10)
 
 
 def grep_iter( pattern, source, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
-    """Return an iterator that finds the contents of a byte string that match a pattern.
+    """Return an iterator that finds the contents of a byte string that matches a regular expression pattern.
 
     pattern
         Pattern to match, as a Python string
@@ -65,7 +65,7 @@ def grep_iter( pattern, source, encoding='utf8', fixed_string=False, hex_format=
 
 
 def grep( pattern, source, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
-    """Find the contents of a byte string that match a pattern.
+    """Find the contents of a byte string that matches a regular expression pattern.
 
     pattern
         Pattern to match, as a Python string
@@ -258,7 +258,7 @@ def find( substring, source, start=None, end=None, length=None, overlap=False, i
 
 
 def grepdump_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None, format='hex' ):
-    """Return an iterator that searches a byte string for a pattern and renders the result.
+    """Return an iterator that finds the contents of a byte string that matches a regular expression pattern and renders the result.
 
     pattern
         Pattern to match, as a Python string
@@ -355,7 +355,7 @@ def grepdump_iter( pattern, source, start=None, end=None, length=None, encoding=
 
 
 def grepdump( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None, format='hex' ):
-    """Search a byte string for a pattern and print the result in tabular hexadecimal/ASCII format.
+    """Find the contents of a byte string that matches a regular expression pattern and renders the result.
 
     pattern
         Pattern to match, as a Python string
@@ -416,7 +416,7 @@ def grepdump( pattern, source, start=None, end=None, length=None, encoding='utf8
 
 
 def search_iter( pattern, source, prefix='source', depth=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
-    """Return an iterator that finds the Fields inside a Block that match a pattern.
+    """Return an iterator that finds the Fields inside a Block that match a regular expression pattern.
 
     pattern
         Pattern to match, as a Python string
@@ -483,7 +483,7 @@ def search_iter( pattern, source, prefix='source', depth=None, encoding='utf8', 
 
 
 def search( pattern, source, prefix='source', depth=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
-    """Find the Fields inside a Block that match a byte pattern.
+    """Find the Fields inside a Block that match a regular expression pattern.
 
     pattern
         Pattern to match, as a Python string

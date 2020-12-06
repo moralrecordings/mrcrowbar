@@ -315,6 +315,7 @@ ARGS_FIND = {
         help='Output format (default: hex)'
     ),
 }
+ARGS_FIND.update( ARGS_RANGE )
 ARGS_FIND.update( ARGS_COMMON )
 
 def get_parser( args, **kwargs ):
@@ -378,7 +379,7 @@ def mrcdiff():
     after = raw_args.after if not raw_args.show_all else None
 
     with common.read( raw_args.source1 ) as source1, common.read( raw_args.source2 ) as source2:
-        utils.hexdump_diff(
+        utils.diffdump(
             source1, source2, start=raw_args.start, end=raw_args.end,
             length=raw_args.length, major_len=raw_args.major_len,
             minor_len=raw_args.minor_len, colour=raw_args.colour,
@@ -456,6 +457,9 @@ def mrcgrep():
                            hex_format=raw_args.hex_format,
                            start=raw_args.start, end=raw_args.end,
                            length=raw_args.length,
+                           major_len=raw_args.major_len,
+                           minor_len=raw_args.minor_len,
+                           colour=raw_args.colour,
                            before=raw_args.before, after=raw_args.after,
                            title=title,
                            ignore_case=raw_args.ignore_case,
@@ -491,6 +495,11 @@ def mrcfind():
                         encodings=raw_args.encoding.split(','),
                         brute=raw_args.brute,
                         char_size=raw_args.char_size,
+                        major_len=raw_args.major_len,
+                        minor_len=raw_args.minor_len,
+                        colour=raw_args.colour,
+                        before=raw_args.before,
+                        after=raw_args.after,
                         title=title,
                         format=raw_args.format,
                     )

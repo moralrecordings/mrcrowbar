@@ -193,7 +193,7 @@ def find_iter( substring, source, start=None, end=None, length=None, overlap=Fal
                 if overlap:
                     span_1 += len( groups[0] )
                     groups = groups[1:]
-                submatches.append((span_0 + start, span_1 + start, substring, {key: groups[unk_dict[key]] for key in unk_dict}))
+                submatches.append((span_0 + start, span_1 + start, substring, {key: groups[unk_dict[key]] for key in sorted( unk_dict.keys() )}))
             matches.append(submatches)
 
         # repeat until all eliminations are made
@@ -577,7 +577,10 @@ def finddump_iter( substring, source, start=None, end=None, length=None, overlap
 
     if format == 'hex':
         for match in findings:
-            header = repr( match[2] ) + ' - ' + repr( match[3] ) 
+            if isinstance( match[3], dict ):
+                header = repr( match[2] ) + ' - ' + repr( {k: v.hex() for k, v in match[3].items()} )
+            else:
+                header = repr( match[2] ) + ' - ' + repr( match[3] )
             if title:
                 header = title + ' - ' + header
             print( header )
@@ -594,6 +597,10 @@ def finddump_iter( substring, source, start=None, end=None, length=None, overlap
             digits = '{:0'+str( max( 8, math.floor( math.log( end + address_base_offset )/math.log( 16 ) ) ) )+'x}'
             line = (digits+':'+digits).format( start_off, end_off )
             line += ':{}'.format( repr( source[match[0]:match[1]] ) )
+            if isinstance( match[3], list ):
+                line += ':{}'.format( repr( match[3] ) )
+            elif isinstance( match[3], dict ):
+                line += ':{}'.format( repr( {k: v.hex() for k, v in match[3].items()} ) )
             if title:
                 line = '{}:'.format( title ) + line
             yield line
@@ -609,7 +616,7 @@ def finddump_iter( substring, source, start=None, end=None, length=None, overlap
             if isinstance( match[3], list ):
                 result['encodings'] = match[3]
             elif isinstance( match[3], dict ):
-                result['alphabet'] = {k: v.hex() for k,v in match[3].items()}
+                result['alphabet'] = {k: v.hex() for k, v in match[3].items()}
             yield json.dumps(result)
 
 
@@ -805,7 +812,7 @@ def objdiffdump_iter( source1, source2, prefix='source', depth=None ):
     for p, s1, s2 in diff_iter( source1, source2, prefix, depth ):
         if is_bytes( s1 ) and is_bytes( s2 ):
             yield '* {}:'.format( p )
-            yield from hexdump_diff_iter( s1, s2 )
+            yield from diffdump_iter( s1, s2 )
             same = False
             continue
         if s1 is not None:
@@ -1055,7 +1062,7 @@ def diffdump_iter( source1, source2, start=None, end=None, length=None, major_le
             yield '...'
             skip = False
         if show_lines[offset] == 2:
-            check = basic_diff( source1, source2, start=offset, end=offset+stride )
+            check = diff( source1, source2, start=offset, end=offset+stride )
             highlights = {}
             for (o, l) in check:
                 for i in range( o, o+l ):
@@ -1115,7 +1122,7 @@ def diffdump( source1, source2, start=None, end=None, length=None, major_len=8, 
 
     Raises ValueError if both end and length are defined.
     """
-    for line in hexdump_diff_iter( source1, source2, start, end, length, major_len, minor_len, colour, before, after, address_base ):
+    for line in diffdump_iter( source1, source2, start, end, length, major_len, minor_len, colour, before, after, address_base ):
         print( line )
 
 

@@ -161,6 +161,54 @@ We're working on base classes and views for those. As a bonus, you don't even ha
 .. image:: doc/source/_static/image_print.png
 
 
+What if I just want to dig around without making a file format?
+===============================================================
+
+Well, you've come to the right place! Mr. Crowbar comes with plenty of general-purpose tools that can be run from the command line or through the mrcrowbar.utils module.
+
+mrcdump (mrcrowbar.utils.hexdump)
+---------------------------------
+
+.. image:: doc/source/_static/mrcdump.png
+
+An essential tool for any reverse engineering work, mrcdump lets you print out the contents of a file in hexadecimal bytes.
+
+mrcdiff (mrcrowbar.utils.diff)
+------------------------------
+
+.. image:: doc/source/_static/mrcdiff.png
+
+Got two files which are almost but not quite the same? Marvel at all the differences on a byte level with mrcdiff!
+
+mrcfind (mrcrowbar.utils.find)
+------------------------------
+
+.. image:: doc/source/_static/mrcfind.png
+
+The bane of translators everywhere; you need to find a piece of text in a ROM or data file, but you have no idea how it's encoded! mrcfind can search for text strings in most standard text encodings, and even brute-force an unknown text encoding based on letter patterns!
+
+mrcgrep (mrcrowbar.utils.grep)
+------------------------------
+
+.. image:: doc/source/_static/mrcgrep.png
+
+Have you ever used grep on a file, only to be fobbed off with the tantalising-but-useless reply of "binary file matches"? We have, and it stinks! mrcgrep won't do this to you; it supports regular expressions at the byte level, so you can satiate your need for pattern-based file searching without being constrained by the limits of plain text!
+
+mrchist (mrcrowbar.utils.histdump)
+----------------------------------
+
+.. image:: doc/source/_static/mrchist.png
+
+It happens; some days you get a file and need to know what it's made out of. But the file is HUGE! What could be inside? Machine code? Text? Audio? Bitmaps? DEFLATE? Encryption? Zeroes? Ones? mrchist will slice up a file and generate a histogram of the byte data, which will give you a unique fingerprint for the type of data you can expect!
+
+mrcpix (mrcrowbar.utils.pixdump)
+--------------------------------
+
+.. image:: doc/source/_static/mrcpix.png
+
+Does your data sort of looks like graphics? Run it through mrcpix and print out the data as a bitmap, and feast on the delicious pictures!
+
+
 Contributing 
 ============
 

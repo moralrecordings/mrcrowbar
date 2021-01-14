@@ -14,6 +14,7 @@ Unreleased
 - utils.find_iter: Add support for multiple search terms
 - cli: Rework arguments, remove stats from hexdump
 - cli: mrcdiff now can be run on two directories
+- checks: Add Pointer class for tracking in-file offsets
 
 0.8.0 - 2020-07-03
 ==================

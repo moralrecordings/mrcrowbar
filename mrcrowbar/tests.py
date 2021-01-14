@@ -40,6 +40,22 @@ class TestBlock( unittest.TestCase ):
         test = Test()
         self.assertEqual( test.get_size(), 0x0a )
 
+    def test_pointer( self ):
+        class Test( mrc.Block ):
+            offset = mrc.Pointer( mrc.UInt8( 0x00 ), mrc.EndOffset( 'count' ) )
+            count = mrc.UInt8( 0x01 )
+            data = mrc.UInt8( mrc.Ref( 'offset' ), count=mrc.Ref( 'count' ) )
+
+        in_payload = b'\x08\x04\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x00\x00'
+        out_payload = b'\x02\x04\x01\x02\x03\x04'
+
+        test = Test( in_payload )
+        self.assertEqual( test.offset, 0x08 )
+        self.assertEqual( test.count, 0x04 )
+        self.assertEqual( test.data, [1, 2, 3, 4] )
+        self.assertEqual( test.export_data(), out_payload )
+        self.assertEqual( test.offset, 0x02 )
+
 
 class TestChunk( unittest.TestCase ):
     def test_chunk( self ):
@@ -138,8 +154,6 @@ class TestChunk( unittest.TestCase ):
 
         with self.assertRaises( Exception ):
             test = Outer( payload, strict=True )
-
-
 
 
 class TestBlockField( unittest.TestCase ):
@@ -275,7 +289,7 @@ class TestStringField( unittest.TestCase ):
 
         class Test( mrc.Block ):
             count = mrc.UInt8( 0x00 )
-            field = mrc.StringField( 0x01, count=mrc.Ref( 'count' ), length_field=mrc.UInt8 )
+            field = mrc.StringField( count=mrc.Ref( 'count' ), length_field=mrc.UInt8 )
 
         test = Test( payload )
         self.assertEqual( len( test.field ), test.count )

@@ -11,13 +11,23 @@ class CheckException( Exception ):
 
 class Check( object ):
     def __init__( self, raise_exception=False ):
+        """Base class for Checks.
+
+        raise_exception
+            Whether to raise an exception if the check fails.
+        """
         self._position_hint = next( common.next_position_hint )
         self.raise_exception = raise_exception
 
     def check_buffer( self, buffer, parent=None ):
+        """Check if the import buffer passes the check.
+
+        Throws CheckException if raise_exception = True and the buffer doesn't match.
+        """
         pass
 
-    def update_buffer( self, buffer, parent=None ):
+    def update_deps( self, parent=None ):
+        """Update all dependent variables derived from this Check."""
         pass
 
     def __repr__( self ):
@@ -46,35 +56,96 @@ class Check( object ):
 
 
 class Const( Check ):
-    def __init__( self, field, value, *args, **kwargs ):
+    def __init__( self, field, target, *args, **kwargs ):
+        """Check for ensuring a Field matches a particular constant.
+
+        On import, the value is tested. On export, the value is copied
+        from the target.
+
+        field
+            Field instance to wrap.
+
+        target
+            Target to copy from on export.
+        """
         assert isinstance( field, Field )
         super().__init__( *args, **kwargs )
         self.field = field
-        self.value = value
+        self.target = target
 
     def get_fields( self ):
         return self.field
 
     def check_buffer( self, buffer, parent=None ):
         test = self.field.get_from_buffer( buffer, parent )
-        if test != self.value:
-            mismatch = '{}:{}, found {}!'.format( self, self.value, test )
+        value = property_get( self.target, parent )
+        if test != value:
+            mismatch = '{}:{}, found {}!'.format( self, value, test )
             if self.raise_exception:
                 raise CheckException( mismatch )
             logger.warning( mismatch )
-        
-    def update_buffer( self, buffer, parent=None ):
-        self.field.update_buffer_with_value( self.value, buffer, parent )
+
+    def update_deps( self, parent=None ):
+        if parent:
+            name = parent.get_field_name_by_obj( self.field )
+            value = property_get( self.target, parent )
+            property_set( Ref( name ), parent, value )
+        return
 
     def get_start_offset( self, parent=None ):
-        return self.field.get_start_offset( self.value, parent )
+        value = property_get( self.target, parent )
+        return self.field.get_start_offset( value, parent )
 
     def get_size( self, parent=None ):
-        return self.field.get_size( self.value, parent )
+        value = property_get( self.target, parent )
+        return self.field.get_size( value, parent )
 
     @property
     def repr( self ):
         return '{} == {}'.format( self.field, self.value )
+
+
+class Pointer( Check ):
+    def __init__( self, field, target, *args, **kwargs ):
+        """Check for loading an offset-type pointer into a Field.
+
+        On import, the value is returned as-is. On export, the value is
+        copied from the target; in most cases you'd use an EndOffset for
+        another Field in the Block class. This allows for expansion and
+        contraction of data.
+
+        field
+            Field instance to wrap.
+
+        target
+            Target to copy from on export.
+        """
+        assert isinstance( field, Field )
+        super().__init__( *args, **kwargs )
+        self.field = field
+        self.target = target
+
+    def get_fields( self ):
+        return self.field
+
+    def update_deps( self, parent=None ):
+        if parent:
+            name = parent.get_field_name_by_obj( self.field )
+            value = property_get( self.target, parent )
+            property_set( Ref( name ), parent, value )
+        return
+
+    def get_start_offset( self, parent=None ):
+        value = property_get( self.target, parent )
+        return self.field.get_start_offset( value, parent )
+
+    def get_size( self, parent=None ):
+        value = property_get( self.target, parent )
+        return self.field.get_size( value, parent )
+
+    @property
+    def repr( self ):
+        return '{} -> {}'.format( self.field, self.value )
 
 
 class Updater( Check ):

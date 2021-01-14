@@ -317,8 +317,6 @@ class Block( object, metaclass=BlockMeta ):
         """Export data to a byte array."""
         klass = self.__class__
 
-        output = bytearray( b'\x00'*self.get_size() )
-
         # prevalidate all data before export.
         # this is important to ensure that any dependent fields
         # are updated beforehand, e.g. a count referenced
@@ -330,13 +328,13 @@ class Block( object, metaclass=BlockMeta ):
 
         self.update_deps()
 
+        output = bytearray( b'\x00'*self.get_size() )
+
         for name in klass._fields:
             klass._fields[name].update_buffer_with_value(
                 self._field_data[name], output, parent=self
             )
 
-        for name, check in klass._checks.items():
-            check.update_buffer( output, parent=self )
         return output
 
     dump = export_data
@@ -344,6 +342,9 @@ class Block( object, metaclass=BlockMeta ):
     def update_deps( self ):
         """Update dependencies on all the fields on this Block instance."""
         klass = self.__class__
+
+        for name in klass._checks:
+            self.update_deps_on_check( name )
 
         for name in klass._fields:
             self.update_deps_on_field( name )
@@ -375,6 +376,15 @@ class Block( object, metaclass=BlockMeta ):
         """
         klass = self.__class__
         return klass._fields[field_name]
+
+    def get_field_name_by_obj( self, field ):
+        """Return a name associated with a Field object in this Block class.
+
+        field
+            Field object on the object to reference.
+        """
+        klass = self.__class__
+        return next(name for name, value in klass._fields.items() if value == field)
 
     def get_field_names( self ):
         """Get the list of Fields associated with this Block class."""
@@ -488,6 +498,16 @@ class Block( object, metaclass=BlockMeta ):
         """
         klass = self.__class__
         return klass._fields[field_name].validate( self._field_data[field_name], parent=self )
+
+    def update_deps_on_check( self, check_name ):
+        """Update all dependent variables derived from a Check.
+
+        check_name
+            Name of the Check to inspect.
+        """
+
+        klass = self.__class__
+        return klass._checks[check_name].update_deps( parent=self )
 
     def hexdump( self, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None, show_offsets=True, show_glyphs=True ):
         """Print the exported data in tabular hexadecimal/ASCII format.

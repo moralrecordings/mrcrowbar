@@ -139,7 +139,7 @@ def find_iter( substring, source, start=None, end=None, length=None, overlap=Fal
             elif not is_bytes( source ):
                 raise TypeError( 'Source should be of type bytes, or both source and substring should be of type str!' )
             else:
-                if encodings == 'all':
+                if encodings == 'all' or encodings == ['all']:
                     encodings = enco.CODECS
                 elif isinstance( encodings, str ):
                     encodings = [encodings]

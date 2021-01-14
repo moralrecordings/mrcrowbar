@@ -89,12 +89,10 @@ ARGS_DUMP.update( ARGS_COMMON )
 ARGS_DIFF = {
     'source1': dict(
         metavar='FILE1',
-        type=argparse.FileType( mode='rb' ),
         help='File to inspect',
     ),
     'source2': dict(
         metavar='FILE2',
-        type=argparse.FileType( mode='rb' ),
         help='File to compare against',
     ),
     ('--before', '-B'): dict(
@@ -377,14 +375,27 @@ def mrcdiff():
 
     before = raw_args.before if not raw_args.show_all else None
     after = raw_args.after if not raw_args.show_all else None
+    sources = []
+    if os.path.isdir( raw_args.source1 ) and os.path.isdir( raw_args.source2 ):
+        for f in os.listdir( raw_args.source1 ):
+            fx = os.path.join( raw_args.source1, f )
+            fy = os.path.join( raw_args.source2, f )
+            if os.path.isfile( fx ) and os.path.isfile( fy ):
+                sources.append((fx, fy))
+    else:
+        sources.append((raw_args.source1, raw_args.source2))
+    multi = len( sources ) != 1
 
-    with common.read( raw_args.source1 ) as source1, common.read( raw_args.source2 ) as source2:
-        utils.diffdump(
-            source1, source2, start=raw_args.start, end=raw_args.end,
-            length=raw_args.length, major_len=raw_args.major_len,
-            minor_len=raw_args.minor_len, colour=raw_args.colour,
-            before=before, after=after, address_base=raw_args.address_base,
-        )
+    for source1_fn, source2_fn in sources:
+        with common.read( open( source1_fn, 'rb' ) ) as source1, common.read( open( source2_fn, 'rb' ) ) as source2:
+            if multi:
+                print( '{} => {}'.format( source1_fn, source2_fn ) )
+            utils.diffdump(
+                source1, source2, start=raw_args.start, end=raw_args.end,
+                length=raw_args.length, major_len=raw_args.major_len,
+                minor_len=raw_args.minor_len, colour=raw_args.colour,
+                before=before, after=after, address_base=raw_args.address_base,
+            )
 
 def mrchist():
     parser = mrchist_parser()

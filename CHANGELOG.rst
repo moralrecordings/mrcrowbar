@@ -13,6 +13,7 @@ Unreleased
 - cli: Add mrcfind tool
 - utils.find_iter: Add support for multiple search terms
 - cli: Rework arguments, remove stats from hexdump
+- cli: mrcdiff now can be run on two directories
 
 0.8.0 - 2020-07-03
 ==================

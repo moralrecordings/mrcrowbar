@@ -1,8 +1,8 @@
 Changelog
 #########
 
-Unreleased
-==========
+0.9.0 - 2021-01-14
+==================
 - common.bounds: Allow negative indexing for hexdumps etc.
 - blocks.Block: Fall back to Unknown for child Blocks that fail to parse
 - utils: Add find, find_encoded and find_unknown functions

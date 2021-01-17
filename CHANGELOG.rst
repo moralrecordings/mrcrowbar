@@ -1,6 +1,10 @@
 Changelog
 #########
 
+Unreleased
+==========
+- lib.hardware.tispeech: Init
+
 0.9.0 - 2021-01-14
 ==================
 - common.bounds: Allow negative indexing for hexdumps etc.

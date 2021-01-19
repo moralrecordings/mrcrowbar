@@ -4,6 +4,7 @@ Changelog
 Unreleased
 ==========
 - lib.hardware.tispeech: Init
+- lib.hardware.tispeech: Add TMS0280 constants
 
 0.9.0 - 2021-01-14
 ==================

@@ -103,6 +103,35 @@ SilentFrame = namedtuple( 'SilentFrame', [] )
 StopFrame = namedtuple( 'StopFrame', [] )
 
 
+# source: http://furrtek.free.fr/index.php?a=speakandspell&ss=6&i=2
+
+class SpeakAndSpellROM( mrc.Block ):
+    count_a = mrc.UInt8( 0x00 )
+    count_b = mrc.UInt8( 0x01 )
+    count_c = mrc.UInt8( 0x02 )
+    count_d = mrc.UInt8( 0x03 )
+    offset_a = mrc.Pointer( mrc.UInt16_LE( 0x04 ), mrc.EndOffset( 'common' ) )
+    offset_b = mrc.Pointer( mrc.UInt16_LE( 0x06 ), mrc.EndOffset( 'list_a' ) )
+    offset_c = mrc.Pointer( mrc.UInt16_LE( 0x08 ), mrc.EndOffset( 'list_b' ) )
+    offset_d = mrc.Pointer( mrc.UInt16_LE( 0x0a ), mrc.EndOffset( 'list_c' ) )
+    
+    @property
+    def common_len( self ):
+        return (self.offset_a - 0x0c) // 2
+
+    @common_len.setter
+    def common_len( self, value ):
+        self.offset_a = value * 2 + 0x0c 
+
+    common = mrc.UInt16_LE( 0x0c, count=mrc.Ref( 'common_len' ) ) 
+    list_a = mrc.UInt16_LE( mrc.Ref( 'offset_a' ), count=mrc.Ref( 'count_a' ) ) 
+    list_b = mrc.UInt16_LE( mrc.Ref( 'offset_b' ), count=mrc.Ref( 'count_b' ) ) 
+    list_c = mrc.UInt16_LE( mrc.Ref( 'offset_c' ), count=mrc.Ref( 'count_c' ) ) 
+    list_d = mrc.UInt16_LE( mrc.Ref( 'offset_d' ), count=mrc.Ref( 'count_d' ) ) 
+
+    raw_data = mrc.Bytes( mrc.EndOffset( 'list_d' ) )
+
+
 def parse_tms5110_rom( buffer ):
     index_end = utils.from_uint16_le( buffer[0:2] )
     index = utils.from_uint16_le_array( buffer[0:index_end] )

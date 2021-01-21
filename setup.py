@@ -33,7 +33,7 @@ setup(
     install_requires=[],
     extras_require={
         'images': ['Pillow >= 2.8.1'],
-        'audio': ['pyaudio >= 0.2.9'],
+        'audio': ['miniaudio >= 1.41'],
     },
     packages=find_packages( exclude=['doc'] ),
     entry_points={

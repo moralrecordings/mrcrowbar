@@ -1,19 +1,22 @@
 from array import array
 from enum import IntEnum
+import itertools
 import math
+import time
 
 from mrcrowbar import encoding
 from mrcrowbar.common import is_bytes, bounds
 
 try:
-    import pyaudio
+    import miniaudio
 except ImportError:
-    pyaudio = None
+    miniaudio = None
 
 RESAMPLE_BUFFER = 4096
 NORMALIZE_BUFFER = 8192
 RESAMPLE_RATE = 44100
-PYAUDIO_NORMALISE_TYPE = 'paFloat32'
+MINIAUDIO_NORMALISE_TYPE = 'FLOAT32'
+MINIAUDIO_NORMALISE_SIZE = 4
 
 class AudioInterpolation( IntEnum ):
     #: Perform no audio interpolation and let PortAudio sort it out.
@@ -62,9 +65,8 @@ def normalise_audio_iter( source, format_type, field_size, signedness, endian, s
 
 def resample_audio_iter( source, format_type, field_size, signedness, endian, channels, sample_rate, start=None, end=None, length=None, interpolation=AudioInterpolation.LINEAR, output_rate=RESAMPLE_RATE ):
     if sample_rate == 0:
-        yield array( 'f' )
+        yield 0.0
         return
-
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
@@ -80,28 +82,23 @@ def resample_audio_iter( source, format_type, field_size, signedness, endian, ch
     src = next( src_iter, None )
     src_bound = src_inc
 
-    for index_base in range( 0, new_len, RESAMPLE_BUFFER ):
-        buffer = array( 'f', (0.0 for i in range( RESAMPLE_BUFFER )))
+    for index_base in range( 0, new_len ):
+        tgt_pos = index_base
+        src_pos = sample_rate*tgt_pos/output_rate
+        samp_index = math.floor( src_pos ) % src_inc
+        alpha = math.fmod( src_pos, 1.0 )
 
-        for index in range( RESAMPLE_BUFFER ):
-            tgt_pos = index_base + index
-            src_pos = sample_rate*tgt_pos/output_rate
-            samp_index = math.floor( src_pos ) % src_inc
-            alpha = math.fmod( src_pos, 1.0 )
+        if src_pos > src_bound:
+            src = next( src_iter, None )
+            src_bound += src_inc
 
-            if src_pos > src_bound:
-                src = next( src_iter, None )
-                src_bound += src_inc
+        if src is None:
+            break
 
-            if src is None:
-                break
+        a = 0.0 if samp_index >= len( src ) else src[samp_index]
+        b = 0.0 if samp_index+channels >= len( src ) else src[samp_index+channels]
 
-            a = 0.0 if samp_index >= len( src ) else src[samp_index]
-            b = 0.0 if samp_index+channels >= len( src ) else src[samp_index+channels]
-
-            buffer[index] = mixer( a, b, alpha )
-
-        yield buffer
+        yield mixer( a, b, alpha )
 
 
 def play_pcm( source, channels, sample_rate, format_type, field_size, signedness, endian, start=None, end=None, length=None, interpolation=AudioInterpolation.LINEAR ):
@@ -143,28 +140,33 @@ def play_pcm( source, channels, sample_rate, format_type, field_size, signedness
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
-    if not pyaudio:
-        raise ImportError( 'pyaudio must be installed for audio playback support (see https://people.csail.mit.edu/hubert/pyaudio)' )
-    audio = pyaudio.PyAudio()
-    format = getattr( pyaudio, PYAUDIO_NORMALISE_TYPE )
+    if not miniaudio:
+        raise ImportError( 'miniaudio must be installed for audio playback support (see https://github.com/irmen/pyminiaudio)' )
+    
+    format = getattr( miniaudio.SampleFormat, MINIAUDIO_NORMALISE_TYPE )
     playback_rate = None
-
     if interpolation == AudioInterpolation.NONE:
         playback_rate = sample_rate
     else:
         playback_rate = RESAMPLE_RATE
 
-    samp_iter = resample_audio_iter( source, format_type, field_size, signedness, endian, channels, sample_rate, start, end, output_rate=playback_rate, interpolation=interpolation )
+    def audio_iter():
+        samp_iter = resample_audio_iter( source, format_type, field_size, signedness, endian, channels, sample_rate, start, end, output_rate=playback_rate, interpolation=interpolation )
+        required_frames = yield b''
+        old_time = time.time()
+        while True:
+            sample_data = array( 'f', itertools.islice( samp_iter, required_frames ) ) 
+            if not sample_data:
+                break
+            new_time = time.time()
+            print( (required_frames, new_time - old_time) )
+            old_time = new_time
+            required_frames = yield sample_data
 
-    stream = audio.open(
-        format=format,
-        channels=channels,
-        rate=playback_rate,
-        output=True
-    )
 
-    for samples in samp_iter:
-        stream.write( samples.tobytes() )
-
-    stream.stop_stream()
-    stream.close()
+    with miniaudio.PlaybackDevice( output_format=format, nchannels=channels, sample_rate=playback_rate ) as device:
+        ai = audio_iter()
+        next(ai)
+        device.start(ai)
+        while device.callback_generator:
+            time.sleep( 0.1 )

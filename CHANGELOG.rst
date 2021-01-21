@@ -6,6 +6,7 @@ Unreleased
 - lib.hardware.tispeech: Init
 - lib.hardware.tispeech: Add TMS0280 constants
 - lib.hardware.tispeech: Add SpeakAndSpellROM
+- sound: Replace pyaudio with miniaudio
 
 0.9.0 - 2021-01-14
 ==================

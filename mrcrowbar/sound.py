@@ -15,6 +15,7 @@ except ImportError:
 RESAMPLE_BUFFER = 4096
 NORMALIZE_BUFFER = 8192
 RESAMPLE_RATE = 44100
+PLAYBACK_RATE = 44100
 MINIAUDIO_NORMALISE_TYPE = 'FLOAT32'
 MINIAUDIO_NORMALISE_SIZE = 4
 
@@ -78,7 +79,7 @@ def resample_audio_iter( source, format_type, field_size, signedness, endian, ch
 
     src_inc = NORMALIZE_BUFFER
     chunk_size=src_inc*channels
-    src_iter = normalise_audio_iter( source, format_type, field_size, signedness, endian, start, end, overlap=channels, chunk_size=chunk_size )
+    src_iter = normalise_audio_iter( source, format_type, field_size, signedness, endian, start, end, overlap=0, chunk_size=chunk_size )
     src = next( src_iter, None )
     src_bound = src_inc
 
@@ -145,26 +146,40 @@ def play_pcm( source, channels, sample_rate, format_type, field_size, signedness
     
     format = getattr( miniaudio.SampleFormat, MINIAUDIO_NORMALISE_TYPE )
     playback_rate = None
-    if interpolation == AudioInterpolation.NONE:
-        playback_rate = sample_rate
-    else:
-        playback_rate = RESAMPLE_RATE
 
-    def audio_iter():
-        samp_iter = resample_audio_iter( source, format_type, field_size, signedness, endian, channels, sample_rate, start, end, output_rate=playback_rate, interpolation=interpolation )
-        required_frames = yield b''
-        old_time = time.time()
-        while True:
-            sample_data = array( 'f', itertools.islice( samp_iter, required_frames ) ) 
-            if not sample_data:
-                break
-            new_time = time.time()
-            print( (required_frames, new_time - old_time) )
-            old_time = new_time
-            required_frames = yield sample_data
+    INTERP_MAP = {
+        AudioInterpolation.NONE: miniaudio.DitherMode.NONE,
+        AudioInterpolation.LINEAR: miniaudio.DitherMode.TRIANGLE,
+        AudioInterpolation.STEP: miniaudio.DitherMode.RECTANGLE,
+    }
+    interpolation = INTERP_MAP.get(interpolation, miniaudio.DitherMode.NONE) 
+    FORMAT_MAP = {
+        (int, 1, 'unsigned', None): miniaudio.SampleFormat.UNSIGNED8,
+        (int, 2, 'signed', 'little'): miniaudio.SampleFormat.SIGNED16,
+        (int, 3, 'signed', 'little'): miniaudio.SampleFormat.SIGNED24,
+        (int, 4, 'signed', 'little'): miniaudio.SampleFormat.SIGNED32,
+        (float, 4, 'signed', 'little'): miniaudio.SampleFormat.FLOAT32,
+    }
+    format = FORMAT_MAP.get((format_type, field_size, signedness, endian))
+    if not format:
+        raise ValueError( 'Format not supported yet!' )
+
+    with miniaudio.PlaybackDevice( output_format=format, nchannels=channels, sample_rate=PLAYBACK_RATE ) as device:
+
+        def audio_iter():
+            conv = miniaudio.convert_frames( format, channels, sample_rate, source[start:end], device.format, device.nchannels, device.sample_rate )
+            samp_iter = iter( conv )
+            required_frames = yield b''
+            old_time = time.time()
+            while True:
+                sample_data = bytes( itertools.islice( samp_iter, required_frames*channels*field_size ) )
+                if not sample_data:
+                    break
+                new_time = time.time()
+                old_time = new_time
+                required_frames = yield sample_data
 
 
-    with miniaudio.PlaybackDevice( output_format=format, nchannels=channels, sample_rate=playback_rate ) as device:
         ai = audio_iter()
         next(ai)
         device.start(ai)

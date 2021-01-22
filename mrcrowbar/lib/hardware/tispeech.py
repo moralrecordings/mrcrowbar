@@ -156,11 +156,11 @@ class TMSBase( object ):
             elif isinstance( frame, StopFrame ):
                 writer.write( 0b1111, cls.ENERGY_BITS )
             elif isinstance( frame, RepeatedFrame ):
-                writer.write( find_closest_index( cls.ENERGY_LUT, frame.energy ), cls.ENERGY_BITS )
+                writer.write( find_closest_index( cls.ENERGY_LUT[1:-1], frame.energy ) + 1, cls.ENERGY_BITS )
                 writer.write( 1, cls.REPEAT_BITS )
                 writer.write( find_closest_index( cls.PITCH_LUT, frame.pitch ), cls.PITCH_BITS )
             elif isinstance( frame, UnvoicedFrame ):
-                writer.write( find_closest_index( cls.ENERGY_LUT, frame.energy ), cls.ENERGY_BITS )
+                writer.write( find_closest_index( cls.ENERGY_LUT[1:-1], frame.energy ) + 1, cls.ENERGY_BITS )
                 writer.write( 0, cls.REPEAT_BITS )
                 writer.write( 0, cls.PITCH_BITS )
                 writer.write( find_closest_index( cls.K_LUT[0], frame.k1 ), cls.K_BITS[0] )
@@ -168,9 +168,9 @@ class TMSBase( object ):
                 writer.write( find_closest_index( cls.K_LUT[2], frame.k3 ), cls.K_BITS[2] )
                 writer.write( find_closest_index( cls.K_LUT[3], frame.k4 ), cls.K_BITS[3] )
             elif isinstance( frame, VoicedFrame ):
-                writer.write( find_closest_index( cls.ENERGY_LUT, frame.energy ), cls.ENERGY_BITS )
+                writer.write( find_closest_index( cls.ENERGY_LUT[1:-1], frame.energy ) + 1, cls.ENERGY_BITS )
                 writer.write( 0, cls.REPEAT_BITS )
-                writer.write( find_closest_index( cls.PITCH_LUT, frame.pitch ), cls.PITCH_BITS )
+                writer.write( find_closest_index( cls.PITCH_LUT[1:], frame.pitch ) + 1, cls.PITCH_BITS )
                 writer.write( find_closest_index( cls.K_LUT[0], frame.k1 ), cls.K_BITS[0] )
                 writer.write( find_closest_index( cls.K_LUT[1], frame.k2 ), cls.K_BITS[1] )
                 writer.write( find_closest_index( cls.K_LUT[2], frame.k3 ), cls.K_BITS[2] )

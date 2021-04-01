@@ -36,22 +36,10 @@ class FourBit( mrc.Transform ):
         return mrc.TransformResult( payload=output, end_offset=len( buffer ) )
 
 
-class Colour15( img.Colour ):
+class Colour15( img.RGB555Colour ):
     r_raw = mrc.Bits16( 0x00, bits=0b0111110000000000, endian='little', )
     g_raw = mrc.Bits16( 0x00, bits=0b0000001111100000, endian='little', )
     b_raw = mrc.Bits16( 0x00, bits=0b0000000000011111, endian='little', )
-
-    @property
-    def r_8( self ):
-        return (self.r_raw << 3) + 7
-
-    @property
-    def g_8( self ):
-        return (self.g_raw << 3) + 7
-
-    @property
-    def b_8( self ):
-        return (self.b_raw << 3) + 7
 
 
 class Palette( mrc.Block ):

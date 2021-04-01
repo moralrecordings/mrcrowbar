@@ -1,32 +1,48 @@
 import math
 
 class BaseColour( object ):
-    r_8 = 0
-    g_8 = 0
-    b_8 = 0
-    a_8 = 255
+    r = 0.0
+    g = 0.0
+    b = 0.0
+    a = 1.0
 
     @property
-    def r( self ) -> float:
-        return self.r_8/255
+    def r_8( self ) -> int:
+        return round( self.r * 255 )
+
+    @r_8.setter
+    def r_8( self, value ):
+        self.r = value / 255
 
     @property
-    def g( self ) -> float:
-        return self.g_8/255
+    def g_8( self ) -> int:
+        return round( self.g * 255 )
+    
+    @g_8.setter
+    def g_8( self, value ):
+        self.g = value / 255
 
     @property
-    def b( self ) -> float:
-        return self.b_8/255
+    def b_8( self ) -> int:
+        return round( self.b * 255 )
+    
+    @b_8.setter
+    def b_8( self, value ):
+        self.b = value / 255
 
     @property
-    def a( self ) -> float:
-        return self.a_8/255
+    def a_8( self ) -> int:
+        return round( self.a * 255 )
+    
+    @a_8.setter
+    def a_8( self, value ):
+        self.a = value / 255
  
     @property
     def chroma( self ) -> float:
         M = max( self.r, self.g, self.b )
         m = min( self.r, self.g, self.b )
-        return M-m
+        return M - m
 
     @property
     def luma( self ) -> float:
@@ -79,19 +95,19 @@ class BaseColour( object ):
 
 
 class White( BaseColour ):
-    r_8 = 255
-    g_8 = 255
-    b_8 = 255
+    r = 1.0
+    g = 1.0
+    b = 1.0
 
 
 class Black( BaseColour ):
-    r_8 = 0
-    g_8 = 0
-    b_8 = 0
+    r = 0.0
+    g = 0.0
+    b = 0.0
 
 
 class Transparent( BaseColour ):
-    a_8 = 0
+    a = 0.0
 
 
 def normalise_rgba( raw_colour ):

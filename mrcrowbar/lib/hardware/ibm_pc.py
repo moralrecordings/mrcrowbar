@@ -63,32 +63,32 @@ class EGAColour( img.Colour ):
     b_low =         mrc.Bits( 0x00, 0b00001000 )
 
     @property
-    def r_8( self ):
-        return 85*((self.r_high << 1) + self.r_low)
+    def r( self ):
+        return ((self.r_high << 1) + self.r_low) / 3
 
-    @r_8.setter
-    def r_8( self, value ):
-        index = value//85
+    @r.setter
+    def r( self, value ):
+        index = round( value * 3 )
         self.r_low = index & 1 
         self.r_high = index >> 1
 
     @property
-    def g_8( self ):
-        return 85*((self.g_high << 1) + self.g_low)
+    def g( self ):
+        return ((self.g_high << 1) + self.g_low) / 3
 
-    @g_8.setter
-    def g_8( self, value ):
-        index = value//85
+    @g.setter
+    def g( self, value ):
+        index = round( value * 3 )
         self.g_low = index & 1 
         self.g_high = index >> 1
 
     @property
-    def b_8( self ):
-        return 85*((self.b_high << 1) + self.b_low)
+    def b( self ):
+        return ((self.b_high << 1) + self.b_low) / 3
 
-    @b_8.setter
-    def b_8( self, value ):
-        index = value//85
+    @b.setter
+    def b( self, value ):
+        index = round( value * 3 )
         self.b_low = index & 1 
         self.b_high = index >> 1
 
@@ -107,27 +107,27 @@ class VGAColour( img.Colour ):
     b_raw =         mrc.UInt8( 0x02, range=range( 0, 64 ) )
 
     @property
-    def r_8( self ):
-        return self.r_raw*255//63
+    def r( self ):
+        return self.r_raw / 63
 
-    @r_8.setter
-    def r_8( self, value ):
-        self.r_raw = value*63//255
-
-    @property
-    def g_8( self ):
-        return self.g_raw*255//63
-
-    @g_8.setter
-    def g_8( self, value ):
-        self.g_raw = value*63//255
+    @r.setter
+    def r( self, value ):
+        self.r_raw = round( value * 63 )
 
     @property
-    def b_8( self ):
-        return self.b_raw*255//63
+    def g( self ):
+        return self.g_raw / 63
 
-    @b_8.setter
-    def b_8( self, value ):
-        self.b_raw = value*63//255
+    @g.setter
+    def g( self, value ):
+        self.g_raw = round( value * 63 )
+
+    @property
+    def b( self ):
+        return self.b_raw / 63
+
+    @b.setter
+    def b( self, value ):
+        self.b_raw = round( value * 63 )
 
 

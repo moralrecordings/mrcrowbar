@@ -21,16 +21,97 @@ class Colour( BaseColour, mrc.Block ):
 
 
 class RGBColour( Colour ):
-    r_8 = mrc.UInt8( 0x00 )
-    g_8 = mrc.UInt8( 0x01 )
-    b_8 = mrc.UInt8( 0x02 )
+    r_raw = mrc.UInt8( 0x00 )
+    g_raw = mrc.UInt8( 0x01 )
+    b_raw = mrc.UInt8( 0x02 )
+
+    @property
+    def r( self ):
+        return self.r_raw / 255
+
+    @r.setter
+    def r( self, value ):
+        self.r_raw = round( value * 255 )
+
+    @property
+    def g( self ):
+        return self.g_raw / 255
+
+    @g.setter
+    def g( self, value ):
+        self.g_raw = round( value * 255 )
+
+    @property
+    def b( self ):
+        return self.b_raw / 255
+
+    @b.setter
+    def b( self, value ):
+        self.b_raw = round( value * 255 )
 
 
-class RGBAColour( Colour ):
-    r_8 = mrc.UInt8( 0x00 )
-    g_8 = mrc.UInt8( 0x01 )
-    b_8 = mrc.UInt8( 0x02 )
-    a_8 = mrc.UInt8( 0x03 )
+class BGRColour( RGBColour ):
+    b_raw = mrc.UInt8( 0x00 )
+    g_raw = mrc.UInt8( 0x01 )
+    r_raw = mrc.UInt8( 0x02 )
+
+
+class RGBAColour( RGBColour ):
+    r_raw = mrc.UInt8( 0x00 )
+    g_raw = mrc.UInt8( 0x01 )
+    b_raw = mrc.UInt8( 0x02 )
+    a_raw = mrc.UInt8( 0x03 )
+
+    @property
+    def a( self ):
+        return self.a_raw / 255
+
+    @a.setter
+    def a( self, value ):
+        self.a_raw = round( value * 255 )
+
+
+class ABGRColour( RGBAColour ):
+    a_raw = mrc.UInt8( 0x00 )
+    b_raw = mrc.UInt8( 0x01 )
+    g_raw = mrc.UInt8( 0x02 )
+    r_raw = mrc.UInt8( 0x03 )
+
+
+class RGB555Colour( Colour ):
+    r_raw = mrc.Bits16( 0x00, 0b0111110000000000 )
+    g_raw = mrc.Bits16( 0x00, 0b0000001111100000 )
+    b_raw = mrc.Bits16( 0x00, 0b0000000000011111 )
+
+    @property
+    def r( self ):
+        return self.r_raw / 31
+
+    @r.setter
+    def r( self, value ):
+        self.r_raw = round( value * 31 )
+
+    @property
+    def g( self ):
+        return self.g_raw / 31
+
+    @g.setter
+    def g( self, value ):
+        self.g_raw = round( value * 31 )
+
+    @property
+    def b( self ):
+        return self.b_raw / 31
+
+    @b.setter
+    def b( self, value ):
+        self.b_raw = round( value * 31 )
+
+
+class BGR555Colour( RGB555Colour ):
+    b_raw = mrc.Bits16( 0x00, 0b0111110000000000 )
+    g_raw = mrc.Bits16( 0x00, 0b0000001111100000 )
+    r_raw = mrc.Bits16( 0x00, 0b0000000000011111 )
 
 
 class Palette( mrc.BlockField ):

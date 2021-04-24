@@ -809,7 +809,7 @@ def objdiffdump_iter( source1, source2, prefix='source', depth=None ):
         Maximum number of levels to traverse.
     """
     same = True
-    for p, s1, s2 in diff_iter( source1, source2, prefix, depth ):
+    for p, s1, s2 in objdiff_iter( source1, source2, prefix, depth ):
         if is_bytes( s1 ) and is_bytes( s2 ):
             yield '* {}:'.format( p )
             yield from diffdump_iter( s1, s2 )

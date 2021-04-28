@@ -24,7 +24,7 @@ jobs:
               run: |
                 coverage run mrcrowbar/tests.py
             - name: Upload to Coveralls
-              uses: coverallsapp/github-action@v1.1.2
-              with:
-                github-token: ${{ secrets.GITHUB_TOKEN }}
-                path-to-lcov: ./.coverage
+              run: |
+                coveralls --service=github
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

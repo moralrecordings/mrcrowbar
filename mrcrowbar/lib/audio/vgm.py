@@ -29,7 +29,7 @@ class Write8( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'value=0x{:02x}'.format( self.value )
+        return f'value=0x{self.value:02x}'
 
 
 class Write16( mrc.Block ):
@@ -37,7 +37,7 @@ class Write16( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'value=0x{:04x}'.format( self.value )
+        return f'value=0x{self.value:04x}'
 
 
 class RegisterWrite8( mrc.Block ):
@@ -46,7 +46,7 @@ class RegisterWrite8( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'register=0x{:02x}, value=0x{:02x}'.format( self.register, self.value )
+        return f'register=0x{self.register:02x}, value=0x{self.value:02x}'
 
 
 class Reserved8( mrc.Block ):
@@ -111,13 +111,14 @@ class PSGData( mrc.Block ):
 
     @property
     def repr( self ):
-        result = 'type={}'.format( 'LATCH' if self.type else 'DATA' )
+        type_str = 'LATCH' if self.type else 'DATA'
+        result = f'type={type_str}'
         if self.type:
-            result += ', channel={}'.format( self.channel )
-            result += ', control={}'.format( self.control )
-            result += ', data={:04b}'.format( self.data )
+            result += f', channel={self.channel}'
+            result += f', control={self.control}'
+            result += f', data={self.data:04b}'
         else:
-            result += ', data={:06b}'.format( self.data )
+            result += ', data={self.data:06b}'
         return result
 
 
@@ -149,22 +150,22 @@ COMMAND_LIST = [
     ('MEMORY_WRITE', 0x68, MemoryWrite),
 ]
 for i in range( 16 ):
-    COMMAND_LIST.append( ( 'WAIT_{}'.format( i+1 ), 0x70+i, Blank ) )
+    COMMAND_LIST.append( ( f'WAIT_{i + 1}', 0x70 + i, Blank ) )
 for i in range( 16 ):
-    COMMAND_LIST.append( ( 'YM2612_0_2A_WAIT_{}'.format( i ), 0x80+i, Blank ) )
+    COMMAND_LIST.append( ( f'YM2612_0_2A_WAIT_{i}', 0x80 + i, Blank ) )
 
 for i in range( 0x30, 0x40 ):
-    COMMAND_LIST.append( ( 'RESERVED_{:02X}'.format( i ), i,  Reserved8 ) )
+    COMMAND_LIST.append( ( f'RESERVED_{i:02X}', i,  Reserved8 ) )
 for i in range( 0x40, 0x4f ):
-    COMMAND_LIST.append( ( 'RESERVED_{:02X}'.format( i ), i,  Reserved16 ) )
+    COMMAND_LIST.append( ( f'RESERVED_{i:02X}', i,  Reserved16 ) )
 for i in range( 0xa1, 0xb0 ):
-    COMMAND_LIST.append( ( 'RESERVED_{:02X}'.format( i ), i,  Reserved16 ) )
+    COMMAND_LIST.append( ( f'RESERVED_{i:02X}', i,  Reserved16 ) )
 for i in range( 0xc5, 0xd0 ):
-    COMMAND_LIST.append( ( 'RESERVED_{:02X}'.format( i ), i,  Reserved24 ) )
+    COMMAND_LIST.append( ( f'RESERVED_{i:02X}', i,  Reserved24 ) )
 for i in range( 0xd5, 0xe0 ):
-    COMMAND_LIST.append( ( 'RESERVED_{:02X}'.format( i ), i,  Reserved24 ) )
+    COMMAND_LIST.append( ( f'RESERVED_{i:02X}', i,  Reserved24 ) )
 for i in range( 0xe1, 0x100 ):
-    COMMAND_LIST.append( ( 'RESERVED_{:02X}'.format( i ), i,  Reserved32 ) )
+    COMMAND_LIST.append( ( f'RESERVED_{i:02X}', i,  Reserved32 ) )
 
 Command = IntEnum( 'Command', [(x[0], x[1]) for x in COMMAND_LIST] )
 COMMAND_MAP = {Command(x[1]): x[2] for x in COMMAND_LIST}

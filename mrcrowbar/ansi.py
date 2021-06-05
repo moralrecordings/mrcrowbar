@@ -58,6 +58,10 @@ BYTE_GLYPH_MAP = """ ☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶
 BYTE_COLOUR_MAP = (12,) + (14,)*32 + (11,)*94 + (14,)*128 + (12,)
 
 
+def format_address( offset, end, address_base_offset ):
+    return ('{:0'+str( max( 8, math.floor( math.log( end + address_base_offset ) / math.log( 16 ) ) ) )+'x}').format( offset + address_base_offset )
+
+
 
 def format_escape( foreground=None, background=None, bold=False, faint=False,
     italic=False, underline=False, blink=False, inverted=False ):
@@ -167,7 +171,7 @@ def format_string( string, foreground=None, background=None, reset=True, bold=Fa
                                         italic, underline, blink, inverted )
     reset_format = '' if not reset else ANSI_FORMAT_RESET
 
-    return '{}{}{}'.format( colour_format, string, reset_format )
+    return f'{colour_format}{string}{reset_format}'
 
 
 def format_pixels( top, bottom, reset=True, repeat=1 ):
@@ -236,7 +240,7 @@ def format_pixels( top, bottom, reset=True, repeat=1 ):
     colour_format = ANSI_FORMAT_BASE.format( ';'.join( colour_format ) )
     reset_format = '' if not reset else ANSI_FORMAT_RESET
 
-    return '{}{}{}'.format( colour_format, string, reset_format )
+    return f'{colour_format}{string}{reset_format}'
 
 
 def format_bar_graph_iter( data, width=64, height=12, y_min=None, y_max=None ):
@@ -387,7 +391,7 @@ def format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, col
 
     line = []
     if show_offsets:
-        digits = ('{}{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}').format( prefix, offset+address_base_offset )
+        digits = (f'{prefix}{format_address( offset, end, address_base_offset )}')
         line = [format_string( digits, highlight_addr ), ' │  ']
 
     prev_colour = None
@@ -401,7 +405,7 @@ def format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, col
             if prev_colour != new_colour:
                 line.append( new_colour )
                 prev_colour = new_colour
-            line.append( '{:02x} '.format( source[suboffset] ) )
+            line.append( f'{source[suboffset]:02x} ' )
 
         line.append( ' ' )
 
@@ -409,7 +413,7 @@ def format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, col
         line.append( ANSI_FORMAT_RESET )
 
     if show_glyphs:
-        line.append( '│ {}'.format( get_glyph() ) )
+        line.append( f'│ {get_glyph()}' )
     return ''.join( line )
 
 
@@ -440,9 +444,8 @@ def format_histdump_line( source, offset, length=None, end=None, width=64, addre
     if palette is None:
         palette = colour.TEST_PALETTE
 
-    digits = ('{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}').format( offset+address_base_offset )
     stat = statistics.Stats(data)
-    return ('{} │ {} │ {:.10f}').format( digits, format_histogram_line( stat.histogram( width ), palette ), stat.entropy )
+    return f'{format_address( offset, end, address_base_offset )} │ {format_histogram_line( stat.histogram( width ), palette )} │ {stat.entropy:.10f}'
 
 HIGHLIGHT_COLOUR = 9
 

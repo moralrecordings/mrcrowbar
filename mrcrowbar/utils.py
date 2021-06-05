@@ -340,9 +340,9 @@ def grepdump_iter( pattern, source, start=None, end=None, length=None, encoding=
             end_off = match.span()[1]+start+address_base_offset
             digits = '{:0'+str( max( 8, math.floor( math.log( end+address_base_offset )/math.log( 16 ) ) ) )+'x}'
             line = (digits+':'+digits).format( start_off, end_off )
-            line += ':{}'.format( repr( match.group( 0 ) ) )
+            line += ':{repr( match.group( 0 ) )}'
             if title:
-                line = '{}:'.format( title ) + line
+                line = '{title}:' + line
             yield line
 
     elif format == 'json':
@@ -459,7 +459,7 @@ def search_iter( pattern, source, prefix='source', depth=None, encoding='utf8', 
                         yield pref
                 elif isinstance( data, Chunk ):
                     success = False
-                    for x in search_iter( pattern, data.obj, '{}.obj'.format( pref ), depth, encoding, fixed_string, hex_format, ignore_case ):
+                    for x in search_iter( pattern, data.obj, f'{pref}.obj', depth, encoding, fixed_string, hex_format, ignore_case ):
                         success = True
                         yield x
                     if not success:
@@ -477,10 +477,10 @@ def search_iter( pattern, source, prefix='source', depth=None, encoding='utf8', 
             el_offset = offset
             for i, el in enumerate( data ):
                 el_size = source.get_field_size( name, index=i )
-                yield from check_field( el_offset, el_size, el, '{}.{}[{}]'.format( prefix, name, i ) )
+                yield from check_field( el_offset, el_size, el, f'{prefix}.{name}[{i}]' )
                 el_offset += el_size
         else:
-            yield from check_field( offset, size, data, '{}.{}'.format( prefix, name ) )
+            yield from check_field( offset, size, data, f'{prefix}.{name}' )
 
 
 def search( pattern, source, prefix='source', depth=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
@@ -597,13 +597,14 @@ def finddump_iter( substring, source, start=None, end=None, length=None, overlap
             end_off = match[1] + address_base_offset
             digits = '{:0'+str( max( 8, math.floor( math.log( end + address_base_offset )/math.log( 16 ) ) ) )+'x}'
             line = (digits+':'+digits).format( start_off, end_off )
-            line += ':{}'.format( repr( source[match[0]:match[1]] ) )
+            line += f':{repr( source[match[0]:match[1]] )}'
             if isinstance( match[3], list ):
-                line += ':{}'.format( repr( match[3] ) )
+                line += f':{repr( match[3] )}'
             elif isinstance( match[3], dict ):
-                line += ':{}'.format( repr( {k: v.hex() for k, v in match[3].items()} ) )
+                hexmap = {k: v.hex() for k, v in match[3].items()} 
+                line += f':{repr( hexmap )}'
             if title:
-                line = '{}:'.format( title ) + line
+                line = f'{title}:' + line
             yield line
 
     elif format == 'json':
@@ -745,7 +746,7 @@ def objdiff_iter( source1, source2, prefix='source', depth=None ):
     else:
         if type( source1 ) == list:
             for i in range( max( len( source1 ), len( source2 ) ) ):
-                prefix_mod = prefix+'[{}]'.format( i )
+                prefix_mod = f'{prefix}[{i}]'
 
                 if i < len( source1 ) and i < len( source2 ):
                     yield from objdiff_iter( source1[i], source2[i], prefix=prefix_mod, depth=depth )
@@ -770,7 +771,7 @@ def objdiff_iter( source1, source2, prefix='source', depth=None ):
                 for i in range( len( s1[1] ) ):
                     assert s1[1][i][0] == s2[1][i][0]
                     if s1[1][i][1] != s2[1][i][1]:
-                        yield from objdiff_iter( getattr( source1, s1[1][i][0] ), getattr( source2, s1[1][i][0] ), prefix='{}.{}'.format( prefix, s1[1][i][0] ), depth=depth )
+                        yield from objdiff_iter( getattr( source1, s1[1][i][0] ), getattr( source2, s1[1][i][0] ), prefix=f'{prefix}.{s1[1][i][0]}', depth=depth )
         else:
             if source1 != source2:
                 yield (prefix, source1, source2)
@@ -812,15 +813,15 @@ def objdiffdump_iter( source1, source2, prefix='source', depth=None ):
     same = True
     for p, s1, s2 in objdiff_iter( source1, source2, prefix, depth ):
         if is_bytes( s1 ) and is_bytes( s2 ):
-            yield '* {}:'.format( p )
+            yield f'* {p}:'
             yield from diffdump_iter( s1, s2 )
             same = False
             continue
         if s1 is not None:
-            yield ansi.format_string( '- {}: {}'.format( p, s1 ), foreground=DIFF_COLOUR_MAP[0] )
+            yield ansi.format_string( f'- {p}: {s1}', foreground=DIFF_COLOUR_MAP[0] )
             same = False
         if s2 is not None:
-            yield ansi.format_string( '+ {}: {}'.format( p, s2 ), foreground=DIFF_COLOUR_MAP[1] )
+            yield ansi.format_string( f'+ {p}: {s2}', foreground=DIFF_COLOUR_MAP[1] )
             same = False
     return same
 

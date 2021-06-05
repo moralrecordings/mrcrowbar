@@ -35,8 +35,7 @@ class FieldDescriptor( object ):
 
     def __delete__( self, instance ):
         if self.name not in instance._fields:
-            raise AttributeError( "{} has no attribute {}".format(
-                type( instance ).__name__, self.name ) )
+            raise AttributeError( f"{type( instance ).__name__} has no attribute {self.name}" )
         del instance._fields[self.name]
 
 
@@ -104,7 +103,7 @@ class BlockMeta( type ):
                 check_fields = value.get_fields()
                 if isinstance( check_fields, dict ):
                     for field_id, field in value.get_fields().items():
-                        sub_key = '{}__{}'.format(key, field_id)
+                        sub_key = f'{key}__{field_id}'
                         fields[sub_key] = field
                         field._previous_attr = previous
                         previous = sub_key
@@ -192,7 +191,7 @@ class Block( object, metaclass=BlockMeta ):
         self._endian = endian if endian else (parent._endian if parent else self._endian)
         self._path_hint = path_hint
         if self._path_hint is None:
-            self._path_hint = '<{}>'.format( self.__class__.__name__ )
+            self._path_hint = f'<{self.__class__.__name__}>'
         self._strict = strict
 
         if cache_bytes:
@@ -219,10 +218,10 @@ class Block( object, metaclass=BlockMeta ):
             ref.cache( self )
 
     def __repr__( self ):
-        desc = '0x{:016x}'.format( id( self ) )
+        desc = f'0x{id( self ):016x}'
         if hasattr( self, 'repr' ) and isinstance( self.repr, str ):
             desc = self.repr
-        return '<{}: {}>'.format( self.__class__.__name__, desc )
+        return f'<{self.__class__.__name__}: {desc}>'
 
     @property
     def repr( self ):
@@ -271,17 +270,17 @@ class Block( object, metaclass=BlockMeta ):
 
         self._field_data = {}
 
-        logger.debug( '{}: loading fields'.format( self ) )
+        logger.debug( f'{self}: loading fields' )
 
         for name in klass._fields:
             if raw_buffer is not None:
                 if logger.isEnabledFor( logging.DEBUG ):
-                    logger.debug( '{} [{}]: input buffer'.format( name, klass._fields[name] ) )
+                    logger.debug( f'{name} [{klass._fields[name]}]: input buffer' )
                 self._field_data[name] = klass._fields[name].get_from_buffer(
                     raw_buffer, parent=self
                 )
                 if logger.isEnabledFor( logging.DEBUG ):
-                    logger.debug( 'Result for {} [{}]: {}'.format( name, klass._fields[name], self._field_data[name] ) )
+                    logger.debug( f'Result for {name} [{klass._fields[name]}]: {self._field_data[name]}' )
             else:
                 self._field_data[name] = klass._fields[name].default
         
@@ -293,9 +292,9 @@ class Block( object, metaclass=BlockMeta ):
             if logger.isEnabledFor( logging.INFO ):
                 test = self.export_data()
                 if logger.getEffectiveLevel() <= logging.DEBUG:
-                    logger.debug( 'Stats for {}:'.format( self ) )
-                    logger.debug( 'Import buffer size: {}'.format( len( raw_buffer ) ) )
-                    logger.debug( 'Export size: {}'.format( len( test ) ) )
+                    logger.debug( f'Stats for {self}:' )
+                    logger.debug( f'Import buffer size: {len( raw_buffer )}' )
+                    logger.debug( f'Export size: {len( test )}' )
                     if test == raw_buffer:
                         logger.debug( 'Content: exact match!' )
                     elif test == raw_buffer[:len( test )]:
@@ -305,7 +304,7 @@ class Block( object, metaclass=BlockMeta ):
                         for x in utils.diffdump_iter( raw_buffer[:len( test )], test ):
                             logger.debug( x )
                 elif test != raw_buffer[:len( test )]:
-                    logger.info( '{} export produced changed output from import'.format( self ) )
+                    logger.info( f'{self} export produced changed output from import' )
 
 #        if raw_buffer:
 #            raw_buffer.release()
@@ -402,8 +401,8 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
         for field_name, field_obj in klass._fields.items():
             if field_obj == field:
-                return '{}.{}'.format( self.get_path(), field_name )
-        return '{}.?'.format( self.get_path() )
+                return f'{self.get_path()}.{field_name}'
+        return f'{self.get_path()}.?'
 
     def get_path( self ):
         """Return the path of this Block in the current object tree.
@@ -411,19 +410,19 @@ class Block( object, metaclass=BlockMeta ):
         Used for error messages."""
         klass = self.__class__
         if not self._parent:
-            self._path_hint = '<{}>'.format( klass.__name__ )
+            self._path_hint = f'<{klass.__name__}>'
         else:
             pklass = self._parent.__class__
             for field_name, field_obj in pklass._fields.items():
                 if field_name in self._parent._field_data:
                     if self._parent._field_data[field_name] == self:
-                        self._path_hint = '{}.{}'.format( self._parent.get_path(), field_name )
+                        self._path_hint = f'{self._parent.get_path()}.{field_name}'
                     elif type( self._parent._field_data[field_name] ) == list:
                         for i, subobject in enumerate( self._parent._field_data[field_name] ):
                             if subobject == self:
-                                self._path_hint = '{}.{}[{}]'.format( self._parent.get_path(), field_name, i )
+                                self._path_hint = f'{self._parent.get_path()}.{field_name}[{i}]'
                             elif hasattr( subobject, 'obj' ) and subobject.obj == self:
-                                self._path_hint = '{}.{}[{}].obj'.format( self._parent.get_path(), field_name, i )
+                                self._path_hint = f'{self._parent.get_path()}.{field_name}[{i}].obj'
         return self._path_hint
 
     def get_field_start_offset( self, field_name, index=None ):
@@ -593,7 +592,7 @@ class Block( object, metaclass=BlockMeta ):
             Perform a case-insensitive search
         """
         return [x for x in utils.search_iter(
-            pattern, source, prefix='<{}>'.format( self.__class__.__name__ ),
+            pattern, source, prefix=f'<{self.__class__.__name__}>',
             depth=None, encoding=encoding, fixed_string=fixed_string,
             hex_format=hex_format, ignore_cast=ignore_case
         )]

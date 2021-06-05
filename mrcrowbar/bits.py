@@ -97,7 +97,7 @@ def read_bits( buffer, byte_offset, bit_offset, size, bytes_reverse=False, bit_e
 
 def write_bits( value, buffer, byte_offset, bit_offset, size, bytes_reverse=False, bit_endian='big', io_endian='big' ):
     if value not in range( 1 << size ):
-        raise ValueError( 'Value {} does not fit into {} bits'.format( value, size ) )
+        raise ValueError( f'Value {value} does not fit into {size} bits' )
 
     byte_start = byte_offset
     bit_start = bit_offset

@@ -62,15 +62,16 @@ class Ref( object ):
         return
 
     def __repr__( self ):
-        desc = '0x{:016x}'.format( id( self ) )
+        desc = f'0x{id( self ):016x}'
         if hasattr( self, 'repr' ) and isinstance( self.repr, str ):
             desc = self.repr
-        return '<{}: {}>'.format( self.__class__.__name__, desc )
+        return f'<{self.__class__.__name__}: {desc}>'
 
     @property
     def repr( self ):
         """Plaintext summary of the object."""
-        return '{} ({})'.format( '.'.join( self._path ), 'rw' if self._allow_write else 'r' )
+        perms = "rw" if self._allow_write else "r"
+        return f'{".".join( self._path )} ({perms})'
 
     @property
     def serialised( self ):
@@ -130,7 +131,7 @@ def property_set( prop, instance, value, **kwargs ):
 
     if isinstance( prop, Ref ):
         return prop.set( instance, value, **kwargs )
-    raise AttributeError( "can't change value of constant {} (context: {})".format( prop, instance ) )
+    raise AttributeError( f"can't change value of constant {prop} (context: {instance})" )
 
 
 def view_property( prop ):

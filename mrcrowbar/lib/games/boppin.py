@@ -130,13 +130,13 @@ class BoppinCompressor( mrc.Transform ):
         size_comp = utils.from_uint32_le( buffer[0:4] )
 
         if size_comp != len( buffer ):
-            logger.info( '{}: File not compressed'.format( self ) )
+            logger.info( f'{self}: File not compressed' )
             return mrc.TransformResult( payload=buffer, end_offset=len( buffer ) )
 
         size_raw = utils.from_uint32_le( buffer[4:8] )
         result = lc.import_data( buffer[8:] )
         if len( result.payload ) != size_raw:
-            logger.warning( '{}: Was expecting a decompressed size of {}, got {}!'.format( self, size_raw, len( result.payload ) ) )
+            logger.warning( f'{self}: Was expecting a decompressed size of {size_raw}, got {len( result.payload )}!' )
 
         return result
 

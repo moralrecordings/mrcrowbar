@@ -51,11 +51,11 @@ class Stats( object ):
         buckets = self.histogram( width )
         result = []
         for line in format_bar_graph_iter( buckets, width=width, height=height ):
-            result.append( ' {}\n'.format( line ) )
+            result.append( f' {line}\n' )
 
-        result.append( '╘'+('═'*width)+'╛\n' )
-        result.append( 'entropy: {:.10f}\n'.format( self.entropy ) )
-        result.append( 'samples: {}'.format( self.samples ) )
+        result.append( f'╘{"═"*width}╛\n' )
+        result.append( f'entropy: {self.entropy:.10f}\n' )
+        result.append( f'samples: {self.samples}' )
         return ''.join( result )
 
     def print( self, *args, **kwargs ):

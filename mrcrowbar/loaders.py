@@ -109,7 +109,7 @@ class Loader( object ):
                         extras.append( name )
 
                 self._files = {}
-                raise Exception( 'Multiple filename matches found for the same source: {}'.format( ', '.join( extras ) ) ) 
+                raise Exception( f"Multiple filename matches found for the same source: {', '.join( extras )}" )
 
         dependencies = []
         
@@ -127,7 +127,7 @@ class Loader( object ):
                     dependency_match = dependency_re.search( path )
                     if consumer_match and dependency_match:
                         self._files = {}
-                        raise Exception( 'Problem parsing dependencies: path {} matches for both consumer ({}) and dependency ({})'.format( path, consumer, dependency ) )
+                        raise Exception( f'Problem parsing dependencies: path {path} matches for both consumer ({consumer}) and dependency ({dependency})' )
                     elif consumer_match:
                         groups = consumer_match.groups()
                         if not self.case_sensitive:
@@ -146,7 +146,7 @@ class Loader( object ):
                     targets = [x[0] for x in dependency_matches if x[1] == target_groups]
                     if len( targets ) > 1:
                         self._files = {}
-                        raise Exception( 'Problem parsing dependencies: path {} has multiple matches for dependency {} ({})'.format( path, attr, ', '.join( targets ) ) )
+                        raise Exception( f"Problem parsing dependencies: path {path} has multiple matches for dependency {attr} ({', '.join( targets )})" )
                     elif len( targets ) == 1:
                         dependencies.append( (i, path, targets[0]) )
         
@@ -181,12 +181,12 @@ class Loader( object ):
         load_order += [x for x in self._files.keys() if x not in load_order]
 
         # load files in based on dependency sorted list order
-        logger.info( '{}: loading files'.format( self ) )
+        logger.info( f'{self}: loading files' )
         for path in load_order:
             info = self._files[path]
             with self.fs.get_file( path ) as f:
                 data = mmap( f.fileno(), 0 )
-                logger.info( '{} => {}'.format( path, info['klass'] ) )
+                logger.info( f'{path} => {info["klass"]}' )
 
                 deps = {attr: self._files[dest]['obj'] for dest, attr in dependency_map[path]}
 

@@ -20,7 +20,7 @@ class Transform( object ):
         parent
             Parent object of the source (to provide context for Refs).
         """
-        logger.warning( '{}: export_data not implemented!'.format( self ) )
+        logger.warning( f'{self}: export_data not implemented!' )
         return TransformResult()
 
     def import_data( self, buffer, parent=None ):
@@ -32,5 +32,5 @@ class Transform( object ):
         parent
             Parent object of the source (to provide context for Refs).
         """
-        logger.warning( '{}: import_data not implemented!'.format( self ) )
+        logger.warning( f'{self}: import_data not implemented!' )
         return TransformResult()

@@ -148,7 +148,7 @@ class ChannelV4( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'channel_size=0x{:02x}, channel_offset=0x{:04x}, channel_row={}, channel_type={}'.format( self.channel_size, self.channel_offset, self.channel_row, self.channel_type )
+        return f'channel_size=0x{self.channel_size:02x}, channel_offset=0x{self.channel_offset:04x}, channel_row={self.channel_row}, channel_type={self.channel_type}'
 
 
 class FrameV4( mrc.Block ):
@@ -161,7 +161,7 @@ class FrameV4( mrc.Block ):
     
     @property
     def repr( self ):
-        return 'num_channnels={}'.format( len( self.channels ) )
+        return f'num_channnels={len( self.channels )}'
 
 
 class ScoreV4( mrc.Block ):
@@ -182,7 +182,7 @@ class ScoreV4( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'num_frames={}'.format( len( self.frames ) )
+        return f'num_frames={len( self.frames )}'
 
 
 
@@ -216,7 +216,7 @@ class SoundV4( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'channels={}, sample_rate={}, length={}, sample_bits={}'.format( self.channels, self.sample_rate, self.length, self.sample_bits )
+        return f'channels={self.channels}, sample_rate={self.sample_rate}, length={self.length}, sample_bits={self.sample_bits}'
 
 
 class SoundCastV4Extra( mrc.Block ):
@@ -225,7 +225,7 @@ class SoundCastV4Extra( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'name={}'.format( self.name )
+        return f'name={self.name}'
 
 
 class SoundCastV4( mrc.Block ):
@@ -235,8 +235,9 @@ class SoundCastV4( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'unk1={}{}'.format(
-            self.unk1, ', name={}'.format( self.extra[0].name ) if self.extra else '' )
+        extra_str = f', name={self.extra[0].name}' if self.extra else ''
+        return f'unk1={self.unk1}{extra_str}'
+
 
 class ScriptCastV4( mrc.Block ):
     unk1        = mrc.Bytes( 0x00, length=0x14 )
@@ -253,7 +254,7 @@ class ScriptCastV4( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'script_id={}'.format( self.script_id )
+        return f'script_id={self.script_id}'
 
 
 class BitmapCompressor( mrc.Transform ):
@@ -294,8 +295,7 @@ class Rect( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'top={}, left={}, bottom={}, right={}, width={}, height={}'.format( 
-            self.top, self.left, self.bottom, self.right, self.width, self.height )
+        return f'top={self.top}, left={self.left}, bottom={self.bottom}, right={self.right}, width={self.width}, height={self.height}'
 
 
 class ShapeType( IntEnum ):
@@ -332,8 +332,7 @@ class BitmapCastV4( mrc.Block ):
 
     @property
     def repr( self ):
-        #return 'name={}, pitch={}, bpp={}, reg_x={}, reg_y={}, unk1={}, unk2={}'.format( self.name, self.pitch, self.bpp, self.reg_x, self.reg_y, self.unk1, self.unk2 )
-        return 'bpp={}, pitch={}, reg_x={}, reg_y={}, initial_rect={}, bounding_rect={}'.format( self.bpp, self.pitch, self.reg_x, self.reg_y, self.initial_rect, self.bounding_rect )
+        return f'bpp={self.bpp}, pitch={self.pitch}, reg_x={self.reg_x}, reg_y={self.reg_y}, initial_rect={self.initial_rect}, bounding_rect={self.bounding_rect}'
 
     def __init__( self, *argc, **argv ):
         self.image = img.IndexedImage( self, mrc.Ref( '_data.data' ), mrc.Ref( 'pitch' ), mrc.Ref( 'initial_rect.height' ), palette=DIRECTOR_PALETTE )
@@ -375,7 +374,7 @@ class CastV4( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'size1: {}, size2: {}, cast_type: {}'.format( self.size1, self.size2, str( self.cast_type ) )
+        return f'size1: {self.size1}, size2: {self.size2}, cast_type: {self.cast_type}'
 
 
 class KeyEntry( mrc.Block ):
@@ -385,7 +384,7 @@ class KeyEntry( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'chunk_id: {}, section_index: {}, cast_index: {}'.format( riff.TagB( self.chunk_id ), self.section_index, self.cast_index )
+        return f'chunk_id: {riff.TagB( self.chunk_id )}, section_index: {self.section_index}, cast_index: {self.cast_index}'
 
 
 class KeyV4( mrc.Block ):
@@ -410,7 +409,7 @@ class MMapEntry( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'chunk_id: {}, length: 0x{:08x}, offset: 0x{:08x}, flags: {}'.format( riff.TagB( self.chunk_id ), self.length, self.offset, self.flags )
+        return f'chunk_id: {riff.TagB( self.chunk_id )}, length: 0x{self.length:08x}, offset: 0x{self.offset:08x}, flags: {self.flags}'
 
 
 # rough idea of the layout of a Director file
@@ -437,6 +436,7 @@ class IMapV4( mrc.Block ):
     version =       mrc.UInt32_P( 0x08 )
     unk2 =          mrc.Bytes( 0x0c )
 
+
 class MMapV4( mrc.Block ):
     unk1 =      mrc.Bytes( 0x00, length=8 )
     entries_max = mrc.UInt32_P( 0x04 )
@@ -448,7 +448,8 @@ class MMapV4( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'entries_max: {}, entries_used: {}'.format( self.entries_max, self.entries_used )
+        return f'entries_max: {self.entries_max}, entries_used: {self.entries_used}'
+
 
 class SordV4( mrc.Block ):
     unk1 = mrc.Bytes( 0x00, length=0xc )
@@ -509,7 +510,7 @@ class ScriptContextEntry( mrc.Block ):
     
     @property
     def repr( self ):
-        return 'index: {}, active: {}'.format( self.index, self.active )
+        return f'index: {self.index}, active: {self.active}'
 
 
 class ScriptContextV4( mrc.Block ):
@@ -544,14 +545,14 @@ class Write8( mrc.Block ):
             
     @property
     def repr( self ):
-        return '0x{:02x}'.format(self.value)
+        return f'0x{self.value:02x}'
 
 class Write16( mrc.Block ):
     value = mrc.UInt16_BE( 0x00 )
     
     @property
     def repr( self ):
-        return '0x{:04x}'.format(self.value)
+        return f'0x{self.value:04x}'
 
 
 LINGO_V4_LIST = [
@@ -651,13 +652,13 @@ LINGO_V4_LIST = [
 LINGO_COVERAGE = set( (x[1] for x in LINGO_V4_LIST) )
 for i in range( 0x00, 0x40 ):
     if i not in LINGO_COVERAGE:
-        LINGO_V4_LIST.append( ('UNK_{:02X}'.format( i ), i, Blank ) )
+        LINGO_V4_LIST.append( (f'UNK_{i:02X}', i, Blank ) )
 for i in range( 0x40, 0x80 ):
     if i not in LINGO_COVERAGE:
-        LINGO_V4_LIST.append( ('UNK_{:02X}'.format( i ), i, Write8 ) )
+        LINGO_V4_LIST.append( (f'UNK_{i:02X}', i, Write8 ) )
 for i in range( 0x80, 0x100 ):
     if i not in LINGO_COVERAGE:
-        LINGO_V4_LIST.append( ('UNK_{:02X}'.format( i ), i, Write16 ) )
+        LINGO_V4_LIST.append( (f'UNK_{i:02X}', i, Write16 ) )
 
 LingoV4 = IntEnum( 'LingoV4', [(x[0], x[1]) for x in LINGO_V4_LIST] )
 LINGO_V4_MAP = {LingoV4( x[1] ): x[2] for x in LINGO_V4_LIST}
@@ -684,7 +685,7 @@ class ScriptConstantUInt32( mrc.Block ):
 
     @property
     def repr( self ):
-        return '{}'.format( self.value )
+        return f'{self.value}'
 
 class ScriptFloat( mrc.Block ):
     length = mrc.Const( mrc.UInt32_BE( 0x00 ), 0x0a )
@@ -735,7 +736,7 @@ class ScriptConstantV4( mrc.Block ):
 
     @property
     def repr( self ):
-        return '{}: {}'.format( self.const_type, self.const.repr )
+        return f'{self.const_type}: {self.const.repr}'
 
 
 class ScriptConstantV5( mrc.Block ):
@@ -750,7 +751,7 @@ class ScriptConstantV5( mrc.Block ):
 
     @property
     def repr( self ):
-        return '{}: {}'.format( self.const_type, self.const.repr )
+        return f'{self.const_type}: {self.const.repr}'
 
 
 class ScriptGlobal( mrc.Block ):
@@ -803,7 +804,7 @@ class ScriptFunction( mrc.Block ):
 
     @property
     def repr( self ):
-        return '{}'.format( self.name )
+        return f'{self.name}'
 
 
 class ScriptV4( mrc.Block ):
@@ -1084,46 +1085,46 @@ class DirectorV4Parser( object ):
 
     def dump_scripts( self ):
         for i, script in enumerate( self.scripts ):
-            print('SCRIPT {}'.format( self.script_ids[i] ))
-            print('NAMES: {}'.format( self.script_names.obj.names ))
-            print('CODE:')
-            print(self.scripts_text[i])
-            name_lookup = lambda n: self.script_names.obj.names[n] if n in range( len( self.script_names.obj.names ) ) else 'unk_{}'.format(n)
+            print( f'SCRIPT {self.script_ids[i]}' )
+            print( f'NAMES: {self.script_names.obj.names}' )
+            print( 'CODE:' )
+            print( self.scripts_text[i] )
+            name_lookup = lambda n: self.script_names.obj.names[n] if n in range( len( self.script_names.obj.names ) ) else f'unk_{n}'
 
             assert riff.TagB( script.id ) == b'Lscr'
-            for j, f in enumerate(script.obj.functions):
+            for j, f in enumerate( script.obj.functions ):
                 if f is None:
-                    print('FUNCTION {} - None'.format(j))
+                    print( f'FUNCTION {j} - None' )
                     continue
-                print('FUNCTION {} - {}({})'.format(j, name_lookup( f.name_index ), ', '.join( [name_lookup( a ) for a in f.args.name_index] )))
-                print('VARS: {}'.format(', '.join([name_lookup( v ) for v in f.vars.name_index])))
+                print( 'FUNCTION {} - {}({})'.format(j, name_lookup( f.name_index ), ', '.join( [name_lookup( a ) for a in f.args.name_index] )) )
+                print( 'VARS: {}'.format(', '.join([name_lookup( v ) for v in f.vars.name_index])) )
                 for inst in f.code.instructions:
                     if self.script_names:
                         if inst.id in (LingoV4.CALL,):
-                            print('{} # {}()'.format( inst, name_lookup( script.obj.functions[inst.obj.value].name_index ) ))
+                            print( '{} # {}()'.format( inst, name_lookup( script.obj.functions[inst.obj.value].name_index ) ) )
                         elif inst.id in (LingoV4.CALL_EXTERNAL,):
-                            print('{} # {}()'.format( inst, name_lookup( inst.obj.value ) ))
+                            print( '{} # {}()'.format( inst, name_lookup( inst.obj.value ) ) )
                         elif inst.id in (LingoV4.PUSH_PROPERTY, LingoV4.POP_PROPERTY, LingoV4.PUSH_PROPERTY_CTX, LingoV4.POP_PROPERTY_CTX, LingoV4.PUSH_PROPERTY_OBJ, LingoV4.POP_PROPERTY_OBJ, LingoV4.PUSH_PROPERTY_RO, LingoV4.PUSH_GLOBAL, LingoV4.POP_GLOBAL, LingoV4.PUSH_OBJECT, LingoV4.PUSH_NAME):
-                            print('{} # {}'.format( inst, name_lookup( inst.obj.value ) ))
+                            print( '{} # {}'.format( inst, name_lookup( inst.obj.value ) ) )
                         elif inst.id in (LingoV4.PUSH_CONST,):
-                            print('{} # {}'.format( inst, script.obj.consts[inst.obj.value // 6] ))
+                            print( '{} # {}'.format( inst, script.obj.consts[inst.obj.value // 6] ) )
                         elif inst.id in (LingoV4.PUSH_PARAM, LingoV4.POP_PARAM,):
-                            print('{} # {}'.format( inst, name_lookup( f.args.name_index[inst.obj.value // 6] ) if f.args.name_index else 'unk_{}'.format(inst.obj.value // 6) ))
+                            print( '{} # {}'.format( inst, name_lookup( f.args.name_index[inst.obj.value // 6] ) if f.args.name_index else 'unk_{}'.format(inst.obj.value // 6) ) )
                         elif inst.id in (LingoV4.PUSH_LOCAL, LingoV4.POP_LOCAL,):
-                            print('{} # {}'.format( inst, name_lookup( f.vars.name_index[inst.obj.value // 6] ) if f.vars.name_index else 'unk_{}'.format(inst.obj.value // 6) ))
+                            print( '{} # {}'.format( inst, name_lookup( f.vars.name_index[inst.obj.value // 6] ) if f.vars.name_index else 'unk_{}'.format(inst.obj.value // 6) ) )
                         else:
-                            print(inst)
+                            print( inst )
                     else:
-                        print(inst)
-            for j, c in enumerate(script.obj.consts):
-                print('CONST {}'.format(j))
-                print(c)
-            for j, g in enumerate(script.obj.globals):
-                print('GLOBAL {}'.format(j))
+                        print( inst )
+            for j, c in enumerate( script.obj.consts ):
+                print( f'CONST {j}' )
+                print( c )
+            for j, g in enumerate( script.obj.globals ):
+                print( f'GLOBAL {j}' )
                 if self.script_names:
-                    print(self.script_names.obj.names[g.name_index])
+                    print( self.script_names.obj.names[g.name_index] )
                 else:
-                    print(g.name_index)
+                    print( g.name_index )
             print()
 
 

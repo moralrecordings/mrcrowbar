@@ -31,10 +31,10 @@ class Check( object ):
         pass
 
     def __repr__( self ):
-        desc = '0x{:016x}'.format( id( self ) )
+        desc = f'0x{id( self ):016x}'
         if hasattr( self, 'repr' ) and isinstance( self.repr, str ):
             desc = self.repr
-        return '<{}: {}>'.format( self.__class__.__name__, desc )
+        return f'<{self.__class__.__name__}: {desc}>'
 
     def get_fields( self ):
         """Return None, a single field, or a dictionary of Fields embedded within the Check."""
@@ -80,7 +80,7 @@ class Const( Check ):
         test = self.field.get_from_buffer( buffer, parent )
         value = property_get( self.target, parent )
         if test != value:
-            mismatch = '{}:{}, found {}!'.format( self, value, test )
+            mismatch = f'{self}:{value}, found {test}!'
             if self.raise_exception:
                 raise CheckException( mismatch )
             logger.warning( mismatch )
@@ -102,7 +102,7 @@ class Const( Check ):
 
     @property
     def repr( self ):
-        return '{} == {}'.format( self.field, self.value )
+        return f'{self.field} == {self.value}'
 
 
 class Pointer( Check ):
@@ -145,7 +145,7 @@ class Pointer( Check ):
 
     @property
     def repr( self ):
-        return '{} -> {}'.format( self.field, self.value )
+        return f'{self.field} -> {self.value}'
 
 
 class Updater( Check ):
@@ -162,4 +162,4 @@ class Updater( Check ):
 
     @property
     def repr( self ):
-        return '{} = {}'.format( self.target, self.source )
+        return f'{self.target} = {self.source}'

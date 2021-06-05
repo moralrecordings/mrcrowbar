@@ -57,7 +57,7 @@ ARGS_COMMON = {
     ),
     ('--version', '-V'): dict(
         action='version',
-        version='%(prog)s {}'.format( __version__ )
+        version=f'%(prog)s {__version__}'
     ),
 }
 
@@ -156,7 +156,7 @@ ARGS_HIST = {
     ),
     ('--version', '-V'): dict(
         action='version',
-        version='%(prog)s {}'.format( __version__ )
+        version=f'%(prog)s {__version__}'
     ),
 }
 ARGS_HIST.update( ARGS_RANGE )
@@ -181,7 +181,7 @@ ARGS_PIX = {
     ),
     ('--version', '-V'): dict(
         action='version',
-        version='%(prog)s {}'.format( __version__ )
+        version=f'%(prog)s {__version__}'
     ),
 }
 ARGS_PIX.update( ARGS_RANGE )
@@ -366,7 +366,7 @@ def mrcdump():
                     )
                 print()
         except OSError as e:
-            logger.warning( '{}'.format( e ) )
+            logger.warning( f'{e}' )
 
 
 def mrcdiff():
@@ -389,7 +389,7 @@ def mrcdiff():
     for source1_fn, source2_fn in sources:
         with common.read( open( source1_fn, 'rb' ) ) as source1, common.read( open( source2_fn, 'rb' ) ) as source2:
             if multi:
-                print( '{} => {}'.format( source1_fn, source2_fn ) )
+                print( f'{source1_fn} => {source2_fn}' )
             utils.diffdump(
                 source1, source2, start=raw_args.start, end=raw_args.end,
                 length=raw_args.length, major_len=raw_args.major_len,
@@ -421,7 +421,7 @@ def mrchist():
                         )
                 print()
         except OSError as e:
-            logger.warning( '{}'.format( e ) )
+            logger.warning( f'{e}' )
 
 
 def mrcpix():
@@ -444,7 +444,7 @@ def mrcpix():
                     )
                 print()
         except OSError as e:
-            logger.warning( '{}'.format( e ) )
+            logger.warning( f'{e}' )
 
 
 def mrcgrep():
@@ -477,7 +477,7 @@ def mrcgrep():
                            format=raw_args.format
                      )
         except OSError as e:
-            logger.warning( '{}'.format( e ) )
+            logger.warning( f'{e}' )
 
 
 def mrcfind():
@@ -515,5 +515,5 @@ def mrcfind():
                         format=raw_args.format,
                     )
         except OSError as e:
-            logger.warning( '{}'.format( e ) )
+            logger.warning( f'{e}' )
 

@@ -78,12 +78,12 @@ class BaseColour( object ):
 
     @property
     def repr( self ):
-        return '#{:02X}{:02X}{:02X}{:02X}'.format( self.r_8, self.g_8, self.b_8, self.a_8 )
+        return f'#{self.r_8:02X}{self.g_8:02X}{self.b_8:02X}{self.a_8:02X}'
 
     def ansi_format( self, text=None ):
         from mrcrowbar.ansi import format_string
         if text is None:
-            text = ' {} '.format( self.repr )
+            text = f' {self.repr} '
         colour = White() if self.luma < 0.5 else Black()
         return format_string( text, colour, self )
 

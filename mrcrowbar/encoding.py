@@ -107,7 +107,7 @@ CODECS = [
 ]
 
 REGEX_CHARS = """()[]{}?*+-|^$\\.&~#="""
-byte_escape = lambda char: '\\x{:02x}'.format( char ).encode( 'utf8' )
+byte_escape = lambda char: f'\\x{char:02x}'.encode( 'utf8' )
 
 def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_string=False, hex_format=False ):
     result = bytearray()
@@ -143,7 +143,7 @@ def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_string=False, hex_fo
                 result.extend( byte_escape( ord( pattern[pointer+1] ) ) )
                 pointer += 2
             else:
-                raise ValueError( 'Unknown escape sequence \\{}'.format( pattern[pointer+1] ) )
+                raise ValueError( f'Unknown escape sequence \\{pattern[pointer + 1]}' )
 
         elif pattern[pointer] in REGEX_CHARS and not fixed_string:
             # a regex special character! inject it into the output unchanged
@@ -161,7 +161,7 @@ def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_string=False, hex_fo
         elif hex_format:
             # we're in hex string mode; treat as raw hexadecimal
             if not re.match( r'[0-9A-Fa-f]{2}', pattern[pointer:pointer+2] ):
-                raise ValueError( 'Sequence {} is not valid hexadecimal'.format( pattern[pointer:pointer+2] ) )
+                raise ValueError( f'Sequence {pattern[pointer:pointer + 2]} is not valid hexadecimal' )
             result.extend( byte_escape( int( pattern[pointer:pointer+2], 16 ) ) )
             pointer += 2
         else:
@@ -178,18 +178,18 @@ def regex_unknown_encoding_match( string, char_size=1 ):
     for i, char in enumerate( string ):
         if char not in match_map:
             match_id = len( match_map )
-            match_group = '?P<p{}>.'.format( match_id ).encode( 'utf8' )
+            match_group = f'?P<p{match_id}>.'.encode( 'utf8' )
             if char_size != 1:
-                match_group += b'{' + '{}'.format( char_size ).encode( 'utf8' ) + b'}'
+                match_group += b'{' + f'{char_size}'.encode( 'utf8' ) + b'}'
             if len( pattern ) == 0:
                 pattern += b'(' + match_group + b')'
             else:
                 pattern += b'(' + match_group + b'(?<!'
-                pattern += b'|'.join( ['(?P=p{})'.format( match_map[c] ).encode( 'utf8' ) for c in match_map if c != char] )
+                pattern += b'|'.join( [f'(?P=p{match_map[c]})'.encode( 'utf8' ) for c in match_map if c != char] )
                 pattern += b'))'
             match_map[char] = match_id
         else:
-            pattern += '(?P=p{})'.format( match_map[char] ).encode( 'utf8' )
+            pattern += f'(?P=p{match_map[char]})'.encode( 'utf8' )
     if len( string ) == len( match_map ):
         logger.warning( 'Input has no repeated characters! This can make an enormous number of false matches, and is likely not what you want' )
     return match_map, bytes( pattern )
@@ -247,11 +247,9 @@ TO_RAW_TYPE_ARRAY = {}
 
 
 def get_raw_type_struct( format_type, field_size, signedness, endian, count=None ):
-    return '{}{}{}'.format(
-        '>' if endian == 'big' else '<',
-        count if count is not None else '',
-        RAW_TYPE_STRUCT[(format_type, field_size, signedness)]
-    )
+    endian = '>' if endian == 'big' else '<'
+    count = count if count is not None else ''
+    return f'{endian}{count}{RAW_TYPE_STRUCT[(format_type, field_size, signedness)]}'
 
 
 def get_raw_type_description( format_type, field_size, signedness, endian ):
@@ -260,12 +258,9 @@ def get_raw_type_description( format_type, field_size, signedness, endian ):
         float: 'floating-point number',
     }
     type_name = TYPE_NAMES[format_type]
-    return ('{}{}-bit {}{}'.format(
-        ('signed ' if signedness == 'signed'  else 'unsigned ') if format_type == int else '',
-        field_size*8,
-        type_name,
-        ' ({}-endian)'.format(endian) if field_size>1 else ''
-    ), type_name)
+    prefix = ('signed ' if signedness == 'signed'  else 'unsigned ') if format_type == int else ''
+    suffix = f' ({endian}-endian)' if field_size > 1 else ''
+    return f'{prefix}{field_size * 8}-bit {type_name}{suffix}', type_name
 
 
 def _from_raw_type( type_id ):
@@ -383,13 +378,13 @@ for code in RAW_24:
 def _load_raw_types():
     result = {}
     for type_id, from_func in FROM_RAW_TYPE.items():
-        result['from_{}'.format( RAW_TYPE_NAME[type_id] )] = from_func
+        result[f'from_{RAW_TYPE_NAME[type_id]}'] = from_func
     for type_id, to_func in TO_RAW_TYPE.items():
-        result['to_{}'.format( RAW_TYPE_NAME[type_id] )] = to_func
+        result[f'to_{RAW_TYPE_NAME[type_id]}'] = to_func
     for type_id, from_func in FROM_RAW_TYPE_ARRAY.items():
-        result['from_{}_array'.format( RAW_TYPE_NAME[type_id] )] = from_func
+        result[f'from_{RAW_TYPE_NAME[type_id]}_array'] = from_func
     for type_id, to_func in TO_RAW_TYPE_ARRAY.items():
-        result['to_{}_array'.format( RAW_TYPE_NAME[type_id] )] = to_func
+        result[f'to_{RAW_TYPE_NAME[type_id]}_array'] = to_func
 
     return result
 

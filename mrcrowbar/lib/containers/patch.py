@@ -30,7 +30,7 @@ class IPSRecord( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'offset: 0x{:06x}, size: 0x{:04x}'.format( self.offset, self.size )
+        return f'offset: 0x{self.offset:06x}, size: 0x{self.size:04x}'
 
 
 class IPS( mrc.Block ):
@@ -39,7 +39,7 @@ class IPS( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'records: {}'.format( len( self.records ) )
+        return f'records: {len( self.records )}'
 
     def create( self, source, target ):
         pass
@@ -105,7 +105,7 @@ class UIntVLV( mrc.Field ):
 
     def validate( self, value, parent=None ):
         if (type( value ) != int):
-            raise mrc.FieldValidationError( 'Expecting type {}, not {}'.format( self.format_type, type( value[i] ) ) )
+            raise mrc.FieldValidationError( f'Expecting type {self.format_type}, not {type( value[i] )}' )
         if value < 0:
             raise mrc.FieldValidationError( 'Value must be unsigned' )
         return
@@ -128,7 +128,8 @@ class UPSBlock( mrc.Block ):
 
     @property
     def repr( self ):
-        return 'rel_offset: 0x{:x}, size: {}'.format( self.rel_offset, len( self.xor_data ) )
+        return f'rel_offset: 0x{self.rel_offset:x}, size: {len( self.xor_data )}'
+
 
 class UPS( mrc.Block ):
     STOP_CHECK =    lambda buffer, pointer: pointer >= len( buffer )-12

@@ -7,6 +7,7 @@ Unreleased
 - lib.hardware.tispeech: Add TMS0280 constants
 - lib.hardware.tispeech: Add SpeakAndSpellROM
 - sound: Replace pyaudio with miniaudio
+- lib.hardware.tispeech: Avoid using all 0s and 1s for nearest energy lookups
 
 0.9.0 - 2021-01-14
 ==================

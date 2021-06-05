@@ -156,11 +156,11 @@ class TMSBase( object ):
             elif isinstance( frame, StopFrame ):
                 writer.write( 0b1111, cls.ENERGY_BITS )
             elif isinstance( frame, RepeatedFrame ):
-                writer.write( find_closest_index( cls.ENERGY_LUT[1:-1], frame.energy ) + 1, cls.ENERGY_BITS )
+                writer.write( find_closest_index( cls.ENERGY_LUT[cls.ENERGY_LUT_FLOOR:-1], frame.energy ) + cls.ENERGY_LUT_FLOOR, cls.ENERGY_BITS )
                 writer.write( 1, cls.REPEAT_BITS )
                 writer.write( find_closest_index( cls.PITCH_LUT, frame.pitch ), cls.PITCH_BITS )
             elif isinstance( frame, UnvoicedFrame ):
-                writer.write( find_closest_index( cls.ENERGY_LUT[1:-1], frame.energy ) + 1, cls.ENERGY_BITS )
+                writer.write( find_closest_index( cls.ENERGY_LUT[cls.ENERGY_LUT_FLOOR:-1], frame.energy ) + cls.ENERGY_LUT_FLOOR, cls.ENERGY_BITS )
                 writer.write( 0, cls.REPEAT_BITS )
                 writer.write( 0, cls.PITCH_BITS )
                 writer.write( find_closest_index( cls.K_LUT[0], frame.k1 ), cls.K_BITS[0] )
@@ -168,7 +168,7 @@ class TMSBase( object ):
                 writer.write( find_closest_index( cls.K_LUT[2], frame.k3 ), cls.K_BITS[2] )
                 writer.write( find_closest_index( cls.K_LUT[3], frame.k4 ), cls.K_BITS[3] )
             elif isinstance( frame, VoicedFrame ):
-                writer.write( find_closest_index( cls.ENERGY_LUT[1:-1], frame.energy ) + 1, cls.ENERGY_BITS )
+                writer.write( find_closest_index( cls.ENERGY_LUT[cls.ENERGY_LUT_FLOOR:-1], frame.energy ) + cls.ENERGY_LUT_FLOOR, cls.ENERGY_BITS )
                 writer.write( 0, cls.REPEAT_BITS )
                 writer.write( find_closest_index( cls.PITCH_LUT[1:], frame.pitch ) + 1, cls.PITCH_BITS )
                 writer.write( find_closest_index( cls.K_LUT[0], frame.k1 ), cls.K_BITS[0] )
@@ -252,6 +252,7 @@ class TMS0280Stream( TMSBase ):
     PITCH_BITS = 5
     K_BITS = [5, 5, 4, 4, 4, 4, 4, 3, 3, 3]
     ENERGY_LUT = TI_0280_PATENT_ENERGY
+    ENERGY_LUT_FLOOR = 3
     PITCH_LUT = TI_0280_2801_PATENT_PITCH
     K_LUT = TI_0280_PATENT_LPC
 
@@ -262,6 +263,7 @@ class TMS5110Stream( TMSBase ):
     PITCH_BITS = 5
     K_BITS = [5, 5, 4, 4, 4, 4, 4, 3, 3, 3]
     ENERGY_LUT = TI_028X_LATER_ENERGY
+    ENERGY_LUT_FLOOR = 1
     PITCH_LUT = TI_5110_PITCH
     K_LUT = TI_5110_5220_LPC
 
@@ -272,6 +274,7 @@ class TMS5220Stream( TMSBase ):
     PITCH_BITS = 6
     K_BITS = [5, 5, 4, 4, 4, 4, 4, 3, 3, 3]
     ENERGY_LUT = TI_028X_LATER_ENERGY
+    ENERGY_LUT_FLOOR = 1
     PITCH_LUT = TI_5220_PITCH
     K_LUT = TI_5110_5220_LPC
 

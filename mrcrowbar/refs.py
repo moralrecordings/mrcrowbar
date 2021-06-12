@@ -2,11 +2,14 @@
 
 from mrcrowbar import common
 
+from mrcrowbar.blocks import Block
+
+from typing import Any
 
 class Ref( object ):
     """Base class for defining cross-references."""
 
-    def __init__( self, path, allow_write=True ):
+    def __init__( self, path: str, allow_write: bool=True ):
         """Create a new Ref instance.
 
         path
@@ -25,13 +28,13 @@ class Ref( object ):
         self._path = tuple( path.split( '.' ) )
         self._allow_write = allow_write
 
-    def cache( self, instance, name ):
+    def cache( self, instance: Block, name: str ) -> None:
         """Signal to the source to pre-load information.
 
         Called by the parent Block constructor."""
         pass
 
-    def get( self, instance, **kwargs ):
+    def get( self, instance: Block, **kwargs ) -> Any:
         """Return an attribute from an object using the Ref path.
 
         instance
@@ -42,7 +45,7 @@ class Ref( object ):
             target = getattr( target, attr )
         return target
 
-    def set( self, instance, value, **kwargs ):
+    def set( self, instance: Block, value: Any, **kwargs: Any ) -> None:
         """Set an attribute on an object using the Ref path.
 
         instance
@@ -59,16 +62,15 @@ class Ref( object ):
         for attr in self._path[:-1]:
             target = getattr( target, attr )
         setattr( target, self._path[-1], value )
-        return
 
-    def __repr__( self ):
+    def __repr__( self ) -> str:
         desc = f'0x{id( self ):016x}'
         if hasattr( self, 'repr' ) and isinstance( self.repr, str ):
             desc = self.repr
         return f'<{self.__class__.__name__}: {desc}>'
 
     @property
-    def repr( self ):
+    def repr( self ) -> str:
         """Plaintext summary of the object."""
         perms = "rw" if self._allow_write else "r"
         return f'{".".join( self._path )} ({perms})'
@@ -78,10 +80,10 @@ class Ref( object ):
         """Tuple containing the contents of the object."""
         return common.serialise( self, ('_path', '_allow_write') )
 
-    def __hash__( self ):
+    def __hash__( self ) -> int:
         return hash( self.serialised )
 
-    def __eq__( self, other ):
+    def __eq__( self, other: Any ) -> bool:
         return self.serialised == other.serialised
 
 
@@ -100,7 +102,7 @@ class ConstRef( Ref ):
         super().__init__( path, allow_write=False )
 
 
-def property_get( prop, instance, **kwargs ):
+def property_get( prop: Any, instance: Block, **kwargs: Any ) -> Any:
     """Wrapper for property reads which auto-dereferences Refs if required.
 
     prop
@@ -114,7 +116,7 @@ def property_get( prop, instance, **kwargs ):
     return prop
 
 
-def property_set( prop, instance, value, **kwargs ):
+def property_set( prop: Any, instance: Block, value: Any, **kwargs: Any ) -> None:
     """Wrapper for property writes which auto-deferences Refs.
 
     prop
@@ -130,11 +132,12 @@ def property_set( prop, instance, value, **kwargs ):
     """
 
     if isinstance( prop, Ref ):
-        return prop.set( instance, value, **kwargs )
+        prop.set( instance, value, **kwargs )
+        return
     raise AttributeError( f"can't change value of constant {prop} (context: {instance})" )
 
 
-def view_property( prop ):
+def view_property( prop: str ) -> property:
     """Wrapper for attributes of a View class which auto-dereferences Refs.
     
     Equivalent to setting a property on the class with the getter wrapped
@@ -143,10 +146,10 @@ def view_property( prop ):
     prop
         A string containing the name of the class attribute to wrap.
     """
-    def getter( self ):
+    def getter( self: Any ) -> Any:
         return property_get( getattr( self, prop ), self.parent )
 
-    def setter( self, value ):
+    def setter( self: Any, value: Any ) -> None:
         return property_set( getattr( self, prop ), self.parent, value )
 
     return property( getter, setter )
@@ -154,7 +157,7 @@ def view_property( prop ):
 
 class EndOffset( Ref ):
     """Cross-reference for getting the offset of the end of a Field. Used for chaining variable length Fields."""
-    def __init__( self, path, neg=False, align=1 ):
+    def __init__( self, path: str, neg: bool=False, align: int=1 ):
         """Create a new EndOffset instance.
 
         path
@@ -175,7 +178,7 @@ class EndOffset( Ref ):
         self._neg = neg
         self._align = align
 
-    def get( self, instance, **kwargs ):
+    def get( self, instance: Block, **kwargs: Any ) -> Any:
         target = instance
         align = property_get( self._align, instance )
         for attr in self._path[:-1]:
@@ -186,7 +189,7 @@ class EndOffset( Ref ):
             target *= -1
         return target
 
-    def set( self, instance, value, **kwargs ):
+    def set( self, instance: Block, value: Any, **kwargs: Any ) -> None:
         raise AttributeError( "can't change the end offset of another field" )
 
     @property
@@ -195,10 +198,10 @@ class EndOffset( Ref ):
 
 
 class Chain( Ref ):
-    def __init__( self ):
+    def __init__( self ) -> None:
         super().__init__( '_previous_attr' )
 
-    def get( self, instance, caller=None, **kwargs ):
+    def get( self, instance: Block, caller: Block=None, **kwargs: Any ) -> int:
         if caller is None:
             return 0
         field_name = getattr( caller, self._path[0] )
@@ -206,8 +209,8 @@ class Chain( Ref ):
             return 0
         return instance.get_field_end_offset( field_name )
 
-    def set( self, instance, value, **kwargs ):
+    def set( self, instance: Block, value: Any, **kwargs: Any ) -> None:
         raise AttributeError( "can't change the end offset of another field" )
 
-    def __repr__( self ):
+    def __repr__( self ) -> str:
         return '<Chain>'

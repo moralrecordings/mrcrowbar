@@ -32,7 +32,7 @@ class Sound( mrc.Block ):
     def __init__( self, *args, **kwargs ):
         super().__init__( *args, **kwargs )
         self.wave = aud.Wave( self, mrc.Ref( 'raw_data' ), channels=1,
-                              sample_rate=SAMPLE_RATE, format_type=int,
+                              sample_rate=self.SAMPLE_RATE, format_type=int,
                               field_size=1, signedness='unsigned', endian=None )
 
 class Text( mrc.Block ):

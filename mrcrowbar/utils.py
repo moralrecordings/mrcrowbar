@@ -7,14 +7,15 @@ import math
 import mmap
 import re
 import time
+from typing import Union, Iterator, Match, List
 logger = logging.getLogger( __name__ )
 
 from mrcrowbar import ansi, colour, encoding as enco, statistics
-from mrcrowbar.common import is_bytes, read, bounds
+from mrcrowbar.common import Bytes, is_bytes, read, bounds
 
 globals().update( enco._load_raw_types() )
 
-def enable_logging( level='WARNING' ):
+def enable_logging( level: str = 'WARNING' ) -> None:
     """Enable sending logs to stderr. Useful for shell sessions.
 
     level
@@ -33,7 +34,7 @@ def enable_logging( level='WARNING' ):
 DIFF_COLOUR_MAP = (9, 10)
 
 
-def grep_iter( pattern, source, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
+def grep_iter( pattern: str, source: Bytes, encoding: str='utf8', fixed_string: bool=False, hex_format: bool=False, ignore_case: bool=False ) -> Iterator[Match]:
     """Return an iterator that finds the contents of a byte string that matches a regular expression pattern.
 
     pattern
@@ -64,7 +65,7 @@ def grep_iter( pattern, source, encoding='utf8', fixed_string=False, hex_format=
     return regex.finditer( source )
 
 
-def grep( pattern, source, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
+def grep( pattern: str, source: Bytes, encoding: str='utf8', fixed_string: bool=False, hex_format: bool=False, ignore_case: bool=False ) -> List[Match]:
     """Find the contents of a byte string that matches a regular expression pattern.
 
     pattern

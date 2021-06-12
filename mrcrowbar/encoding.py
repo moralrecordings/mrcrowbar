@@ -1,6 +1,7 @@
 import codecs
 import re
 import struct
+from typing import Dict, List, Callable, Tuple, Type, Union, Optional
 import logging
 logger = logging.getLogger( __name__ )
 
@@ -107,9 +108,9 @@ CODECS = [
 ]
 
 REGEX_CHARS = """()[]{}?*+-|^$\\.&~#="""
-byte_escape = lambda char: f'\\x{char:02x}'.encode( 'utf8' )
+byte_escape: Callable[[int], bytes] = lambda char: f'\\x{char:02x}'.encode( 'utf8' )
 
-def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_string=False, hex_format=False ):
+def regex_pattern_to_bytes( pattern: str, encoding: str='utf8', fixed_string: bool=False, hex_format: bool=False ) -> bytes:
     result = bytearray()
 
     # for hex format mode, strip out all whitespace characters first
@@ -172,8 +173,8 @@ def regex_pattern_to_bytes( pattern, encoding='utf8', fixed_string=False, hex_fo
     return bytes( result )
 
 
-def regex_unknown_encoding_match( string, char_size=1 ):
-    match_map = {}
+def regex_unknown_encoding_match( string: str, char_size: int=1 ) -> Tuple[Dict[str, int], bytes]:
+    match_map: Dict[str, int] = {}
     pattern = bytearray()
     for i, char in enumerate( string ):
         if char not in match_map:
@@ -195,7 +196,7 @@ def regex_unknown_encoding_match( string, char_size=1 ):
     return match_map, bytes( pattern )
 
 
-RAW_TYPE_NAME = {
+RAW_TYPE_NAME: Dict[Tuple[Union[Type[int], Type[float]], int, str, Optional[str]], str] = {
     (int, 1, 'signed', 'little'):   'int8',
     (int, 1, 'unsigned', 'little'): 'uint8',
     (int, 1, 'signed', 'big'):      'int8',
@@ -225,7 +226,7 @@ RAW_TYPE_NAME = {
 }
 RAW_TYPE_NAME_REVERSE = {v: k for k, v in RAW_TYPE_NAME.items()}
 
-RAW_TYPE_STRUCT = {
+RAW_TYPE_STRUCT: Dict[Tuple[Union[Type[int], Type[float]], int, str], str] = {
     (int, 1, 'unsigned'):   'B',
     (int, 1, 'signed'):     'b',
     (int, 2, 'unsigned'):   'H',
@@ -240,19 +241,19 @@ RAW_TYPE_STRUCT = {
 
 
 
-FROM_RAW_TYPE = {}
-TO_RAW_TYPE = {}
+FROM_RAW_TYPE: Dict[Tuple[Union[Type[int], Type[float]], int, str, Optional[str]], Callable[[bytes], Union[int, float]]] = {}
+TO_RAW_TYPE: Dict[Tuple[Union[Type[int], Type[float]], int, str, Optional[str]], Callable[[Union[int, float]], bytes]]  = {}
 FROM_RAW_TYPE_ARRAY = {}
 TO_RAW_TYPE_ARRAY = {}
 
 
-def get_raw_type_struct( format_type, field_size, signedness, endian, count=None ):
+def get_raw_type_struct( format_type: type, field_size: int, signedness: str, endian: Optional[str], count: Optional[int]=None ) -> str:
     endian = '>' if endian == 'big' else '<'
     count = count if count is not None else ''
     return f'{endian}{count}{RAW_TYPE_STRUCT[(format_type, field_size, signedness)]}'
 
 
-def get_raw_type_description( format_type, field_size, signedness, endian ):
+def get_raw_type_description( format_type: type, field_size: int, signedness: str, endian: Optional[str] ) -> Tuple[str, str]:
     TYPE_NAMES = {
         int: 'integer',
         float: 'floating-point number',
@@ -263,34 +264,34 @@ def get_raw_type_description( format_type, field_size, signedness, endian ):
     return f'{prefix}{field_size * 8}-bit {type_name}{suffix}', type_name
 
 
-def _from_raw_type( type_id ):
-    result = lambda buffer: struct.unpack( get_raw_type_struct( *type_id ), buffer )[0]
+def _from_raw_type( format_type: type, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[bytes], Union[int, float]]:
+    result = lambda buffer: struct.unpack( get_raw_type_struct( format_type, field_size, signedness, endian ), buffer )[0]
     result.__doc__ = 'Convert a {0} byte string to a Python {1}.'.format(
-        *get_raw_type_description( *type_id )
+        *get_raw_type_description( format_type, field_size, signedness, endian )
     )
     return result
 
 
-def _to_raw_type( type_id ):
-    result = lambda value: struct.pack( get_raw_type_struct( *type_id ), value )
+def _to_raw_type( format_type: type, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[Union[int, float]], bytes]:
+    result = lambda value: struct.pack( get_raw_type_struct( format_type, field_size, signedness, endian ), value )
     result.__doc__ = 'Convert a Python {1} to a {0} byte string.'.format(
-        *get_raw_type_description( *type_id )
+        *get_raw_type_description( format_type, field_size, signedness, endian )
     )
     return result
 
 
-def _from_raw_type_array( type_id ):
-    result = lambda buffer: list( struct.unpack( get_raw_type_struct( *type_id, count=len( buffer )//type_id[1] ), buffer ) )
+def _from_raw_type_array( format_type: type, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[bytes], List[Union[int, float]]]:
+    result = lambda buffer: list( struct.unpack( get_raw_type_struct( format_type, field_size, signedness, endian, count=len( buffer )//type_id[1] ), buffer ) )
     result.__doc__ = 'Convert a {0} byte string to a Python list of {1}s.'.format(
-        *get_raw_type_description( *type_id )
+        *get_raw_type_description( format_type, field_size, signedness, endian )
     )
     return result
 
 
-def _to_raw_type_array( type_id ):
-    result = lambda value_list: struct.pack( get_raw_type_struct( *type_id, count=len( value_list ) ), *value_list )
+def _to_raw_type_array( format_type: type, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[List[Union[int, float]]], bytes]:
+    result = lambda value_list: struct.pack( get_raw_type_struct( format_type, field_size, signedness, endian, count=len( value_list ) ), *value_list )
     result.__doc__ = 'Convert a Python list of {1}s to a {0} byte string.'.format(
-        *get_raw_type_description( *type_id )
+        *get_raw_type_description( format_type, field_size, signedness, endian )
     )
     return result
 
@@ -317,10 +318,10 @@ for format_type, field_size, signedness in RAW_TYPE_STRUCT:
     endian_choices = [None, 'little', 'big'] if field_size == 1 else ['little', 'big']
     for endian in endian_choices:
         type_id = (format_type, field_size, signedness, endian)
-        FROM_RAW_TYPE[type_id] = _from_raw_type( type_id )
-        TO_RAW_TYPE[type_id] = _to_raw_type( type_id )
-        FROM_RAW_TYPE_ARRAY[type_id] = _from_raw_type_array( type_id )
-        TO_RAW_TYPE_ARRAY[type_id] = _to_raw_type_array( type_id )
+        FROM_RAW_TYPE[type_id] = _from_raw_type( *type_id )
+        TO_RAW_TYPE[type_id] = _to_raw_type( *type_id )
+        FROM_RAW_TYPE_ARRAY[type_id] = _from_raw_type_array( *type_id )
+        TO_RAW_TYPE_ARRAY[type_id] = _to_raw_type_array( *type_id )
 
 # 24-bit types
 

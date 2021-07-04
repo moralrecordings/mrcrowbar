@@ -8,6 +8,7 @@ Unreleased
 - lib.hardware.tispeech: Add SpeakAndSpellROM
 - sound: Replace pyaudio with miniaudio
 - lib.hardware.tispeech: Avoid using all 0s and 1s for nearest energy lookups
+- utils.find_iter: Fix binary searching
 
 0.9.0 - 2021-01-14
 ==================

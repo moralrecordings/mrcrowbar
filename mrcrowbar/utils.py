@@ -123,7 +123,8 @@ def find_iter( substring, source, start=None, end=None, length=None, overlap=Fal
     """
     start, end = bounds( start, end, length, len( source ) )
 
-    substrings = substring if isinstance( substring, list ) else []
+    substrings = substring if isinstance( substring, list ) else [substring]
+    substrings = [bytes(x) if is_bytes(x) else x for x in substrings]
 
     if ignore_case:
         source = source.lower()
@@ -134,7 +135,7 @@ def find_iter( substring, source, start=None, end=None, length=None, overlap=Fal
             subs = {}
             if isinstance( source, str ) and isinstance( substring, str ):
                 subs[substring] = 'str'
-            elif isinstance( source, bytes ) and isinstance( substring, bytes ):
+            elif is_bytes( source ) and is_bytes( substring ):
                 subs[substring] = 'bytes'
             elif not is_bytes( source ):
                 raise TypeError( 'Source should be of type bytes, or both source and substring should be of type str!' )

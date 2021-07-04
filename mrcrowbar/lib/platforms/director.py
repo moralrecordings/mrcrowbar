@@ -909,163 +909,7 @@ class ConfigV4( mrc.Block ):
 
     @property
     def checksum_v4( self ):
-        mult = lambda a, b: (a * b) & 0xffffffff
-
-        stack = []
-        ax = self.movie_rect.right
-        ax += 6
-        stack.append( ax )
-        ax = self.movie_rect.bottom
-        ax += 5
-        stack.append( ax )
-        ax = self.movie_rect.left
-        ax += 4
-        stack.append( ax )
-        ax = self.movie_rect.top
-        ax += 3
-        stack.append( ax )
-        ax = self.ver1
-        ax += 2
-        cx = self.length
-        cx += 1
-        ax *= cx
-        stack.append( ax )
-        ax = stack.pop() // stack.pop()
-        stack.append( ax )
-        ax = mult( stack.pop(), stack.pop() )
-        stack.append( ax )
-        ax = stack.pop() // stack.pop()
-        stack.append( ax )
-        ax = mult( stack.pop(), stack.pop() )
-
-        bx = ax
-        ax = self.cast_array_start
-        ax += 7
-        bx -= ax
-        stack.append( bx )
-
-        ax = self.cast_array_end
-        ax += 8
-        stack.append( ax )
-        ax = mult( stack.pop(), stack.pop() )
-
-        temp_sum = ax
-
-        ax = self.frame_rate
-        ax += 9
-        temp_sum -= ax
-
-        ax = self.light_switch
-        ax += 10
-        temp_sum -= ax
-
-        ax = self.unk1
-        ax += 11
-        temp_sum += ax
-
-        stack.append( temp_sum )
-
-        ax = self.comment_font
-        ax += 12
-
-        stack.append( ax )
-
-        temp_sum = mult( stack.pop(), stack.pop() )
-
-        ax = self.comment_size
-        ax += 13
-        temp_sum += ax
-
-        stack.append( temp_sum )
-
-        ax = self.comment_style
-        ax += 14
-        stack.append( ax )
-
-        temp_sum = mult( stack.pop(), stack.pop() )
-
-        ax = self.stage_colour
-        ax += 15
-
-        temp_sum += ax 
-
-        ax = self.bit_depth
-        ax += 16
-        temp_sum += ax
-
-        ax = self.colour_flag
-        ax += 17
-        temp_sum += ax
-
-        stack.append( temp_sum )
-
-        ax = self.unk5
-        ax += 18
-        stack.append( ax )
-
-        temp_sum = mult( stack.pop(), stack.pop() )
-
-        eax = self.unk6
-        eax += 19
-        temp_sum += eax
-        stack.append( temp_sum )
-
-        ax = self.unk7
-        ax += 20
-        stack.append( ax )
-
-        temp_sum = mult( stack.pop(), stack.pop() )
-
-        ax = self.unk8
-        ax += 21
-        temp_sum += ax
-
-        ax = self.unk9
-        ax += 22
-        temp_sum += ax
-
-        ax = self.unk10
-        ax += 23
-        temp_sum += ax
-
-        ax = self.unk11
-        ax += 24
-        temp_sum += ax
-
-        stack.append( temp_sum )
-
-        ax = self.unk12
-        ax += 25
-        stack.append( ax )
-
-        temp_sum = mult( stack.pop(), stack.pop() )
-
-        ax = self.unk13
-        ax += 26
-
-        temp_sum += ax
-        stack.append( temp_sum )
-
-        ax = self.unk14
-        ax += 27
-        stack.append( ax )
-
-        ax = mult( stack.pop(), stack.pop() )
-
-        stack.append( ax )
-
-        ax = 0xe06
-        ax = self.protection_bits * ax
-        ax -= 0x00bb0000
-        stack.append( ax )
-
-        ax = mult( stack.pop(), stack.pop() )
-
-        ax ^= 0x72616c66  # 'ralf'
-
-        return ax
-
-        
+        return checksum_v4( self.export_data() )
 
 
 class DirectorV4Map( riff.RIFXMap ):
@@ -1283,23 +1127,77 @@ class DirectorV4Parser( object ):
             print()
 
 
-def unlock_dir_file( filename, klass=DirectorV4 ):
+
+def checksum_v4( data ):
+    mul = lambda a, b: (a * b) & 0xffffffff
+    div = lambda a, b: (a // b) & 0xffffffff
+    add = lambda a, b: (a + b) & 0xffffffff
+    sub = lambda a, b: (a - b) & 0xffffffff
+
+    checksum =      (utils.from_uint16_be( data[0x00:0x02] ) + 1)
+    checksum =      mul( checksum, (utils.from_uint16_be( data[0x02:0x04] ) + 2) )
+    checksum =      div( checksum, (utils.from_int16_be( data[0x04:0x06] ) + 3) )
+    checksum =      mul( checksum, (utils.from_int16_be( data[0x06:0x08] ) + 4) )
+    checksum =      div( checksum, (utils.from_int16_be( data[0x08:0x0a] ) + 5) )
+    checksum =      mul( checksum, (utils.from_int16_be( data[0x0a:0x0c] ) + 6) )
+    checksum =      sub( checksum, (utils.from_uint16_be( data[0x0c:0x0e] ) + 7) )
+    checksum =      mul( checksum, (utils.from_uint16_be( data[0x0e:0x10] ) + 8) )
+    checksum =      sub( checksum, (utils.from_uint8( data[0x10:0x11] ) + 9) )
+    checksum =      sub( checksum, (utils.from_uint8( data[0x11:0x12] ) + 10) )
+    checksum =      add( checksum, (utils.from_int16_be( data[0x12:0x14] ) + 11) )
+    checksum =      mul( checksum, (utils.from_int16_be( data[0x14:0x16] ) + 12) )
+    checksum =      add( checksum, (utils.from_int16_be( data[0x16:0x18] ) + 13) )
+    checksum =      mul( checksum, (utils.from_uint8( data[0x18:0x19] ) + 14) )
+    checksum =      add( checksum, (utils.from_int16_be( data[0x1a:0x1c] ) + 15) )
+    checksum =      add( checksum, (utils.from_int16_be( data[0x1c:0x1e] ) + 16) )
+    checksum =      add( checksum, (utils.from_uint8( data[0x1e:0x1f] ) + 17) )
+    checksum =      mul( checksum, (utils.from_uint8( data[0x1f:0x20] ) + 18) )
+    checksum =      add( checksum, (utils.from_int32_be( data[0x20:0x24] ) + 19) )
+    checksum =      mul( checksum, (utils.from_int16_be( data[0x24:0x26] ) + 20) )
+    checksum =      add( checksum, (utils.from_int16_be( data[0x26:0x28] ) + 21) )
+    checksum =      add( checksum, (utils.from_int32_be( data[0x28:0x2c] ) + 22) )
+    checksum =      add( checksum, (utils.from_int32_be( data[0x2c:0x30] ) + 23) )
+    checksum =      add( checksum, (utils.from_int32_be( data[0x30:0x34] ) + 24) )
+    checksum =      mul( checksum, (utils.from_uint8( data[0x34:0x35] ) + 25) )
+    checksum =      add( checksum, (utils.from_int16_be( data[0x36:0x38] ) + 26) )
+    checksum =      mul( checksum, (utils.from_int16_be( data[0x38:0x3a] ) + 27) )
+    protection_bits = utils.from_int16_be( data[0x3a:0x3c] )
+    checksum =      mul( checksum, add( (protection_bits * 0xe06), 0xff450000 ) )
+    checksum ^=     0x72616c66  # 'ralf'
+    return checksum
+
+
+def unlock_dir_file( filename, klass=DirectorV4, dry_run=False ):
     f = open( filename, 'r+b' )
 
     data = f.read()
+    d = klass( data )
     f.seek( 0 )
-    parser = DirectorV4Parser( klass( data ) )
-    index, chunk = parser.get_all_from_mmap( b'VWCF' )[0]
-    if chunk.obj.protection_bits % 23:
+    configs = [x for x in d.map.stream if x.id == riff.Tag( b'VWCF' )]
+    if not configs:
+        print('Could not find a VWCF block! Aborting...')
+        return
+    chunk = configs[0].obj
+    print( f'Orig chunk:        {chunk.export_data().hex()}' )
+    print( f'Orig checksum:     {chunk.checksum:08x}' )
+    print( f'Calc checksum:     {chunk.checksum_v4:08x}' )
+    if chunk.checksum != chunk.checksum_v4:
+        print('Checksums don\'t match! Algorithm must be busted, aborting')
+        return
+    if chunk.protection_bits % 23:
         print('File is unprotected!')
     else:
-        print('File is protected, fixing!')
-        old_data = chunk.obj.export_data()
-        chunk.obj.ver1 = 0x045D
-        chunk.obj.protection_bits += 1
-        chunk.obj.checksum = chunk.obj.checksum_v4
-        new_data = chunk.obj.export_data()
-        for location in utils.find_all( data, old_data ):
-            f.seek( location )
+        print('File is protected!')
+        old_data = chunk.export_data()
+        chunk.ver1 = 0x045D
+        chunk.protection_bits += 1
+        chunk.checksum = chunk.checksum_v4
+        print( f'Fixed chunk:       {chunk.export_data().hex()}' )
+        print( f'Fixed checksum:    {chunk.checksum_v4:08x}' )
+        new_data = chunk.export_data()
+        if dry_run:
+            return
+        for location in utils.find( old_data, data ):
+            f.seek( location[0] )
             f.write( new_data )
     f.close()

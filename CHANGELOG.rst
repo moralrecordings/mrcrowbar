@@ -11,6 +11,7 @@ Unreleased
 - blocks.Block: Add option to delay caching refs
 - utils.find_iter: Fix binary searching
 - lib.platforms.director.unlock_dir_file: Improve robustness, remove dependency on parser
+- lib.games.sierra: Init
 
 0.9.0 - 2021-01-14
 ==================

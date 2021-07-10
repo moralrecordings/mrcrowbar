@@ -212,6 +212,16 @@ class Field( object ):
             return False
         return parent._strict
 
+    def get_cache_refs( self, parent=None ):
+        """Return whether the parent Block is pre-caching all the Refs.
+
+        parent
+            Parent block object where this Field is defined.
+        """
+        if not parent:
+            return False
+        return parent._cache_refs
+
 
 class StreamField( Field ):
     def __init__( self, offset=Chain(), *, default=None, count=None, length=None, stream=False,
@@ -560,7 +570,7 @@ class ChunkField( StreamField ):
 
         def constructor( source_data ):
             try:
-                block = chunk_klass( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ) )
+                block = chunk_klass( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), strict=self.get_strict( parent ), cache_refs=self.get_cache_refs( parent ), )
             except Exception as e:
                 if self.get_strict( parent ):
                     raise e
@@ -568,7 +578,7 @@ class ChunkField( StreamField ):
                     logger.warning( f'{self.get_path( parent, index )}: failed to create Block ({chunk_klass}) for Chunk {chunk_id}, falling back to Unknown' )
                     logger.warning( f'{self.get_path( parent, index )}: "{str( e )}"' )
                     from mrcrowbar.blocks import Unknown
-                    block = Unknown( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ) )
+                    block = Unknown( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), strict=self.get_strict( parent ), cache_refs=self.get_cache_refs( parent ), )
             return block
 
         if self.length_field:
@@ -733,7 +743,7 @@ class BlockField( StreamField ):
 
         def constructor( source_data ):
             try:
-                block = klass( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), **self.block_kwargs )
+                block = klass( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), strict=self.get_strict( parent ), cache_refs=self.get_cache_refs( parent ), **self.block_kwargs )
             except Exception as e:
                 if self.get_strict( parent ):
                     raise e
@@ -741,7 +751,7 @@ class BlockField( StreamField ):
                     logger.warning( f'{self.get_path( parent, index )}: failed to create Block ({klass}), falling back to Unknown' )
                     logger.warning( f'{self.get_path( parent, index )}: "{str( e )}"' )
                     from mrcrowbar.blocks import Unknown
-                    block = Unknown( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), **self.block_kwargs )
+                    block = Unknown( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), strict=self.get_strict( parent ), cache_refs=self.get_cache_refs( parent ), **self.block_kwargs )
             return block
 
         # add an empty list entry if we find the fill pattern

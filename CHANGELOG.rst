@@ -8,6 +8,7 @@ Unreleased
 - lib.hardware.tispeech: Add SpeakAndSpellROM
 - sound: Replace pyaudio with miniaudio
 - lib.hardware.tispeech: Avoid using all 0s and 1s for nearest energy lookups
+- blocks.Block: Add option to delay caching refs
 - utils.find_iter: Fix binary searching
 - lib.platforms.director.unlock_dir_file: Improve robustness, remove dependency on parser
 

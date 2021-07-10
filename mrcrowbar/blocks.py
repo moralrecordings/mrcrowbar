@@ -150,7 +150,7 @@ class Block( object, metaclass=BlockMeta ):
     _cache_bytes = False
     _bytes = None
 
-    def __init__( self, source_data=None, *, parent=None, preload_attrs=None, endian=None, cache_bytes=False, path_hint=None, strict=False ):
+    def __init__( self, source_data=None, *, parent=None, preload_attrs=None, endian=None, cache_bytes=False, path_hint=None, strict=False, cache_refs=True ):
         """Base class for Blocks.
 
         source_data
@@ -182,6 +182,9 @@ class Block( object, metaclass=BlockMeta ):
         strict
             Throw an exception if parsing a BlockField fails, instead of
             logging a warning and returning an Unknown. Defaults to False.
+
+        cache_refs
+            Pre-cache all the Refs. Defaults to True.
         """
         self._field_data = {}
         self._ref_cache = {}
@@ -193,6 +196,7 @@ class Block( object, metaclass=BlockMeta ):
         if self._path_hint is None:
             self._path_hint = f'<{self.__class__.__name__}>'
         self._strict = strict
+        self._cache_refs = cache_refs
 
         if cache_bytes:
             self._cache_bytes = True
@@ -214,8 +218,9 @@ class Block( object, metaclass=BlockMeta ):
             self.import_data( source_data )
         
         # cache all refs
-        for key, ref in self._refs.items():
-            ref.cache( self )
+        if self._cache_refs:
+            for key, ref in self._refs.items():
+                ref.cache( self )
 
     def __repr__( self ):
         desc = f'0x{id( self ):016x}'

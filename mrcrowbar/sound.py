@@ -58,7 +58,7 @@ def normalise_audio_iter( source, format_type, field_size, signedness, endian, s
     assert is_bytes( source )
     start, end = bounds( start, end, length, len( source ) )
 
-    increment = (chunk_size+overlap*field_size)
+    increment = (chunk_size + overlap * field_size)
 
     for i in range( start, end, chunk_size ):
         yield normalise_audio( source, format_type, field_size, signedness, endian, start=i, end=None, length=increment )
@@ -75,31 +75,33 @@ def resample_audio_iter( source, format_type, field_size, signedness, endian, ch
     if interpolation == AudioInterpolation.STEP:
         mixer = mix_step
 
-    new_len = (end-start)*output_rate//sample_rate
+    old_len = (end - start) // (channels * field_size)  # length in n-channel samples
+    new_len = old_len * output_rate // sample_rate
 
-    src_inc = NORMALIZE_BUFFER
-    chunk_size=src_inc*channels
-    src_iter = normalise_audio_iter( source, format_type, field_size, signedness, endian, start, end, overlap=0, chunk_size=chunk_size )
+    bytes_to_norm = field_size * channels
+
+    src_inc = NORMALIZE_BUFFER                  # increment in n-channel samples
+    src_iter = normalise_audio_iter( source, format_type, field_size, signedness, endian, start, end, overlap=channels, chunk_size=src_inc * bytes_to_norm )
     src = next( src_iter, None )
-    src_bound = src_inc
+    src_bound = src_inc                         # upper bound in n-channel samples
 
     for index_base in range( 0, new_len ):
-        tgt_pos = index_base
-        src_pos = sample_rate*tgt_pos/output_rate
-        samp_index = math.floor( src_pos ) % src_inc
+        tgt_pos = index_base                            # position in n-channel samples
+        src_pos = tgt_pos * sample_rate / output_rate   # position in n-channel samples
+        samp_index = math.floor( src_pos ) % src_inc    # position in normalised array index
         alpha = math.fmod( src_pos, 1.0 )
 
-        if src_pos > src_bound:
+        while src_bound < src_pos:
             src = next( src_iter, None )
             src_bound += src_inc
 
         if src is None:
             break
 
-        a = 0.0 if samp_index >= len( src ) else src[samp_index]
-        b = 0.0 if samp_index+channels >= len( src ) else src[samp_index+channels]
-
-        yield mixer( a, b, alpha )
+        for c in range( channels ):
+            a = 0.0 if samp_index * channels + c >= len( src ) else src[samp_index * channels + c]
+            b = 0.0 if samp_index * channels + c + channels >= len( src ) else src[samp_index * channels + c + channels]
+            yield mixer( a, b, alpha )
 
 
 def play_pcm( source, channels, sample_rate, format_type, field_size, signedness, endian, start=None, end=None, length=None, interpolation=AudioInterpolation.LINEAR ):

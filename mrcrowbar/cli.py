@@ -3,11 +3,11 @@ from mrcrowbar.version import __version__
 
 import argparse
 import os
-import sys
+from typing import Callable, List, Tuple
 import logging
 logger = logging.getLogger( __name__ )
 
-auto_int = lambda s: int( s, base=0 )
+auto_int: Callable[[str], int] = lambda s: int( s, base=0 )
 
 ARGS_RANGE = {
     ('--start', '-C'): dict(
@@ -82,9 +82,9 @@ ARGS_DUMP = {
         action='store_false',
         help='Don\'t render the glyph map'
     ),
+    **ARGS_RANGE,
+    **ARGS_COMMON,
 }
-ARGS_DUMP.update( ARGS_RANGE )
-ARGS_DUMP.update( ARGS_COMMON )
 
 ARGS_DIFF = {
     'source1': dict(
@@ -114,9 +114,9 @@ ARGS_DIFF = {
         action='store_true',
         help='Show all lines'
     ),
+    **ARGS_RANGE,
+    **ARGS_COMMON,
 }
-ARGS_DIFF.update( ARGS_RANGE )
-ARGS_DIFF.update( ARGS_COMMON )
 
 ARGS_HIST = {
    'source': dict(
@@ -158,8 +158,8 @@ ARGS_HIST = {
         action='version',
         version=f'%(prog)s {__version__}'
     ),
+    **ARGS_RANGE,
 }
-ARGS_HIST.update( ARGS_RANGE )
 
 ARGS_PIX = {
    'source': dict(
@@ -183,8 +183,8 @@ ARGS_PIX = {
         action='version',
         version=f'%(prog)s {__version__}'
     ),
+    **ARGS_RANGE,
 }
-ARGS_PIX.update( ARGS_RANGE )
 
 ARGS_GREP = {
     'pattern': dict(
@@ -242,9 +242,9 @@ ARGS_GREP = {
         choices=('hex', 'text', 'json'),
         help='Output format (default: hex)'
     ),
+    **ARGS_RANGE,
+    **ARGS_COMMON,
 }
-ARGS_GREP.update( ARGS_RANGE )
-ARGS_GREP.update( ARGS_COMMON )
 
 ARGS_FIND = {
     'string': dict(
@@ -312,9 +312,9 @@ ARGS_FIND = {
         choices=('hex', 'text', 'json'),
         help='Output format (default: hex)'
     ),
+    **ARGS_RANGE,
+    **ARGS_COMMON,
 }
-ARGS_FIND.update( ARGS_RANGE )
-ARGS_FIND.update( ARGS_COMMON )
 
 def get_parser( args, **kwargs ):
     parser = argparse.ArgumentParser( **kwargs )
@@ -352,18 +352,18 @@ def mrcdump():
     if raw_args.recursive:
         source_paths = common.file_path_recurse( *source_paths )
 
-    for i, path in enumerate( source_paths ):
+    for path in source_paths:
         try:
             with open( path, 'rb' ) as src:
                 if multi:
                     print( src.name )
-                with common.read( src ) as source:
-                    utils.hexdump(
-                        source, start=raw_args.start, end=raw_args.end, length=raw_args.length,
-                        major_len=raw_args.major_len, minor_len=raw_args.minor_len,
-                        colour=raw_args.colour, address_base=raw_args.address_base,
-                        show_offsets=raw_args.show_offsets, show_glyphs=raw_args.show_glyphs,
-                    )
+                source = common.read( src )
+                utils.hexdump(
+                    source, start=raw_args.start, end=raw_args.end, length=raw_args.length,
+                    major_len=raw_args.major_len, minor_len=raw_args.minor_len,
+                    colour=raw_args.colour, address_base=raw_args.address_base,
+                    show_offsets=raw_args.show_offsets, show_glyphs=raw_args.show_glyphs,
+                )
                 print()
         except OSError as e:
             logger.warning( f'{e}' )
@@ -375,7 +375,7 @@ def mrcdiff():
 
     before = raw_args.before if not raw_args.show_all else None
     after = raw_args.after if not raw_args.show_all else None
-    sources = []
+    sources: List[Tuple[str, str]] = []
     if os.path.isdir( raw_args.source1 ) and os.path.isdir( raw_args.source2 ):
         for f in os.listdir( raw_args.source1 ):
             fx = os.path.join( raw_args.source1, f )
@@ -387,9 +387,11 @@ def mrcdiff():
     multi = len( sources ) != 1
 
     for source1_fn, source2_fn in sources:
-        with common.read( open( source1_fn, 'rb' ) ) as source1, common.read( open( source2_fn, 'rb' ) ) as source2:
+        with open( source1_fn, 'rb' ) as source1_f, open( source2_fn, 'rb' ) as source2_f:
             if multi:
                 print( f'{source1_fn} => {source2_fn}' )
+            source1 = common.read( source1_f )
+            source2 = common.read( source2_f )
             utils.diffdump(
                 source1, source2, start=raw_args.start, end=raw_args.end,
                 length=raw_args.length, major_len=raw_args.major_len,
@@ -411,14 +413,14 @@ def mrchist():
             with open( path, 'rb' ) as src:
                 if multi:
                     print( src.name )
-                with common.read( src ) as source:
-                    if raw_args.summary:
-                        utils.stats( source, start=raw_args.start, end=raw_args.end, length=raw_args.length, width=raw_args.width, height=raw_args.height )
-                    else:
-                        utils.histdump( source, start=raw_args.start, end=raw_args.end,
-                            length=raw_args.length, samples=raw_args.samples, width=raw_args.width,
-                            address_base=raw_args.address_base,
-                        )
+                source = common.read( src )
+                if raw_args.summary:
+                    utils.stats( source, start=raw_args.start, end=raw_args.end, length=raw_args.length, width=raw_args.width, height=raw_args.height )
+                else:
+                    utils.histdump( source, start=raw_args.start, end=raw_args.end,
+                        length=raw_args.length, samples=raw_args.samples, width=raw_args.width,
+                        address_base=raw_args.address_base,
+                    )
                 print()
         except OSError as e:
             logger.warning( f'{e}' )
@@ -433,15 +435,15 @@ def mrcpix():
     if raw_args.recursive:
         source_paths = common.file_path_recurse( *source_paths )
 
-    for i, path in enumerate( source_paths ):
+    for path in source_paths:
         try:
             with open( path, 'rb' ) as src:
                 if multi:
                     print( src.name )
-                with common.read( src ) as source:
-                    utils.pixdump( source, start=raw_args.start, end=raw_args.end,
-                        length=raw_args.length, width=raw_args.width,
-                    )
+                source = common.read( src )
+                utils.pixdump( source, start=raw_args.start, end=raw_args.end,
+                    length=raw_args.length, width=raw_args.width,
+                )
                 print()
         except OSError as e:
             logger.warning( f'{e}' )
@@ -456,26 +458,26 @@ def mrcgrep():
     if raw_args.recursive:
         source_paths = common.file_path_recurse( *source_paths )
 
-    for i, path in enumerate( source_paths ):
+    for path in source_paths:
         try:
             with open( path, 'rb' ) as src:
                 title = None
                 if multi:
                     title = src.name
-                with common.read( src ) as source:
-                     utils.grepdump( raw_args.pattern, source,
-                           encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
-                           hex_format=raw_args.hex_format,
-                           start=raw_args.start, end=raw_args.end,
-                           length=raw_args.length,
-                           major_len=raw_args.major_len,
-                           minor_len=raw_args.minor_len,
-                           colour=raw_args.colour,
-                           before=raw_args.before, after=raw_args.after,
-                           title=title,
-                           ignore_case=raw_args.ignore_case,
-                           format=raw_args.format
-                     )
+                source = common.read( src )
+                utils.grepdump( raw_args.pattern, source,
+                    encoding=raw_args.encoding, fixed_string=raw_args.fixed_string,
+                    hex_format=raw_args.hex_format,
+                    start=raw_args.start, end=raw_args.end,
+                    length=raw_args.length,
+                    major_len=raw_args.major_len,
+                    minor_len=raw_args.minor_len,
+                    colour=raw_args.colour,
+                    before=raw_args.before, after=raw_args.after,
+                    title=title,
+                    ignore_case=raw_args.ignore_case,
+                    format=raw_args.format
+                )
         except OSError as e:
             logger.warning( f'{e}' )
 
@@ -489,31 +491,31 @@ def mrcfind():
     if raw_args.recursive:
         source_paths = common.file_path_recurse( *source_paths )
 
-    for i, path in enumerate( source_paths ):
+    for path in source_paths:
         try:
             with open( path, 'rb' ) as src:
                 title = None
                 if multi:
                     title = src.name
-                with common.read( src ) as source:
-                    utils.finddump(
-                        raw_args.string.split(raw_args.delimiter), source,
-                        start=raw_args.start,
-                        end=raw_args.end,
-                        length=raw_args.length,
-                        overlap=raw_args.overlap,
-                        ignore_case=raw_args.ignore_case,
-                        encodings=raw_args.encoding.split(','),
-                        brute=raw_args.brute,
-                        char_size=raw_args.char_size,
-                        major_len=raw_args.major_len,
-                        minor_len=raw_args.minor_len,
-                        colour=raw_args.colour,
-                        before=raw_args.before,
-                        after=raw_args.after,
-                        title=title,
-                        format=raw_args.format,
-                    )
+                source = common.read( src )
+                utils.finddump(
+                    raw_args.string.split(raw_args.delimiter), source,
+                    start=raw_args.start,
+                    end=raw_args.end,
+                    length=raw_args.length,
+                    overlap=raw_args.overlap,
+                    ignore_case=raw_args.ignore_case,
+                    encodings=raw_args.encoding.split(','),
+                    brute=raw_args.brute,
+                    char_size=raw_args.char_size,
+                    major_len=raw_args.major_len,
+                    minor_len=raw_args.minor_len,
+                    colour=raw_args.colour,
+                    before=raw_args.before,
+                    after=raw_args.after,
+                    title=title,
+                    format=raw_args.format,
+                )
         except OSError as e:
             logger.warning( f'{e}' )
 

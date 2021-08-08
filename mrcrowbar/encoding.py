@@ -1,9 +1,13 @@
-import codecs
 import re
 import struct
-from typing import Dict, List, Callable, Tuple, Type, Union, Optional
+from typing import Dict, List, Callable, Tuple, Type, Union, Optional, Any
 import logging
 logger = logging.getLogger( __name__ )
+
+NumberType = Union[Type[int], Type[float]]
+Number = Union[int, float]
+
+NumberEncoding = Tuple[NumberType, int, str, Optional[str]]
 
 # Python doesn't provide a programmatic way of fetching the supported codec list.
 # The below list is taken from the 3.7 manual.
@@ -173,10 +177,10 @@ def regex_pattern_to_bytes( pattern: str, encoding: str='utf8', fixed_string: bo
     return bytes( result )
 
 
-def regex_unknown_encoding_match( string: str, char_size: int=1 ) -> Tuple[Dict[str, int], bytes]:
+def regex_unknown_encoding_match( source: str, char_size: int=1 ) -> Tuple[Dict[str, int], bytes]:
     match_map: Dict[str, int] = {}
     pattern = bytearray()
-    for i, char in enumerate( string ):
+    for char in source:
         if char not in match_map:
             match_id = len( match_map )
             match_group = f'?P<p{match_id}>.'.encode( 'utf8' )
@@ -191,12 +195,12 @@ def regex_unknown_encoding_match( string: str, char_size: int=1 ) -> Tuple[Dict[
             match_map[char] = match_id
         else:
             pattern += f'(?P=p{match_map[char]})'.encode( 'utf8' )
-    if len( string ) == len( match_map ):
+    if len( source ) == len( match_map ):
         logger.warning( 'Input has no repeated characters! This can make an enormous number of false matches, and is likely not what you want' )
     return match_map, bytes( pattern )
 
 
-RAW_TYPE_NAME: Dict[Tuple[Union[Type[int], Type[float]], int, str, Optional[str]], str] = {
+RAW_TYPE_NAME: Dict[NumberEncoding, str] = {
     (int, 1, 'signed', 'little'):   'int8',
     (int, 1, 'unsigned', 'little'): 'uint8',
     (int, 1, 'signed', 'big'):      'int8',
@@ -226,7 +230,7 @@ RAW_TYPE_NAME: Dict[Tuple[Union[Type[int], Type[float]], int, str, Optional[str]
 }
 RAW_TYPE_NAME_REVERSE = {v: k for k, v in RAW_TYPE_NAME.items()}
 
-RAW_TYPE_STRUCT: Dict[Tuple[Union[Type[int], Type[float]], int, str], str] = {
+RAW_TYPE_STRUCT: Dict[Tuple[NumberType, int, str], str] = {
     (int, 1, 'unsigned'):   'B',
     (int, 1, 'signed'):     'b',
     (int, 2, 'unsigned'):   'H',
@@ -241,20 +245,20 @@ RAW_TYPE_STRUCT: Dict[Tuple[Union[Type[int], Type[float]], int, str], str] = {
 
 
 
-FROM_RAW_TYPE: Dict[Tuple[Union[Type[int], Type[float]], int, str, Optional[str]], Callable[[bytes], Union[int, float]]] = {}
-TO_RAW_TYPE: Dict[Tuple[Union[Type[int], Type[float]], int, str, Optional[str]], Callable[[Union[int, float]], bytes]]  = {}
-FROM_RAW_TYPE_ARRAY = {}
-TO_RAW_TYPE_ARRAY = {}
+FROM_RAW_TYPE: Dict[NumberEncoding, Callable[[bytes], Number]] = {}
+TO_RAW_TYPE: Dict[NumberEncoding, Callable[[Number], bytes]]  = {}
+FROM_RAW_TYPE_ARRAY: Dict[NumberEncoding, Callable[[bytes], List[Number]]] = {}
+TO_RAW_TYPE_ARRAY: Dict[NumberEncoding, Callable[[List[Number]], bytes]] = {}
 
 
-def get_raw_type_struct( format_type: type, field_size: int, signedness: str, endian: Optional[str], count: Optional[int]=None ) -> str:
+def get_raw_type_struct( format_type: NumberType, field_size: int, signedness: str, endian: Optional[str], count: Optional[int]=None ) -> str:
     endian = '>' if endian == 'big' else '<'
-    count = count if count is not None else ''
-    return f'{endian}{count}{RAW_TYPE_STRUCT[(format_type, field_size, signedness)]}'
+    count_str = count if count is not None else ''
+    return f'{endian}{count_str}{RAW_TYPE_STRUCT[(format_type, field_size, signedness)]}'
 
 
-def get_raw_type_description( format_type: type, field_size: int, signedness: str, endian: Optional[str] ) -> Tuple[str, str]:
-    TYPE_NAMES = {
+def get_raw_type_description( format_type: NumberType, field_size: int, signedness: str, endian: Optional[str] ) -> Tuple[str, str]:
+    TYPE_NAMES: Dict[NumberType, str] = {
         int: 'integer',
         float: 'floating-point number',
     }
@@ -264,48 +268,48 @@ def get_raw_type_description( format_type: type, field_size: int, signedness: st
     return f'{prefix}{field_size * 8}-bit {type_name}{suffix}', type_name
 
 
-def _from_raw_type( format_type: type, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[bytes], Union[int, float]]:
-    result = lambda buffer: struct.unpack( get_raw_type_struct( format_type, field_size, signedness, endian ), buffer )[0]
+def _from_raw_type( format_type: NumberType, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[bytes], Number]:
+    result: Callable[[bytes], Number] = lambda buffer: struct.unpack( get_raw_type_struct( format_type, field_size, signedness, endian ), buffer )[0]
     result.__doc__ = 'Convert a {0} byte string to a Python {1}.'.format(
         *get_raw_type_description( format_type, field_size, signedness, endian )
     )
     return result
 
 
-def _to_raw_type( format_type: type, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[Union[int, float]], bytes]:
-    result = lambda value: struct.pack( get_raw_type_struct( format_type, field_size, signedness, endian ), value )
+def _to_raw_type( format_type: NumberType, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[Number], bytes]:
+    result: Callable[[Number], bytes] = lambda value: struct.pack( get_raw_type_struct( format_type, field_size, signedness, endian ), value )
     result.__doc__ = 'Convert a Python {1} to a {0} byte string.'.format(
         *get_raw_type_description( format_type, field_size, signedness, endian )
     )
     return result
 
 
-def _from_raw_type_array( format_type: type, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[bytes], List[Union[int, float]]]:
-    result = lambda buffer: list( struct.unpack( get_raw_type_struct( format_type, field_size, signedness, endian, count=len( buffer )//type_id[1] ), buffer ) )
+def _from_raw_type_array( format_type: NumberType, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[bytes], List[Number]]:
+    result: Callable[[bytes], List[Number]] = lambda buffer: list( struct.unpack( get_raw_type_struct( format_type, field_size, signedness, endian, count=len( buffer )//type_id[1] ), buffer ) )
     result.__doc__ = 'Convert a {0} byte string to a Python list of {1}s.'.format(
         *get_raw_type_description( format_type, field_size, signedness, endian )
     )
     return result
 
 
-def _to_raw_type_array( format_type: type, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[List[Union[int, float]]], bytes]:
-    result = lambda value_list: struct.pack( get_raw_type_struct( format_type, field_size, signedness, endian, count=len( value_list ) ), *value_list )
+def _to_raw_type_array( format_type: NumberType, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[List[Number]], bytes]:
+    result: Callable[[List[Number]], bytes] = lambda value_list: struct.pack( get_raw_type_struct( format_type, field_size, signedness, endian, count=len( value_list ) ), *value_list )
     result.__doc__ = 'Convert a Python list of {1}s to a {0} byte string.'.format(
         *get_raw_type_description( format_type, field_size, signedness, endian )
     )
     return result
 
 
-def _from_generic_array( type_id, from_raw ):
-    result = lambda buffer: [from_raw( buffer[i:i+type_id[1]] ) for i in range( 0, len( buffer ), type_id[1] )]
+def _from_generic_array( type_id: NumberEncoding, from_raw: Callable[[bytes], Number] ):
+    result: Callable[[bytes], List[Number]] = lambda buffer: [from_raw( buffer[i:i+type_id[1]] ) for i in range( 0, len( buffer ), type_id[1] )]
     result.__doc__ = 'Convert a {0} byte string to a Python list of {1}s.'.format(
         *get_raw_type_description( *type_id )
     )
     return result
 
 
-def _to_generic_array( type_id, to_raw ):
-    result = lambda value_list: b''.join( [to_raw( value ) for value in value_list] ) 
+def _to_generic_array( type_id: NumberEncoding, to_raw: Callable[[Number], bytes] ):
+    result: Callable[[List[Number]], bytes] = lambda value_list: b''.join( [to_raw( value ) for value in value_list] ) 
     result.__doc__ = 'Convert a Python list of {1}s to a {0} byte string.'.format(
         *get_raw_type_description( *type_id )
     )
@@ -316,6 +320,7 @@ def _to_generic_array( type_id, to_raw ):
 # autogenerate conversion methods based on struct
 for format_type, field_size, signedness in RAW_TYPE_STRUCT:
     endian_choices = [None, 'little', 'big'] if field_size == 1 else ['little', 'big']
+    endian: Optional[str]
     for endian in endian_choices:
         type_id = (format_type, field_size, signedness, endian)
         FROM_RAW_TYPE[type_id] = _from_raw_type( *type_id )
@@ -327,13 +332,13 @@ for format_type, field_size, signedness in RAW_TYPE_STRUCT:
 
 RAW_24 = ['int24_le', 'uint24_le', 'int24_be', 'uint24_be']
 
-def _from_raw_24( type_id ):
+def _from_raw_24( type_id: NumberEncoding ):
     format_type, field_size, signedness, endian = type_id
     assert format_type == int
     assert field_size == 3
     assert endian in ('little', 'big')
     assert signedness in ('signed', 'unsigned')
-    def result( buffer ):
+    def result( buffer: bytes ):
         if endian == 'little':
             buffer = buffer + (b'\xff' if (signedness == 'signed' and buffer[2] >= 0x80) else b'\x00')
         elif endian == 'big':
@@ -345,13 +350,13 @@ def _from_raw_24( type_id ):
     return result
 
 
-def _to_raw_24( type_id ):
+def _to_raw_24( type_id: NumberEncoding ):
     format_type, field_size, signedness, endian = type_id
     assert format_type == int
     assert field_size == 3
     assert endian in ('little', 'big')
     assert signedness in ('signed', 'unsigned')
-    def result( value ):
+    def result( value: Number ):
         if signedness == 'signed':
             assert value in range( -1<<23, 1<<23 )
         else:
@@ -376,39 +381,25 @@ for code in RAW_24:
     TO_RAW_TYPE_ARRAY[type_id] = _to_generic_array( type_id, TO_RAW_TYPE[type_id] )
 
 
-def _load_raw_types():
-    result = {}
-    for type_id, from_func in FROM_RAW_TYPE.items():
-        result[f'from_{RAW_TYPE_NAME[type_id]}'] = from_func
-    for type_id, to_func in TO_RAW_TYPE.items():
-        result[f'to_{RAW_TYPE_NAME[type_id]}'] = to_func
-    for type_id, from_func in FROM_RAW_TYPE_ARRAY.items():
-        result[f'from_{RAW_TYPE_NAME[type_id]}_array'] = from_func
-    for type_id, to_func in TO_RAW_TYPE_ARRAY.items():
-        result[f'to_{RAW_TYPE_NAME[type_id]}_array'] = to_func
-
-    return result
-
-
-def unpack( type_id, value ):
+def unpack( type_id: NumberEncoding, value: bytes ):
     if isinstance( type_id, str ):
         type_id = RAW_TYPE_NAME_REVERSE[type_id]
     return FROM_RAW_TYPE[type_id]( value )
 
 
-def pack( type_id, value ):
+def pack( type_id: NumberEncoding, value: Number ):
     if isinstance( type_id, str ):
         type_id = RAW_TYPE_NAME_REVERSE[type_id]
     return TO_RAW_TYPE[type_id]( value )
 
 
-def unpack_array( type_id, values ):
+def unpack_array( type_id: NumberEncoding, values: bytes ):
     if isinstance( type_id, str ):
         type_id = RAW_TYPE_NAME_REVERSE[type_id]
     return FROM_RAW_TYPE_ARRAY[type_id]( values )
 
 
-def pack_array( type_id, values ):
+def pack_array( type_id: NumberEncoding, values: List[Number] ):
     if isinstance( type_id, str ):
         type_id = RAW_TYPE_NAME_REVERSE[type_id]
     return TO_RAW_TYPE_ARRAY[type_id]( values )

@@ -2,7 +2,7 @@ import itertools
 import contextlib
 import mmap
 import os
-from typing import Tuple, Union, List, Any, Iterator, BinaryIO
+from typing import Optional, Tuple, Union, List, Any, Iterator, BinaryIO
 
 next_position_hint = itertools.count()
 
@@ -18,19 +18,12 @@ def read( fp: BinaryIO ) -> Bytes:
     try:
         region = mmap.mmap( fp.fileno(), 0, access=mmap.ACCESS_READ )
     except:
-        data = fp.read()
-
-        # add a fake context manager so "with" statements still work
-        @contextlib.contextmanager
-        def ctx() -> Iterator[bytes]:
-            yield data
-
-        region = ctx()
+        region = fp.read()
 
     return region
 
 
-def bounds( start: Union[int, None], end: Union[int, None], length: Union[int, None], src_size: int ) -> Tuple[int, int]:
+def bounds( start: Optional[int], end: Optional[int], length: Optional[int], src_size: int ) -> Tuple[int, int]:
     if length is not None and length < 0:
         raise ValueError( 'Length can\'t be a negative number!' )
     start = 0 if (start is None) else start
@@ -63,7 +56,7 @@ def file_path_recurse( *root_list: str ) -> Iterator[str]:
         if os.path.isfile( root ):
             yield root
             continue
-        for path, dirs, files in os.walk( root ):
+        for path, _, files in os.walk( root ):
             for item in files:
                 file_path = os.path.join( path, item )
                 if not os.path.isfile( file_path ):

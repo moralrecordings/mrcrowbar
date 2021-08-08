@@ -9,7 +9,7 @@ import re
 import time
 logger = logging.getLogger( __name__ )
 
-from mrcrowbar import ansi, colour, encoding as enco, statistics, sound
+from mrcrowbar import ansi, colour, encoding as enco, statistics
 from mrcrowbar.common import is_bytes, read, bounds
 
 globals().update( enco._load_raw_types() )
@@ -683,9 +683,9 @@ def finddump( substring, source, start=None, end=None, length=None, overlap=Fals
         print( x )
 
 
-def diff( source1, source2, start=None, end=None ):
+def diff_iter( source1, source2, start=None, end=None ):
     """Perform a diff between two equal-sized binary strings and
-    return a list of (offset, size) tuples denoting the differences.
+    return an iterator of (offset, size) tuples denoting the differences.
 
     source1
         The first byte string source.
@@ -705,21 +705,37 @@ def diff( source1, source2, start=None, end=None ):
 
     pointer = start
     diff_start = None
-    results = []
     while pointer < end_point:
         if source1[pointer] != source2[pointer]:
             if diff_start is None:
                 diff_start = pointer
         else:
             if diff_start is not None:
-                results.append( (diff_start, pointer-diff_start) )
+                yield (diff_start, pointer-diff_start)
                 diff_start = None
         pointer += 1
     if diff_start is not None:
-        results.append( (diff_start, pointer-diff_start) )
+        yield (diff_start, pointer-diff_start)
         diff_start = None
 
-    return results
+
+def diff( source1, source2, start=None, end=None ):
+    """Perform a diff between two equal-sized binary strings and
+    return a list of (offset, size) tuples denoting the differences.
+
+    source1
+        The first byte string source.
+
+    source2
+        The second byte string source.
+
+    start
+        Start offset to read from (default: start)
+
+    end
+        End offset to stop reading at (default: end)
+    """
+    return [x for x in diff_iter( source1, source2, start, end )]
 
 
 def objdiff_iter( source1, source2, prefix='source', depth=None ):
@@ -1064,9 +1080,8 @@ def diffdump_iter( source1, source2, start=None, end=None, length=None, major_le
             yield '...'
             skip = False
         if show_lines[offset] == 2:
-            check = diff( source1, source2, start=offset, end=offset+stride )
             highlights = {}
-            for (o, l) in check:
+            for (o, l) in diff_iter( source1, source2, start=offset, end=offset+stride ):
                 for i in range( o, o+l ):
                     highlights[i] = DIFF_COLOUR_MAP[0]
             if offset < len( source1 ):

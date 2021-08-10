@@ -1,17 +1,18 @@
 """Definition classes for data blocks."""
+from __future__ import annotations
 
 from collections import OrderedDict
 import logging
+from typing import Any, List, Optional, TYPE_CHECKING
+
 logger = logging.getLogger( __name__ )
 
-from mrcrowbar.fields import Field, Bytes
-from mrcrowbar.refs import Ref
-from mrcrowbar.checks import Check
 
 from mrcrowbar import common, utils
 
+
 class FieldDescriptor( object ):
-    def __init__( self, name ):
+    def __init__( self, name: str ):
         """Attribute wrapper class for Fields.
 
         name
@@ -19,7 +20,7 @@ class FieldDescriptor( object ):
         """
         self.name = name
 
-    def __get__( self, instance, cls ):
+    def __get__( self, instance: 'Block', cls ) -> Any:
         try:
             if instance is None:
                 return cls._fields[self.name]
@@ -27,7 +28,7 @@ class FieldDescriptor( object ):
         except KeyError:
             raise AttributeError( self.name )
 
-    def __set__( self, instance, value ):
+    def __set__( self, instance: 'Block', value: Any ):
         if instance is None:
             return
         instance._field_data[self.name] = value
@@ -40,7 +41,7 @@ class FieldDescriptor( object ):
 
 
 class RefDescriptor( object ):
-    def __init__( self, name ):
+    def __init__( self, name: str ):
         """Attribute wrapper class for Refs.
 
         name
@@ -48,7 +49,7 @@ class RefDescriptor( object ):
         """
         self.name = name
 
-    def __get__( self, instance, cls ):
+    def __get__( self, instance: 'Block', cls ):
         try:
             if instance is None:
                 return cls._refs[self.name]
@@ -72,6 +73,9 @@ class RefDescriptor( object ):
 class BlockMeta( type ):
     def __new__( mcs, name, bases, attrs ):
         """Metaclass for Block which detects and wraps attributes from the class definition."""
+        from mrcrowbar.refs import Ref
+        from mrcrowbar.checks import Check
+        from mrcrowbar.fields import Field
 
         # Structures used to accumulate meta info
         fields = OrderedDict()
@@ -220,7 +224,7 @@ class Block( object, metaclass=BlockMeta ):
         # cache all refs
         if self._cache_refs:
             for key, ref in self._refs.items():
-                ref.cache( self )
+                ref.cache( self, key )
 
     def __repr__( self ):
         desc = f'0x{id( self ):016x}'
@@ -390,10 +394,10 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
         return next(name for name, value in klass._fields.items() if value == field)
 
-    def get_field_names( self ):
+    def get_field_names( self ) -> List[str]:
         """Get the list of Fields associated with this Block class."""
         klass = self.__class__
-        return klass._fields.keys()
+        return list(klass._fields.keys())
 
     def get_field_path( self, field ):
         """Return the path of this Block and a child Field in the current object tree.
@@ -430,7 +434,7 @@ class Block( object, metaclass=BlockMeta ):
                                 self._path_hint = f'{self._parent.get_path()}.{field_name}[{i}].obj'
         return self._path_hint
 
-    def get_field_start_offset( self, field_name, index=None ):
+    def get_field_start_offset( self, field_name: str, index: Optional[int]=None ) -> int:
         """Return the start offset of where a Field's data is to be stored in the Block.
 
         field_name
@@ -443,7 +447,7 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
         return klass._fields[field_name].get_start_offset( self._field_data[field_name], parent=self, index=index )
 
-    def get_field_size( self, field_name, index=None ):
+    def get_field_size( self, field_name: str, index: Optional[int]=None ) -> int:
         """Return the size of a Field's data (in bytes).
 
         field_name
@@ -616,9 +620,3 @@ class Block( object, metaclass=BlockMeta ):
         """
         return utils.objdiffdump( self, target, prefix, depth )
 
-
-class Unknown( Block ):
-    """Placeholder block for data of an unknown format."""
-
-    #: Raw data.
-    data =  Bytes( 0x0000 )

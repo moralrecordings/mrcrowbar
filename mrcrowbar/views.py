@@ -1,11 +1,18 @@
+from __future__ import annotations
+
 from collections import OrderedDict
 import logging
+from mrcrowbar.transforms import Transform
 logger = logging.getLogger( __name__ )
+
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, Type
+if TYPE_CHECKING:
+    from mrcrowbar.blocks import Block
 
 from mrcrowbar.refs import Ref, property_get, property_set, view_property
 
 class View( object ):
-    def __init__( self, parent, *args, **kwargs ):
+    def __init__( self, parent: Block ):
         self._parent = parent
 
     @property
@@ -14,8 +21,8 @@ class View( object ):
 
 
 class Store( View ):
-    def __init__( self, parent, source, fill=b'\x00', base_offset=0, align=1, **kwargs ):
-        super().__init__( parent, **kwargs )
+    def __init__( self, parent: 'Block', source: Any, fill: bytes=b'\x00', base_offset: int=0, align: int=1 ):
+        super().__init__( parent )
         self._source = source
         self._base_offset = base_offset
         self._align = align
@@ -95,8 +102,8 @@ class Store( View ):
 
 
 class LinearStore( View ):
-    def __init__( self, parent, source, block_klass, offsets=None, sizes=None, base_offset=0, fill=b'\x00', block_kwargs=None, transform=None, **kwargs ):
-        super().__init__( parent, **kwargs )
+    def __init__( self, parent: 'Block', source: Any, block_klass: Type['Block'], offsets: Any=None, sizes: Any=None, base_offset: int=0, fill: bytes=b'\x00', block_kwargs: Optional[Dict[str, Any]]=None, transform: Optional[Transform]=None ):
+        super().__init__( parent )
         self._source = source
         self._offsets = offsets
         self._sizes = sizes
@@ -104,7 +111,7 @@ class LinearStore( View ):
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
         self.transform = transform
-        self._items = None
+        self._items: Optional[List['Block']] = None
 
     source = view_property( '_source' )
     offsets = view_property( '_offsets' )
@@ -216,7 +223,7 @@ class LinearStore( View ):
 
 
 class StoreRef( Ref ):
-    def __init__( self, block_klass, store, offset, size=None, count=None, block_kwargs=None, transform=None ):
+    def __init__( self, block_klass: Type['Block'], store: Store, offset: int, size: Optional[int]=None, count: Optional[int]=None, block_kwargs: Optional[Dict[str, Any]]=None, transform: Optional[Transform]=None ):
         self.block_klass = block_klass
         self.store = store
         self.offset = offset
@@ -225,19 +232,19 @@ class StoreRef( Ref ):
         self.block_kwargs = block_kwargs
         self.transform = transform
 
-    def cache( self, instance ):
+    def cache( self, instance: Any, name: str ):
         store = property_get( self.store, instance )
         store.cache_object( instance, self.offset, self.size, self.block_klass, self.block_kwargs, self.transform )
 
-    def get( self, instance ):
+    def get( self, instance: Any ):
         store = property_get( self.store, instance )
         return store.get_object( instance, self.offset, self.size )
 
-    def set( self, instance, value ):
+    def set( self, instance: Any, value: 'Block' ):
         store = property_get( self.store, instance )
         assert isinstance( value, self.block_klass )
         return store.set_object( instance, self.offset, self.size, value )
 
-    def remove( self, instance ):
+    def remove( self, instance: Any ):
         store = property_get( self.store, instance )
         return store.remove_object( instance, self.offset, self.size )

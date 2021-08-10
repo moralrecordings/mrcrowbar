@@ -1,5 +1,5 @@
-from mrcrowbar.common import is_bytes
-
+from typing import Callable, Optional, Tuple, Union
+from mrcrowbar.common import BytesReadType, BytesWriteType
 
 BYTE_REVERSE = bytes.fromhex( '008040c020a060e0109050d030b070f0'\
                               '088848c828a868e8189858d838b878f8'\
@@ -20,9 +20,9 @@ BYTE_REVERSE = bytes.fromhex( '008040c020a060e0109050d030b070f0'\
 
 BIT_MASK = [(1 << size) - 1 for size in range( 0, 65 )]
 
-mask = lambda size: BIT_MASK[size] if size in range( 0, 65 ) else (1 << size) - 1
+mask: Callable[[int], int] = lambda size: BIT_MASK[size] if size in range( 0, 65 ) else (1 << size) - 1
 
-def reverse_bits( number, size=8 ):
+def reverse_bits( number: int, size: int=8 ) -> int:
     number &= mask( size )
     if size == 8:
         return BYTE_REVERSE[number]
@@ -36,7 +36,7 @@ def reverse_bits( number, size=8 ):
     return result
 
 
-def read_bits( buffer, byte_offset, bit_offset, size, bytes_reverse=False, bit_endian='big', io_endian='big' ):
+def read_bits( buffer: BytesReadType, byte_offset: int, bit_offset: int, size: int, bytes_reverse: bool=False, bit_endian: str='big', io_endian: str='big' ):
     byte_start = byte_offset
     bit_start = bit_offset
 
@@ -95,7 +95,7 @@ def read_bits( buffer, byte_offset, bit_offset, size, bytes_reverse=False, bit_e
     return result
 
 
-def write_bits( value, buffer, byte_offset, bit_offset, size, bytes_reverse=False, bit_endian='big', io_endian='big' ):
+def write_bits( value: int, buffer: BytesWriteType, byte_offset: int, bit_offset: int, size: int, bytes_reverse: bool=False, bit_endian: str='big', io_endian: str='big' ):
     if value not in range( 1 << size ):
         raise ValueError( f'Value {value} does not fit into {size} bits' )
 
@@ -159,11 +159,13 @@ def write_bits( value, buffer, byte_offset, bit_offset, size, bytes_reverse=Fals
     return
 
 
-def reverse_bytes( buffer ):
-    return bytes( reversed( map( buffer, reverse_bits ) ) )
+def reverse_bytes( buffer: BytesReadType ) -> bytes:
+    output = [reverse_bits(x) for x in buffer]
+    output.reverse()
+    return bytes( output )
 
 
-def unpack_bits( byte ):
+def unpack_bits( byte: int ) -> int:
     """Expand a bitfield into a 64-bit int (8 bool bytes)."""
     longbits = byte & (0x00000000000000ff)
     longbits = (longbits | (longbits<<28)) & (0x0000000f0000000f)
@@ -172,7 +174,7 @@ def unpack_bits( byte ):
     return longbits
 
 
-def pack_bits( longbits ):
+def pack_bits( longbits: int ) -> int:
     """Crunch a 64-bit int (8 bool bytes) into a bitfield."""
     byte = longbits & (0x0101010101010101)
     byte = (byte | (byte>>7)) & (0x0003000300030003)
@@ -182,7 +184,13 @@ def pack_bits( longbits ):
 
 
 class BitStream( object ):
-    def __init__( self, buffer=None, start_offset=None, bytes_reverse=False, bit_endian='big', io_endian='big' ):
+    buffer: bytearray
+    byte_pos: int
+    bit_pos: int
+    bit_endian: str
+    io_endian: str
+
+    def __init__( self, buffer: Optional[BytesReadType]=None, start_offset: Optional[Union[int, Tuple[int, int]]]=None, bytes_reverse: bool=False, bit_endian: str='big', io_endian: str='big' ):
         """Create a BitStream instance.
 
         buffer
@@ -210,8 +218,7 @@ class BitStream( object ):
         if buffer is None:
             self.buffer = bytearray()
         else:
-            assert is_bytes( buffer )
-            self.buffer = buffer
+            self.buffer = bytearray( buffer )
         self.bytes_reverse = bytes_reverse
         if bit_endian not in ('big', 'little'):
             raise TypeError( 'bit_endian should be either \'big\' or \'little\'' )
@@ -220,7 +227,7 @@ class BitStream( object ):
             raise TypeError( 'io_endian should be either \'big\' or \'little\'' )
         self.io_endian = io_endian
         if start_offset is None:
-            self.byte_pos = len( buffer ) - 1 if bytes_reverse else 0
+            self.byte_pos = len( self.buffer ) - 1 if bytes_reverse else 0
             self.bit_pos = 0 if bit_endian == 'big' else 7
         elif isinstance( start_offset, int ):
             self.byte_pos = start_offset
@@ -234,7 +241,7 @@ class BitStream( object ):
         """Get the current byte and bit position."""
         return self.byte_pos, self.bit_pos
 
-    def read( self, count ):
+    def read( self, count: int ) -> int:
         """Get an integer containing the next [count] bits from the source."""
         """
         x.read( 3 ) # 0bABC
@@ -265,7 +272,7 @@ class BitStream( object ):
 
         return result
 
-    def write( self, value, count ):
+    def write( self, value: int, count: int ):
         """Write an unsigned integer containing [count] bits to the source."""
         """
         x.write( 0bABC, 3 )
@@ -309,7 +316,7 @@ class BitStream( object ):
 
         self.seek( (count // 8, count % 8), origin="current" )
 
-    def seek( self, offset, origin="start" ):
+    def seek( self, offset: Union[int, Tuple[int, int]], origin: str="start" ):
         """Seek to a location in the target.
 
         offset
@@ -320,6 +327,7 @@ class BitStream( object ):
             Position to measure the offset from. Can be either "start", "current" or "end".
             Defaults to "start".
         """
+        count: int = 0
         if isinstance( offset, int ):
             count = offset * 8
         elif isinstance( offset, tuple ):

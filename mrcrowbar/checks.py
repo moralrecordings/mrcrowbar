@@ -1,16 +1,20 @@
+from __future__ import annotations
+
 import logging
 logger = logging.getLogger( __name__ )
 
-from mrcrowbar.fields import Field
 from mrcrowbar.refs import Ref, property_get, property_set
 from mrcrowbar import common, utils
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from mrcrowbar.fields import Field
 
 class CheckException( Exception ):
     pass
 
 class Check( object ):
-    def __init__( self, raise_exception=False ):
+    def __init__( self, raise_exception: bool=False ):
         """Base class for Checks.
 
         raise_exception
@@ -19,7 +23,7 @@ class Check( object ):
         self._position_hint = next( common.next_position_hint )
         self.raise_exception = raise_exception
 
-    def check_buffer( self, buffer, parent=None ):
+    def check_buffer( self, buffer: common.BytesReadType, parent=None ):
         """Check if the import buffer passes the check.
 
         Throws CheckException if raise_exception = True and the buffer doesn't match.
@@ -56,7 +60,7 @@ class Check( object ):
 
 
 class Const( Check ):
-    def __init__( self, field, target, *args, **kwargs ):
+    def __init__( self, field: Field, target, *args, **kwargs ):
         """Check for ensuring a Field matches a particular constant.
 
         On import, the value is tested. On export, the value is copied
@@ -68,7 +72,6 @@ class Const( Check ):
         target
             Target to copy from on export.
         """
-        assert isinstance( field, Field )
         super().__init__( *args, **kwargs )
         self.field = field
         self.target = target
@@ -120,7 +123,6 @@ class Pointer( Check ):
         target
             Target to copy from on export.
         """
-        assert isinstance( field, Field )
         super().__init__( *args, **kwargs )
         self.field = field
         self.target = target

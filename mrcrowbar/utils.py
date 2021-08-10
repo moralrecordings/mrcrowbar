@@ -1,19 +1,31 @@
 """General utility functions useful for reverse engineering."""
+from __future__ import annotations
 
-import io
 import json
 import logging
 import math
-import mmap
 import re
 import time
-from typing import Union, Iterator, Match, List
+from typing import Any, Sequence, Union, Iterator, List, Optional, Tuple, Dict, Match, TYPE_CHECKING
+if TYPE_CHECKING:
+    from mrcrowbar.blocks import Block
+from typing_extensions import Literal
 logger = logging.getLogger( __name__ )
 
-from mrcrowbar import ansi, colour, encoding as enco, statistics
-from mrcrowbar.common import Bytes, is_bytes, read, bounds
+from mrcrowbar import ansi, encoding as enco, statistics
+from mrcrowbar.colour import ColourType, TEST_PALETTE, Transparent
+from mrcrowbar.common import BytesReadType, is_bytes, bounds
 
-globals().update( enco._load_raw_types() )
+# insert encoding shortcuts into the utils namespace
+for type_id, from_func in enco.FROM_RAW_TYPE.items():
+    globals()[f'from_{enco.RAW_TYPE_NAME[type_id]}'] = from_func
+for type_id, to_func in enco.TO_RAW_TYPE.items():
+    globals()[f'to_{enco.RAW_TYPE_NAME[type_id]}'] = to_func
+for type_id, from_func in enco.FROM_RAW_TYPE_ARRAY.items():
+    globals()[f'from_{enco.RAW_TYPE_NAME[type_id]}_array'] = from_func
+for type_id, to_func in enco.TO_RAW_TYPE_ARRAY.items():
+    globals()[f'to_{enco.RAW_TYPE_NAME[type_id]}_array'] = to_func
+
 
 def enable_logging( level: str = 'WARNING' ) -> None:
     """Enable sending logs to stderr. Useful for shell sessions.
@@ -34,7 +46,7 @@ def enable_logging( level: str = 'WARNING' ) -> None:
 DIFF_COLOUR_MAP = (9, 10)
 
 
-def grep_iter( pattern: str, source: Bytes, encoding: str='utf8', fixed_string: bool=False, hex_format: bool=False, ignore_case: bool=False ) -> Iterator[Match]:
+def grep_iter( pattern: str, source: BytesReadType, encoding: str='utf8', fixed_string: bool=False, hex_format: bool=False, ignore_case: bool=False ) -> Iterator[Match[bytes]]:
     """Return an iterator that finds the contents of a byte string that matches a regular expression pattern.
 
     pattern
@@ -62,10 +74,10 @@ def grep_iter( pattern: str, source: Bytes, encoding: str='utf8', fixed_string: 
         flags |= re.IGNORECASE
     regex = re.compile( enco.regex_pattern_to_bytes( pattern, encoding=encoding, fixed_string=fixed_string, hex_format=hex_format ), flags )
 
-    return regex.finditer( source )
+    return regex.finditer( source ) # type: ignore
 
 
-def grep( pattern: str, source: Bytes, encoding: str='utf8', fixed_string: bool=False, hex_format: bool=False, ignore_case: bool=False ) -> List[Match]:
+def grep( pattern: str, source: BytesReadType, encoding: str='utf8', fixed_string: bool=False, hex_format: bool=False, ignore_case: bool=False ) -> List[Match[bytes]]:
     """Find the contents of a byte string that matches a regular expression pattern.
 
     pattern
@@ -86,10 +98,10 @@ def grep( pattern: str, source: Bytes, encoding: str='utf8', fixed_string: bool=
     ignore_case
         Perform a case-insensitive search
     """
-    return [x for x in grep_iter( pattern, source, encoding, fixed_string, hex_format, ignore_case )]
+    return list(grep_iter( pattern, source, encoding, fixed_string, hex_format, ignore_case ))
 
 
-def find_iter( substring, source, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'], brute=False, char_size=1 ):
+def find_iter( substring: Union[str, BytesReadType, Sequence[BytesReadType], Sequence[str]], source: Union[str, BytesReadType], start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, overlap: bool=False, ignore_case: bool=False, encodings: Union[List[str], Literal['all']]=['utf_8'], brute: bool=False, char_size: int=1 ) -> Iterator[Any]:
     """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings.
 
     substring
@@ -123,12 +135,12 @@ def find_iter( substring, source, start=None, end=None, length=None, overlap=Fal
         Size in bytes for each character for brute-forcing (default: 1)
     """
     start, end = bounds( start, end, length, len( source ) )
-
-    substrings = substring if isinstance( substring, list ) else [substring]
+    
+    substrings = substring if isinstance( substring, Sequence ) else substring
     substrings = [bytes(x) if is_bytes(x) else x for x in substrings]
 
     if ignore_case:
-        source = source.lower()
+        source = source.lower() if isinstance( source, str ) else bytes( source ).lower()
         substrings = [s.lower() for s in substrings]
 
     if not brute:
@@ -153,13 +165,14 @@ def find_iter( substring, source, start=None, end=None, length=None, overlap=Fal
                     elif encoding_test == 'utf32':
                         encoding = 'utf-32-le'
 
-                    try:
-                        test = substring.encode( encoding )
-                        if test not in subs:
-                            subs[test] = []
-                        subs[test].append( encoding )
-                    except UnicodeEncodeError:
-                        continue
+                    if isinstance( substring, str ):
+                        try:
+                            test = substring.encode( encoding )
+                            if test not in subs:
+                                subs[test] = []
+                            subs[test].append( encoding )
+                        except UnicodeEncodeError:
+                            continue
 
             for test in subs:
                 pointer = start
@@ -184,6 +197,8 @@ def find_iter( substring, source, start=None, end=None, length=None, overlap=Fal
                     letter_map[letter].add( index )
 
         for substring in substrings:
+            if not isinstance( substring, str ):
+                continue
             submatches = []
             unk_dict, pattern = enco.regex_unknown_encoding_match( substring, char_size=char_size )
             if overlap:
@@ -223,7 +238,7 @@ def find_iter( substring, source, start=None, end=None, length=None, overlap=Fal
             yield from submatches
 
 
-def find( substring, source, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'], brute=False, char_size=1 ):
+def find( substring: Union[str, BytesReadType, Sequence[str], Sequence[BytesReadType]], source: Union[str, BytesReadType], start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, overlap: bool=False, ignore_case: bool=False, encodings: Union[str, List[str]]=['utf_8'], brute: bool=False, char_size: int=1 ):
     """Find every location of a substring in a source byte string, checking against multiple encodings.
 
     substring
@@ -259,7 +274,7 @@ def find( substring, source, start=None, end=None, length=None, overlap=False, i
     return [x for x in find_iter( substring, source, start, end, length, overlap, ignore_case, encodings, brute, char_size )]
 
 
-def grepdump_iter( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None, format='hex' ):
+def grepdump_iter( pattern: str, source: BytesReadType, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, encoding: str='utf8', fixed_string: bool=False, hex_format: bool=False, ignore_case: bool=False, major_len: int=8, minor_len: int=4, colour: bool=True, address_base: Optional[int]=None, before: int=2, after: int=2, title: Optional[str]=None, format: Literal['hex', 'text', 'json']='hex' ) -> Iterator[str]:
     """Return an iterator that finds the contents of a byte string that matches a regular expression pattern and renders the result.
 
     pattern
@@ -321,7 +336,6 @@ def grepdump_iter( pattern, source, start=None, end=None, length=None, encoding=
     if len( source ) == 0 or (start == end == 0):
         return
     address_base_offset = address_base-start if address_base is not None else 0
-    stride = minor_len*major_len
     assert format in ('hex', 'text', 'json')
 
     regex_iter = grep_iter( pattern, source[start:end], encoding, fixed_string, hex_format, ignore_case )
@@ -356,7 +370,7 @@ def grepdump_iter( pattern, source, start=None, end=None, length=None, encoding=
             })
 
 
-def grepdump( pattern, source, start=None, end=None, length=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None, format='hex' ):
+def grepdump( pattern: str, source: BytesReadType, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, encoding: str='utf8', fixed_string: bool=False, hex_format: bool=False, ignore_case: bool=False, major_len: int=8, minor_len: int=4, colour: bool=True, address_base: Optional[int]=None, before: int=2, after: int=2, title: Optional[str]=None, format: Literal['hex', 'text', 'json']='hex' ):
     """Find the contents of a byte string that matches a regular expression pattern and renders the result.
 
     pattern
@@ -417,7 +431,7 @@ def grepdump( pattern, source, start=None, end=None, length=None, encoding='utf8
         print( line )
 
 
-def search_iter( pattern, source, prefix='source', depth=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
+def search_iter( pattern: str, source: 'Block', prefix: str='source', depth: Optional[int]=None, encoding: str='utf8', fixed_string: bool=False, hex_format: bool=False, ignore_case: bool=False ) -> Iterator[str]:
     """Return an iterator that finds the Fields inside a Block that match a regular expression pattern.
 
     pattern
@@ -440,14 +454,13 @@ def search_iter( pattern, source, prefix='source', depth=None, encoding='utf8', 
     """
     from mrcrowbar.models import Block, Chunk
 
-    contains = False
     depth = depth-1 if depth is not None else None
 
     match_list = [x.span() for x in grep( pattern, source.export_data(), encoding, fixed_string, hex_format, ignore_case )]
 
     fields = source.get_field_names()
 
-    def check_field( offset, size, data, pref ):
+    def check_field( offset: int, size: int, data: Union[Block, Chunk], pref: str ) -> Iterator[str]:
         for match in match_list:
             if offset <= match[0] < offset + size or offset <= match[1] < offset+size:
                 if isinstance( data, Block ):
@@ -484,7 +497,7 @@ def search_iter( pattern, source, prefix='source', depth=None, encoding='utf8', 
             yield from check_field( offset, size, data, f'{prefix}.{name}' )
 
 
-def search( pattern, source, prefix='source', depth=None, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
+def search( pattern: str, source: 'Block', prefix: str='source', depth: Optional[int]=None, encoding: str='utf8', fixed_string: bool=False, hex_format: bool=False, ignore_case: bool=False ) -> List[str]:
     """Find the Fields inside a Block that match a regular expression pattern.
 
     pattern
@@ -505,7 +518,7 @@ def search( pattern, source, prefix='source', depth=None, encoding='utf8', fixed
     ignore_case
         Perform a case-insensitive search
     """
-    return [x for x in search_iter( pattern, source, prefix, depth, encoding, fixed_string, hex_format, ignore_case )]
+    return list(search_iter( pattern, source, prefix, depth, encoding, fixed_string, hex_format, ignore_case ))
 
 
 def finddump_iter( substring, source, start=None, end=None, length=None, overlap=False, ignore_case=False, encodings=['utf_8'], brute=False, char_size=1, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None, format='hex' ):
@@ -684,7 +697,7 @@ def finddump( substring, source, start=None, end=None, length=None, overlap=Fals
         print( x )
 
 
-def diff_iter( source1, source2, start=None, end=None ):
+def diff_iter( source1: BytesReadType, source2: BytesReadType, start: Optional[int]=None, end: Optional[int]=None ) -> Iterator[Tuple[int, int]]:
     """Perform a diff between two equal-sized binary strings and
     return an iterator of (offset, size) tuples denoting the differences.
 
@@ -720,7 +733,7 @@ def diff_iter( source1, source2, start=None, end=None ):
         diff_start = None
 
 
-def diff( source1, source2, start=None, end=None ):
+def diff( source1: BytesReadType, source2: BytesReadType, start: Optional[int]=None, end: Optional[int]=None ) -> List[Tuple[int, int]]:
     """Perform a diff between two equal-sized binary strings and
     return a list of (offset, size) tuples denoting the differences.
 
@@ -736,10 +749,10 @@ def diff( source1, source2, start=None, end=None ):
     end
         End offset to stop reading at (default: end)
     """
-    return [x for x in diff_iter( source1, source2, start, end )]
+    return list(diff_iter( source1, source2, start, end ))
 
 
-def objdiff_iter( source1, source2, prefix='source', depth=None ):
+def objdiff_iter( source1: Any, source2: Any, prefix: str='source', depth: Optional[int]=None ) -> Iterator[Tuple[str, Any, Any]]:
     """Return an iterator that finds differences between two objects.
 
     source1
@@ -755,7 +768,7 @@ def objdiff_iter( source1, source2, prefix='source', depth=None ):
         Maximum number of levels to traverse.
     """
     depth = depth-1 if depth is not None else None
-    def abbr( src ):
+    def abbr( src: Any ):
         return src if type( src ) in (int, float, str, bytes, bytearray) else (src.__class__.__module__, src.__class__.__name__)
 
     if (type( source1 ) != type( source2 )) and not (is_bytes( source1 ) and is_bytes( source2 )):
@@ -794,7 +807,7 @@ def objdiff_iter( source1, source2, prefix='source', depth=None ):
                 yield (prefix, source1, source2)
 
 
-def objdiff( source1, source2, prefix='source', depth=None ):
+def objdiff( source1: Any, source2: Any, prefix: str='source', depth: Optional[int]=None ) -> List[Tuple[str, Any, Any]]:
     """Find differences between two objects.
 
     source1
@@ -809,10 +822,10 @@ def objdiff( source1, source2, prefix='source', depth=None ):
     depth
         Maximum number of levels to traverse.
     """
-    return [x for x in objdiff_iter( source1, source2, prefix, depth )]
+    return list(objdiff_iter( source1, source2, prefix, depth ))
 
 
-def objdiffdump_iter( source1, source2, prefix='source', depth=None ):
+def objdiffdump_iter( source1: Any, source2: Any, prefix: str='source', depth: Optional[int]=None ):
     """Return an iterator that renders a list of differences between two objects.
 
     source1
@@ -843,7 +856,7 @@ def objdiffdump_iter( source1, source2, prefix='source', depth=None ):
     return same
 
 
-def objdiffdump( source1, source2, prefix='source', depth=None ):
+def objdiffdump( source1: Any, source2: Any, prefix: str='source', depth: Optional[int]=None ):
     """Print a list of differences between two objects.
 
     source1
@@ -862,7 +875,7 @@ def objdiffdump( source1, source2, prefix='source', depth=None ):
         print( line )
 
 
-def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, width=64, address_base=None ):
+def histdump_iter( source: BytesReadType, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, samples: int=0x10000, width: int=64, address_base: Optional[int]=None ) -> Iterator[str]:
     """Return an iterator that renders a histogram of a byte string.
 
     source
@@ -898,7 +911,7 @@ def histdump_iter( source, start=None, end=None, length=None, samples=0x10000, w
     return
 
 
-def histdump( source, start=None, end=None, length=None, samples=0x10000, width=64, address_base=None ):
+def histdump( source: BytesReadType, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, samples: int=0x10000, width: int=64, address_base: Optional[int]=None ):
     """Print a histogram of a byte string.
 
     source
@@ -926,7 +939,7 @@ def histdump( source, start=None, end=None, length=None, samples=0x10000, width=
         print( line )
 
 
-def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None, show_offsets=True, show_glyphs=True ):
+def hexdump_iter( source: BytesReadType, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, major_len: int=8, minor_len: int=4, colour: bool=True, address_base: Optional[int]=None, show_offsets: bool=True, show_glyphs: bool=True ):
     """Return an iterator that renders a byte string in tabular hexadecimal/ASCII format.
     
     source
@@ -973,7 +986,7 @@ def hexdump_iter( source, start=None, end=None, length=None, major_len=8, minor_
     return
 
 
-def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None, show_offsets=True, show_glyphs=True ):
+def hexdump( source: BytesReadType, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, major_len: int=8, minor_len: int=4, colour: bool=True, address_base: Optional[int]=None, show_offsets: bool=True, show_glyphs: bool=True ):
     """Print a byte string in tabular hexadecimal/ASCII format.
     
     source
@@ -1012,7 +1025,7 @@ def hexdump( source, start=None, end=None, length=None, major_len=8, minor_len=4
         print( line )
 
 
-def diffdump_iter( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2, address_base=None ):
+def diffdump_iter( source1: BytesReadType, source2: BytesReadType, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, major_len: int=8, minor_len: int=4, colour: bool=True, before: int=2, after: int=2, address_base: Optional[int]=None ) -> Iterator[str]:
     """Return an iterator that renders the differences between two byte strings.
 
     source1
@@ -1058,7 +1071,7 @@ def diffdump_iter( source1, source2, start=None, end=None, length=None, major_le
     end = min( end, max( len( source1 ), len( source2 ) ) )
     address_base_offset = address_base-start if address_base is not None else 0
 
-    diff_lines = []
+    diff_lines: List[int] = []
     for offset in range( start, end, stride ):
         if source1[offset:offset+stride] != source2[offset:offset+stride]:
             diff_lines.append( offset )
@@ -1081,7 +1094,7 @@ def diffdump_iter( source1, source2, start=None, end=None, length=None, major_le
             yield '...'
             skip = False
         if show_lines[offset] == 2:
-            highlights = {}
+            highlights: Dict[int, ColourType] = {}
             for (o, l) in diff_iter( source1, source2, start=offset, end=offset+stride ):
                 for i in range( o, o+l ):
                     highlights[i] = DIFF_COLOUR_MAP[0]
@@ -1102,7 +1115,7 @@ def diffdump_iter( source1, source2, start=None, end=None, length=None, major_le
     return
 
 
-def diffdump( source1, source2, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, before=2, after=2, address_base=None ):
+def diffdump( source1: BytesReadType, source2: BytesReadType, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, major_len: int=8, minor_len: int=4, colour: bool=True, before: int=2, after: int=2, address_base: Optional[int]=None ):
     """Print the differences between two byte strings.
 
     source1
@@ -1144,7 +1157,7 @@ def diffdump( source1, source2, start=None, end=None, length=None, major_len=8, 
         print( line )
 
 
-def stats( source, start=None, end=None, length=None, width=64, height=12 ):
+def stats( source: BytesReadType, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, width: int=64, height: int=12 ):
     """Print histogram graph for a byte string.
 
     source
@@ -1168,7 +1181,7 @@ def stats( source, start=None, end=None, length=None, width=64, height=12 ):
     stat.print( width=width, height=height )
 
 
-def pixdump_iter( source, start=None, end=None, length=None, width=64, height=None, palette=None ):
+def pixdump_iter( source: BytesReadType, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, width: int=64, height: Optional[int]=None, palette: Optional[Sequence[ColourType]]=None ) -> Iterator[str]:
     """Return an iterator which renders the contents of a byte string as a 256 colour image.
 
     source
@@ -1194,8 +1207,7 @@ def pixdump_iter( source, start=None, end=None, length=None, width=64, height=No
     """
     assert is_bytes( source )
 
-    if not palette:
-        palette = colour.TEST_PALETTE
+    pal: Sequence[ColourType] = TEST_PALETTE if palette is None else palette
 
     start = 0 if (start is None) else start
     if (end is not None) and (length is not None):
@@ -1207,24 +1219,24 @@ def pixdump_iter( source, start=None, end=None, length=None, width=64, height=No
     else:
         end = len( source )
 
-    start = max( start, 0 )
-    end = min( end, len( source ) )
-    if len( source ) == 0 or (start == end == 0):
+    start_pos = max( start, 0 )
+    end_pos = min( end, len( source ) )
+    if len( source ) == 0 or (start_pos == end_pos == 0):
         return iter(())
 
     if height is None:
         height = math.ceil( (end-start)/width )
 
-    def data_fetch( x_pos, y_pos, frame ):
-        index = y_pos*width + x_pos + start
-        if index >= end:
-            return colour.Transparent()
-        return palette[source[index]]
+    def data_fetch( x_pos: int, y_pos: int, _: int ) -> ColourType:
+        index = y_pos*width + x_pos + start_pos
+        if index >= end_pos:
+            return Transparent()
+        return pal[source[index]]
 
     return ansi.format_image_iter( data_fetch, width=width, height=height )
 
 
-def pixdump( source, start=None, end=None, length=None, width=64, height=None, palette=None ):
+def pixdump( source: BytesReadType, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, width: int=64, height: Optional[int]=None, palette: Optional[Sequence[ColourType]]=None ):
     """Print the contents of a byte string as a 256 colour image.
 
     source
@@ -1253,7 +1265,7 @@ def pixdump( source, start=None, end=None, length=None, width=64, height=None, p
         print( line )
 
 
-def pixdump_sweep( source, range=(64,), delay=None, start=None, end=None, length=None, height=None, palette=None ):
+def pixdump_sweep( source: BytesReadType, range: Sequence[int]=(64,), delay: int=0, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, height: Optional[int]=None, palette: Optional[Sequence[ColourType]]=None ):
     """Test printing the contents of a byte string as a 256 colour image for a range of widths.
 
     source
@@ -1285,5 +1297,4 @@ def pixdump_sweep( source, range=(64,), delay=None, start=None, end=None, length
         for line in pixdump_iter( source, start, end, length, w, height, palette ):
             print( line )
         print()
-        if delay is not None:
-            time.sleep( delay )
+        time.sleep( delay )

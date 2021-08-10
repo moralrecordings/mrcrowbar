@@ -424,7 +424,7 @@ class TestStore( unittest.TestCase ):
                 super().__init__( *args, **kwargs )
 
         payload = b'\x04\x00\x02\x02\x03\x05\x01\x06\x02abcdefgh'
-        test = Test( payload )
+        test = Test( payload, strict=True )
         self.assertEqual( test.elements[0].ref.data, b'ab' )
         self.assertEqual( test.elements[1].ref.data, b'cde' )
         self.assertEqual( test.elements[2].ref.data, b'f' )

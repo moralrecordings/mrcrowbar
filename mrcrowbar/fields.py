@@ -1,12 +1,20 @@
 """Definition classes for common fields in binary formats."""
+from __future__ import annotations
 
 import collections
 import math
 import logging
 logger = logging.getLogger( __name__ )
 
+from enum import IntEnum
+from typing import Any, Callable, NamedTuple, Sequence, Tuple, List, Dict, Optional, Type, TypeVar, Union, TYPE_CHECKING
+if TYPE_CHECKING:
+    from mrcrowbar.blocks import Block
+
 from mrcrowbar.refs import Ref, Chain, property_get, property_set
 from mrcrowbar import common, encoding
+
+OffsetType = Union[int, Ref]
 
 
 class ParseError( Exception ):
@@ -19,8 +27,12 @@ class EmptyFieldError( Exception ):
     pass
 
 
+StopCheckType = Callable[[common.BytesReadType, int], bool]
+
+
+
 class Field( object ):
-    def __init__( self, *, default=None, **kwargs ):
+    def __init__( self, *, default: Any=None ):
         """Base class for Fields.
 
         default
@@ -57,7 +69,7 @@ class Field( object ):
             return super().__eq__( other )
         return self.serialised == other.serialised
 
-    def get_from_buffer( self, buffer, parent=None ):
+    def get_from_buffer( self, buffer: common.BytesReadType, parent: Optional[Block]=None ) -> Any:
         """Create a Python object from a byte string, using the field definition.
 
         buffer
@@ -69,7 +81,7 @@ class Field( object ):
         """
         return None
 
-    def update_buffer_with_value( self, value, buffer, parent=None ):
+    def update_buffer_with_value( self, value: Any, buffer: common.BytesWriteType, parent: Optional[Block]=None ):
         """Write a Python object into a byte array, using the field definition.
 
         value
@@ -84,9 +96,8 @@ class Field( object ):
         """
         assert common.is_bytes( buffer )
         self.validate( value, parent )
-        return
 
-    def get_start_offset( self, value, parent=None, index=None ):
+    def get_start_offset( self, value: Any, parent: Optional[Block]=None, index: Optional[int]=None ) -> int:
         """Return the start offset of where the Field's data is to be stored in the Block.
 
         value
@@ -103,7 +114,7 @@ class Field( object ):
         assert index is None
         return 0
 
-    def get_size( self, value, parent=None, index=None ):
+    def get_size( self, value: Any, parent: Optional[Block]=None, index: Optional[int]=None ) -> int:
         """Return the size of the Field's data (in bytes).
 
         value
@@ -120,7 +131,7 @@ class Field( object ):
         assert index is None
         return 0
 
-    def get_end_offset( self, value, parent=None, index=None ):
+    def get_end_offset( self, value: Any, parent: Optional[Block]=None, index: Optional[int]=None ) -> int:
         """Return the end offset of the Field's data. Useful for chainloading.
 
         value
@@ -136,7 +147,7 @@ class Field( object ):
         """
         return self.get_start_offset( value, parent, index ) + self.get_size( value, parent, index )
 
-    def scrub( self, value, parent=None ):
+    def scrub( self, value: Any, parent: Optional[Block]=None ) -> Any:
         """Return the value coerced to the correct type of the Field (if necessary).
 
         value
@@ -150,7 +161,7 @@ class Field( object ):
         """
         return value
 
-    def update_deps( self, value, parent=None ):
+    def update_deps( self, value: Any, parent: Optional[Block]=None ):
         """Update all dependent variables derived from the value of the Field.
 
         value
@@ -162,7 +173,7 @@ class Field( object ):
         """
         return
 
-    def validate( self, value, parent=None ):
+    def validate( self, value: Any, parent: Optional[Block]=None ):
         """Validate that a correctly-typed Python object meets the constraints for the Field.
 
         value
@@ -176,7 +187,7 @@ class Field( object ):
         """
         pass 
 
-    def serialise( self, value, parent=None ):
+    def serialise( self, value: Any, parent: Optional[Block]=None ):
         """Return a value as basic Python types.
 
         value
@@ -188,7 +199,7 @@ class Field( object ):
         """
         return None
 
-    def get_path( self, parent=None, index=None ):
+    def get_path( self, parent: Optional[Block]=None, index: Optional[int]=None ) -> str:
         """Return the location in the Block tree.
 
         parent
@@ -202,7 +213,7 @@ class Field( object ):
             return f'<{self.__class__.__name__}>{suffix}'
         return parent.get_field_path( self ) + suffix
 
-    def get_strict( self, parent=None ):
+    def get_strict( self, parent: Optional[Block]=None ):
         """Return whether the parent Block is loading in strict mode.
 
         parent
@@ -212,7 +223,7 @@ class Field( object ):
             return False
         return parent._strict
 
-    def get_cache_refs( self, parent=None ):
+    def get_cache_refs( self, parent: Optional[Block]=None ):
         """Return whether the parent Block is pre-caching all the Refs.
 
         parent
@@ -223,9 +234,11 @@ class Field( object ):
         return parent._cache_refs
 
 
+
+
 class StreamField( Field ):
-    def __init__( self, offset=Chain(), *, default=None, count=None, length=None, stream=False,
-                    alignment=1, stream_end=None, stop_check=None, **kwargs ):
+    def __init__( self, offset: OffsetType=Chain(), *, default: Any=None, count: Optional[int]=None, length: Optional[int]=None, stream: bool=False,
+            alignment: int=1, stream_end: Optional[bytes]=None, stop_check: Optional[StopCheckType]=None, **kwargs ):
         """Base class for accessing one or more streamable elements.
 
         offset
@@ -268,10 +281,10 @@ class StreamField( Field ):
         self.stream_end = stream_end
         self.stop_check = stop_check
 
-    def get_element_from_buffer( self, offset, buffer, parent=None, index=None ):
-        pass
+    def get_element_from_buffer( self, offset: int, buffer: common.BytesReadType, parent: Optional[Block]=None, index: Optional[int]=None ) -> Any:
+        return None # pass
 
-    def get_from_buffer( self, buffer, parent=None ):
+    def get_from_buffer( self, buffer: common.BytesReadType, parent: Optional['Block']=None ) -> Union[Any, List[Any]]:
         assert common.is_bytes( buffer )
         offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
@@ -322,10 +335,10 @@ class StreamField( Field ):
                 return result[0]
         return result
 
-    def update_buffer_with_element( self, offset, element, buffer, parent=None, index=None ):
+    def update_buffer_with_element( self, offset: int, element: Any, buffer: common.BytesWriteType, parent: Optional[Block]=None, index: Optional[int]=None ):
         pass
 
-    def update_buffer_with_value( self, value, buffer, parent=None ):
+    def update_buffer_with_value( self, value: Union[Any, Sequence[Any]], buffer: common.BytesWriteType, parent: Optional[Block]=None ):
         super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
@@ -336,7 +349,7 @@ class StreamField( Field ):
         
         if is_array:
             try:
-                it = iter( value )
+                _ = iter( value )
             except TypeError:
                 raise FieldValidationError( f'{self.get_path( parent )}: Type {type( value )} not iterable' )
             if not stream:
@@ -365,7 +378,7 @@ class StreamField( Field ):
         if self.stream_end is not None:
             buffer[new_size-len( self.stream_end ):new_size] = self.stream_end
 
-    def update_deps( self, value, parent=None ):
+    def update_deps( self, value: Union[Any, Sequence[Any]], parent=None ):
         count = property_get( self.count, parent )
         length = property_get( self.length, parent )
         if count is not None and count != len( value ):
@@ -374,10 +387,10 @@ class StreamField( Field ):
         if length is not None and length != target_length:
             property_set( self.length, parent, target_length )
 
-    def validate_element( self, element, parent=None, index=None ):
+    def validate_element( self, element: Any, parent: Optional[Block]=None, index: Optional[int]=None ):
         pass
 
-    def validate( self, value, parent=None ):
+    def validate( self, value: Union[Any, Sequence[Any]], parent: Optional[Block]=None ):
         offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
@@ -385,21 +398,21 @@ class StreamField( Field ):
 
         if is_array:
             try:
-                it = iter( value )
+                _ = iter( value )
             except TypeError:
                 raise FieldValidationError( f'{self.get_path( parent )}: Type {type( value )} not iterable' )
             if count is not None and (not isinstance( self.count, Ref )) and (len( value ) != count):
-                raise FieldValidationError( f'{self.get_path( parent )}: Count defined as a constant, was expecting {length} list entries but got {len( value )}!' )
+                raise FieldValidationError( f'{self.get_path( parent )}: Count defined as a constant, was expecting {count} list entries but got {len( value )}!' )
         else:
             value = [value]
 
         for index, element in enumerate( value ):
             self.validate_element( element, parent=parent, index=index if is_array else None )
 
-    def get_element_size( self, element, parent=None, index=None ):
-        pass
+    def get_element_size( self, element: Any, parent: Optional[Block]=None, index: Optional[int]=None ) -> int:
+        return 0 # pass
 
-    def get_start_offset( self, value, parent=None, index=None ):
+    def get_start_offset( self, value: Union[Any, Sequence[Any]], parent: Optional[Block]=None, index: Optional[int]=None ) -> int:
         offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
@@ -423,7 +436,7 @@ class StreamField( Field ):
 
         return pointer
 
-    def get_size( self, value, parent=None, index=None ):
+    def get_size( self, value: Union[Any, Sequence[Any]], parent: Optional[Block]=None, index: Optional[int]=None ) -> int:
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         alignment = property_get( self.alignment, parent )
@@ -456,20 +469,24 @@ class StreamField( Field ):
 
 
 
-ChunkBase = collections.namedtuple( 'Chunk', ['id', 'obj'] )
+class ChunkBase(NamedTuple):
+    id: Union[int, bytes]
+    obj: Block
+
+
 class Chunk( ChunkBase ):
     @property
-    def serialised( self ):
+    def serialised( self ) -> common.SerialiseType:
         """Tuple containing the contents of the Chunk."""
         klass = self.__class__
         return ((klass.__module__, klass.__name__), (('id', self.id), ('obj', self.obj.serialised if self.obj is not None else None)))
 
 
 class ChunkField( StreamField ):
-    def __init__( self, chunk_map, offset=Chain(), *, count=None, length=None, stream=True,
-                    alignment=1, stream_end=None, stop_check=None, default_klass=None,
-                    id_size=None, id_field=None, id_enum=None, length_field=None,
-                    fill=None, **kwargs ):
+    def __init__( self, chunk_map, offset: OffsetType=Chain(), *, count: Optional[int]=None, length: Optional[int]=None, stream: bool=True,
+            alignment: int=1, stream_end: Optional[bytes]=None, stop_check: Optional[StopCheckType]=None, default_klass: Optional[Type[Block]]=None,
+            id_size: Optional[int]=None, id_field: Optional[Type[Field]]=None, id_enum: Optional[IntEnum]=None, length_field: Optional[Type[NumberField]]=None,
+            fill: Optional[bytes]=None, **kwargs ):
         """Field for inserting a tokenised Block stream into the parent class.
     
         chunk_map
@@ -577,7 +594,7 @@ class ChunkField( StreamField ):
                 else:
                     logger.warning( f'{self.get_path( parent, index )}: failed to create Block ({chunk_klass}) for Chunk {chunk_id}, falling back to Unknown' )
                     logger.warning( f'{self.get_path( parent, index )}: "{str( e )}"' )
-                    from mrcrowbar.blocks import Unknown
+                    from mrcrowbar.unknown import Unknown
                     block = Unknown( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), strict=self.get_strict( parent ), cache_refs=self.get_cache_refs( parent ), )
             return block
 
@@ -629,7 +646,7 @@ class ChunkField( StreamField ):
         return offset+len( data )
 
     def validate_element( self, element, parent=None, index=None ):
-        from mrcrowbar.blocks import Unknown
+        from mrcrowbar.unknown import Unknown
         chunk_map = property_get( self.chunk_map, parent )
         fill = property_get( self.fill, parent )
 
@@ -750,7 +767,7 @@ class BlockField( StreamField ):
                 else:
                     logger.warning( f'{self.get_path( parent, index )}: failed to create Block ({klass}), falling back to Unknown' )
                     logger.warning( f'{self.get_path( parent, index )}: "{str( e )}"' )
-                    from mrcrowbar.blocks import Unknown
+                    from mrcrowbar.unknown import Unknown
                     block = Unknown( source_data=source_data, parent=parent, cache_bytes=parent._cache_bytes, path_hint=self.get_path( parent, index ), strict=self.get_strict( parent ), cache_refs=self.get_cache_refs( parent ), **self.block_kwargs )
             return block
 
@@ -811,7 +828,7 @@ class BlockField( StreamField ):
                 element.update_deps()
 
     def validate_element( self, element, parent=None, index=None ):
-        from mrcrowbar.blocks import Unknown
+        from mrcrowbar.unknown import Unknown
         klass = self.get_klass( parent )
         if (element is not None):
             test = isinstance( element, klass )
@@ -1147,12 +1164,13 @@ class PString( StringField ):
     def __init__( self, offset=Chain(), **kwargs ):
         super().__init__( offset=offset, length_field=UInt8, **kwargs )
 
+N = TypeVar
 
 class NumberField( StreamField ):
-    def __init__( self, format_type, field_size, signedness, endian, format_range, 
-                  offset=Chain(), *, default=0, count=None, length=None, stream=False, 
-                  alignment=1, stream_end=None, stop_check=None, bitmask=None, 
-                  range=None, enum=None, **kwargs ):
+    def __init__( self, format_type: encoding.NumberType, field_size: int, signedness: encoding.SignedEncoding, endian: encoding.EndianEncoding, format_range: Sequence[int], 
+                  offset: OffsetType=Chain(), *, default: int=0, count: Optional[int]=None, length: Optional[int]=None, stream: bool=False, 
+                  alignment: int=1, stream_end: Optional[bytes]=None, stop_check: Optional[StopCheckType]=None, bitmask: Optional[bytes]=None, 
+                  range: Optional[Sequence[int]]=None, enum: Optional[IntEnum]=None, **kwargs ):
         """Base class for numeric value Fields.
 
         format_type
@@ -1215,14 +1233,14 @@ class NumberField( StreamField ):
         self.signedness = signedness
         self.endian = endian
         self.format_range = format_range
-        if bitmask:
+        if bitmask is not None:
             assert common.is_bytes( bitmask )
             assert len( bitmask ) == field_size
         self.bitmask = bitmask
         self.range = range
         self.enum = enum
 
-    def get_element_from_buffer( self, offset, buffer, parent=None, index=None ):
+    def get_element_from_buffer( self, offset: int, buffer: common.BytesReadType, parent: Optional[Block]=None, index: Optional[int]=None ) -> encoding.NumberType:
         format_type = property_get( self.format_type, parent )
         field_size = property_get( self.field_size, parent )
         signedness = property_get( self.signedness, parent )
@@ -1336,7 +1354,7 @@ class UInt8( NumberField ):
 
 
 class Bits( NumberField ):
-    def __init__( self, offset=Chain(), bits=0, *, default=0, size=1, enum=None, endian=None, **kwargs ):
+    def __init__( self, offset: OffsetType=Chain(), bits: int=0, *, default: int=0, size: int=1, enum: Optional[IntEnum]=None, endian: Optional[encoding.EndianEncoding]=None, **kwargs ):
         SIZES = {
             1: (int, 1, 'unsigned', None if endian is None else endian, range( 0, 1<<8 )),
             2: (int, 2, 'unsigned', 'big' if endian is None else endian, range( 0, 1<<16 )),
@@ -1359,7 +1377,7 @@ class Bits( NumberField ):
 
         super().__init__( *SIZES[size], offset=offset, default=default, bitmask=bitmask, **kwargs )
 
-    def get_element_from_buffer( self, offset, buffer, parent=None, index=None ):
+    def get_element_from_buffer( self, offset: int, buffer: common.BytesReadType, parent: Optional['Block']=None, index: Optional[int]=None ) -> int:
         result, end_offset = super().get_element_from_buffer( offset, buffer, parent, index=index )
         element = 0
         for i, x in enumerate( self.bits ):
@@ -1571,4 +1589,5 @@ class Float32_P( NumberField ):
 class Float64_P( NumberField ):
     def __init__( self, offset=Chain(), **kwargs ):
         super().__init__( float, 8, 'signed', Ref( '_endian' ), None, offset=offset, **kwargs )
+
 

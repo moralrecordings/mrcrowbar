@@ -1,2 +1,5 @@
 [tool.pyright]
+include = ['mrcrowbar']
 typeCheckingMode = 'strict'
+reportUnnecessaryIsInstance = false
+pythonVersion = '3.7'

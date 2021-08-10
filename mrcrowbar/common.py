@@ -1,20 +1,20 @@
 import itertools
-import contextlib
 import mmap
 import os
-from typing import Optional, Tuple, Union, List, Any, Iterator, BinaryIO
+from typing import Optional, Sequence, Tuple, Union, Any, Iterator, BinaryIO
 
 next_position_hint = itertools.count()
 
-Bytes = Union[bytes, bytearray, mmap.mmap, memoryview]
+BytesReadType = Union[bytes, bytearray, mmap.mmap, memoryview]
+BytesWriteType = Union[bytearray]
 
 
 def is_bytes( obj: Any ) -> bool:
     """Returns whether obj is an acceptable Python byte string."""
-    return isinstance( obj, getattr( Bytes, '__args__' ) )
+    return isinstance( obj, getattr( BytesReadType, '__args__' ) )
 
 
-def read( fp: BinaryIO ) -> Bytes:
+def read( fp: BinaryIO ) -> BytesReadType:
     try:
         region = mmap.mmap( fp.fileno(), 0, access=mmap.ACCESS_READ )
     except:
@@ -46,8 +46,9 @@ def bounds( start: Optional[int], end: Optional[int], length: Optional[int], src
 
     return start, end
 
+SerialiseType = Tuple[Tuple[str, str], Tuple[Tuple[str, Any], ...]]
 
-def serialise( obj: Any, fields: List[str] ):
+def serialise( obj: Any, fields: Sequence[str] ) -> SerialiseType:
     return ((obj.__class__.__module__, obj.__class__.__name__), tuple( (x, getattr( obj, x )) for x in fields ))
 
 

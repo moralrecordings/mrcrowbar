@@ -1,7 +1,8 @@
 import math
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from mrcrowbar import colour, statistics
-from mrcrowbar.common import is_bytes, bounds
+from mrcrowbar.common import BytesReadType, is_bytes, bounds
 
 #: Container for ANSI escape sequences for text formatting
 ANSI_FORMAT_BASE = '\x1b[{}m'
@@ -58,13 +59,13 @@ BYTE_GLYPH_MAP = """ ☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶
 BYTE_COLOUR_MAP = (12,) + (14,)*32 + (11,)*94 + (14,)*128 + (12,)
 
 
-def format_address( offset, end, address_base_offset ):
+def format_address( offset: int, end: int, address_base_offset: int ):
     return ('{:0'+str( max( 8, math.floor( math.log( end + address_base_offset ) / math.log( 16 ) ) ) )+'x}').format( offset + address_base_offset )
 
 
 
-def format_escape( foreground=None, background=None, bold=False, faint=False,
-    italic=False, underline=False, blink=False, inverted=False ):
+def format_escape( foreground: colour.ColourType=None, background: colour.ColourType=None, bold: bool=False, faint: bool=False,
+    italic: bool=False, underline: bool=False, blink: bool=False, inverted: bool=False ):
     """Returns the ANSI escape sequence to set character formatting.
 
     foreground
@@ -109,7 +110,7 @@ def format_escape( foreground=None, background=None, bold=False, faint=False,
         if bg_rgba[3] != 0:
             bg_format = ANSI_FORMAT_BACKGROUND_CMD.format( *bg_rgba[:3] )
 
-    colour_format = []
+    colour_format: List[str] = []
     if fg_format is not None:
         colour_format.append( fg_format )
     if bg_format is not None:
@@ -127,12 +128,11 @@ def format_escape( foreground=None, background=None, bold=False, faint=False,
     if inverted:
         colour_format.append( ANSI_FORMAT_INVERTED_CMD )
 
-    colour_format = ANSI_FORMAT_BASE.format( ';'.join( colour_format ) )
-    return colour_format
+    return ANSI_FORMAT_BASE.format( ';'.join( colour_format ) )
 
 
-def format_string( string, foreground=None, background=None, reset=True, bold=False,
-    faint=False, italic=False, underline=False, blink=False, inverted=False ):
+def format_string( string: str, foreground: colour.ColourType=None, background: colour.ColourType=None, reset: bool=True, bold: bool=False,
+    faint: bool=False, italic: bool=False, underline: bool=False, blink: bool=False, inverted: bool=False ):
     """Returns a Unicode string formatted with an ANSI escape sequence.
 
     string
@@ -174,7 +174,7 @@ def format_string( string, foreground=None, background=None, reset=True, bold=Fa
     return f'{colour_format}{string}{reset_format}'
 
 
-def format_pixels( top, bottom, reset=True, repeat=1 ):
+def format_pixels( top: colour.ColourType, bottom: colour.ColourType, reset: bool=True, repeat: int=1 ):
     """Return the ANSI escape sequence to render two vertically-stacked pixels as a
     single monospace character.
 
@@ -213,7 +213,7 @@ def format_pixels( top, bottom, reset=True, repeat=1 ):
         return ' '*repeat 
 
     string = '▀'*repeat;
-    colour_format = []
+    colour_format: List[str] = []
 
     if top_src == bottom_src:
         string = '█'*repeat
@@ -225,25 +225,25 @@ def format_pixels( top, bottom, reset=True, repeat=1 ):
             colour_format.append( ANSI_FORMAT_FOREGROUND_XTERM_CMD.format( bottom_src ) )
         else:
             colour_format.append( ANSI_FORMAT_FOREGROUND_CMD.format( *bottom_src[:3] ) )
-    else:
+    elif (top_src is not None):
         if isinstance( top_src, int ):
             colour_format.append( ANSI_FORMAT_FOREGROUND_XTERM_CMD.format( top_src ) )
         else:
             colour_format.append( ANSI_FORMAT_FOREGROUND_CMD.format( *top_src[:3] ) )
 
-    if top_src is not None and bottom_src is not None and top_src != bottom_src:
-        if isinstance( top_src, int ):
+    if (top_src is not None) and (bottom_src is not None) and top_src != bottom_src:
+        if isinstance( bottom_src, int ):
             colour_format.append( ANSI_FORMAT_BACKGROUND_XTERM_CMD.format( bottom_src ) )
         else:
             colour_format.append( ANSI_FORMAT_BACKGROUND_CMD.format( *bottom_src[:3] ) )
 
-    colour_format = ANSI_FORMAT_BASE.format( ';'.join( colour_format ) )
+    colour_format_str = ANSI_FORMAT_BASE.format( ';'.join( colour_format ) )
     reset_format = '' if not reset else ANSI_FORMAT_RESET
 
-    return f'{colour_format}{string}{reset_format}'
+    return f'{colour_format_str}{string}{reset_format}'
 
 
-def format_bar_graph_iter( data, width=64, height=12, y_min=None, y_max=None ):
+def format_bar_graph_iter( data: Sequence[int], width: int=64, height: int=12, y_min: Optional[int]=None, y_max: Optional[int]=None ):
     if width <= 0:
         raise ValueError( 'Width of the graph must be greater than zero' )
     if height % 2:
@@ -270,7 +270,7 @@ def format_bar_graph_iter( data, width=64, height=12, y_min=None, y_max=None ):
     sample_count = len( data )
     if sample_count == 0:
         # empty graph
-        samples = [(0, 0) for x in range( width )]
+        samples = [(0, 0) for _ in range( width )]
     else:
         if sample_count <= width:
             sample_ranges = [(math.floor( i*sample_count/width ), math.floor( i*sample_count/width )+1) for i in range( width )]
@@ -279,7 +279,7 @@ def format_bar_graph_iter( data, width=64, height=12, y_min=None, y_max=None ):
         samples = [(round( min( data[x[0]:x[1]] )*y_scale ), round( max( data[x[0]:x[1]] )*y_scale )) for x in sample_ranges]
 
     for y in range( top_height, 0, -1 ):
-        result = []
+        result: List[str] = []
         for _, value in samples:
             if value // 8 >= y:
                 result.append( BAR_VERT[8] )
@@ -301,7 +301,7 @@ def format_bar_graph_iter( data, width=64, height=12, y_min=None, y_max=None ):
         yield ''.join( result )
 
 
-def format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=32, frame=0, columns=1, downsample=1 ):
+def format_image_iter( data_fetch: Callable[[int, int, int], colour.ColourType], x_start: int=0, y_start: int=0, width: int=32, height: int=32, frame: Union[int, Sequence[int]]=0, columns: int=1, downsample: int=1 ):
     """Return the ANSI escape sequence to render a bitmap image.
 
     data_fetch
@@ -331,24 +331,22 @@ def format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=32, fr
         Shrink larger images by printing every nth pixel only. Defaults to 1.
     """
     frames = []
-    try:
-        frame_iter = iter( frame )
-        frames = [f for f in frame_iter]
-    except TypeError:
+    if isinstance( frame, int ):
         frames = [frame]
+    else:
+        frames = frame
 
     rows = math.ceil( len( frames )/columns )
     for r in range( rows ):
         for y in range( 0, height, 2*downsample ):
-            result = []
+            result: List[str] = []
             for c in range( min( (len( frames )-r*columns), columns ) ):
-                row = []
+                row: List[Tuple[colour.ColourType, colour.ColourType]] = []
                 for x in range( 0, width, downsample ):
                     fr = frames[r*columns + c]
                     c1 = data_fetch( x_start+x, y_start+y, fr )
                     c2 = data_fetch( x_start+x, y_start+y+downsample, fr )
                     row.append( (c1, c2) )
-                prev_pixel = None
                 pointer = 0
                 while pointer < len( row ):
                     start = pointer
@@ -362,21 +360,21 @@ def format_image_iter( data_fetch, x_start=0, y_start=0, width=32, height=32, fr
 
 BYTE_ESCAPE_MAP = [format_escape( x ) for x in BYTE_COLOUR_MAP]
 
-def format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, colour=True,
-        prefix='', highlight_addr=None, highlight_map=None, address_base_offset=0, show_offsets=True, show_glyphs=True ):
-    def get_colour( index ):
+def format_hexdump_line( source: BytesReadType, offset: int, end: Optional[int]=None, major_len: int=8, minor_len: int=4, colour: bool=True,
+        prefix: str='', highlight_addr: Optional[int]=None, highlight_map: Optional[Dict[int, colour.ColourType]]=None, address_base_offset: int=0, show_offsets: bool=True, show_glyphs: bool=True ):
+    end_offset = len( source ) if end is None else end
+
+    def get_colour( index: int ):
         if colour:
-            if highlight_map:
-                if index in highlight_map:
+            if highlight_map and index in highlight_map:
                     return format_escape( highlight_map[index] )
             return BYTE_ESCAPE_MAP[source[index]]
         return ''
 
     def get_glyph():
-        b = source[offset:min( offset+major_len*minor_len, end )]
-        letters = []
+        letters: List[str] = []
         prev_colour = None
-        for i in range( offset, min( offset+major_len*minor_len, end ) ):
+        for i in range( offset, min( offset+major_len*minor_len, end_offset ) ):
             new_colour = get_colour( i )
             if prev_colour != new_colour:
                 letters.append( new_colour )
@@ -386,19 +384,16 @@ def format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, col
             letters.append( ANSI_FORMAT_RESET )
         return ''.join( letters )
 
-    if end is None:
-        end = len( source )
-
     line = []
     if show_offsets:
-        digits = (f'{prefix}{format_address( offset, end, address_base_offset )}')
+        digits = (f'{prefix}{format_address( offset, end_offset, address_base_offset )}')
         line = [format_string( digits, highlight_addr ), ' │  ']
 
     prev_colour = None
     for major in range( major_len ):
         for minor in range( minor_len ):
             suboffset = offset+major*minor_len+minor
-            if suboffset >= end:
+            if suboffset >= end_offset:
                 line.append( '   ' )
                 continue
             new_colour = get_colour( suboffset )
@@ -417,7 +412,7 @@ def format_hexdump_line( source, offset, end=None, major_len=8, minor_len=4, col
     return ''.join( line )
 
 
-def format_histogram_line( buckets, palette=None ):
+def format_histogram_line( buckets: Sequence[int], palette: Optional[Sequence[colour.ColourType]]=None ) -> str:
     if palette is None:
         palette = colour.TEST_PALETTE
     total = sum( buckets )
@@ -426,7 +421,7 @@ def format_histogram_line( buckets, palette=None ):
     buckets_log = [-floor + max( floor, math.log( b/total ) ) if b else None for b in buckets]
     limit = max( [b for b in buckets_log if b is not None] )
     buckets_norm = [round( 255*(b/limit) ) if b is not None else None for b in buckets_log]
-    result = []
+    result: List[str] = []
     for b in buckets_norm:
         if b is not None:
             result.append( format_string( '█', palette[b] ) )
@@ -435,7 +430,7 @@ def format_histogram_line( buckets, palette=None ):
     return ''.join( result )
 
 
-def format_histdump_line( source, offset, length=None, end=None, width=64, address_base_offset=0, palette=None ):
+def format_histdump_line( source: BytesReadType, offset: int, length: Optional[int]=None, end: Optional[int]=None, width: int=64, address_base_offset: int=0, palette: Optional[Sequence[colour.ColourType]]=None ):
     if length is not None:
         data = source[offset:offset+length]
     else:
@@ -450,27 +445,27 @@ def format_histdump_line( source, offset, length=None, end=None, width=64, addre
 HIGHLIGHT_COLOUR = 9
 
 class HexdumpHighlightBuffer( object ):
-    def __init__( self, source, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None, before=2, after=2, title=None ):
+    def __init__( self, source: BytesReadType, start: Optional[int]=None, end: Optional[int]=None, length: Optional[int]=None, major_len: int=8, minor_len: int=4, use_colour: bool=True, address_base: Optional[int]=None, before: int=2, after: int=2, title: Optional[str]=None ):
         assert is_bytes( source )
         self.source = source
         self.start, self.end = bounds( start, end, length, len( source ) )
 
         if len( source ) == 0 or (start == end == 0):
             return
-        self.address_base_offset = address_base-start if address_base is not None else 0
+        self.address_base_offset = address_base - self.start if address_base is not None else 0
         self.major_len = major_len
         self.minor_len = minor_len
-        self.colour = colour
+        self.colour = use_colour
         self.before = before
         self.after = after
         self.title = title
         self.stride = minor_len*major_len
-        self.lines = []
+        self.lines: List[str] = []
         self.last_printed = -1
-        self.output_buffer = {}
+        self.output_buffer: Dict[int, Optional[Dict[int, colour.ColourType]]] = {}
         self.printed = False
 
-    def update( self, marker ):
+    def update( self, marker: int ):
         cutoff = marker - (marker % self.stride) - self.stride
         if cutoff < self.start:
             return
@@ -480,7 +475,7 @@ class HexdumpHighlightBuffer( object ):
             if self.title:
                 self.lines.append( self.title )
             self.printed = True
-        for i, key in enumerate( keys ):
+        for _, key in enumerate( keys ):
             if key - self.last_printed > self.stride:
                 self.lines.append( '...' )
             if self.output_buffer[key]:
@@ -490,15 +485,16 @@ class HexdumpHighlightBuffer( object ):
             del self.output_buffer[key]
             self.last_printed = key
 
-    def add_span( self, span ):
+    def add_span( self, span: Tuple[int, int] ):
         block_start = span[0] - (span[0] % self.stride)
         block_end = max( 0, (span[1]-1) - ((span[1]-1) % self.stride) )
         for i in range( block_start, block_end+self.stride, self.stride ):
             if i not in self.output_buffer:
                 self.output_buffer[i] = {}
-            if self.output_buffer[i] is not None:
+            span_buf = self.output_buffer[i]
+            if span_buf is not None:
                 for j in range( max( i, span[0] ), min( i+self.stride, span[1] ) ):
-                    self.output_buffer[i][j] = HIGHLIGHT_COLOUR
+                    span_buf[j] = HIGHLIGHT_COLOUR
         for b in [block_start-(x+1)*self.stride for x in range( self.before )]:
             if b not in self.output_buffer and b > self.last_printed:
                 self.output_buffer[b] = {}
@@ -508,7 +504,7 @@ class HexdumpHighlightBuffer( object ):
 
         self.update( span[0] )
 
-    def flush( self, final=False ):
+    def flush( self, final: bool=False ):
         if final:
             self.update( len( self.source )+self.stride )
             if self.printed:
@@ -518,5 +514,4 @@ class HexdumpHighlightBuffer( object ):
         lines = self.lines
         self.lines = []
         return lines
-        return self.pop()
 

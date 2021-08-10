@@ -17,7 +17,8 @@ from mrcrowbar.fields import ParseError, FieldValidationError, Field, \
                             Int16_P, Int24_P, Int32_P, Int64_P, \
                             UInt16_P, UInt24_P, UInt32_P, UInt64_P, \
                             Float32_P, Float64_P
-from mrcrowbar.blocks import Block, Unknown
+from mrcrowbar.blocks import Block
+from mrcrowbar.unknown import Unknown
 from mrcrowbar.loaders import Loader
 from mrcrowbar.transforms import Transform, TransformResult
 from mrcrowbar.checks import CheckException, Check, Const, Pointer, Updater

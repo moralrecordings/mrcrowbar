@@ -1,10 +1,14 @@
 """Definition classes for cross-references."""
+from __future__ import annotations
 
 from mrcrowbar import common
 
-from mrcrowbar.blocks import Block
+from typing import Any, Optional, TYPE_CHECKING
 
-from typing import Any
+if TYPE_CHECKING:
+    from mrcrowbar.blocks import Block
+    from mrcrowbar.fields import Field
+
 
 class Ref( object ):
     """Base class for defining cross-references."""
@@ -34,7 +38,7 @@ class Ref( object ):
         Called by the parent Block constructor."""
         pass
 
-    def get( self, instance: Block, **kwargs ) -> Any:
+    def get( self, instance: Optional[Block], caller: Optional[Field]=None ) -> Any:
         """Return an attribute from an object using the Ref path.
 
         instance
@@ -45,7 +49,7 @@ class Ref( object ):
             target = getattr( target, attr )
         return target
 
-    def set( self, instance: Block, value: Any, **kwargs: Any ) -> None:
+    def set( self, instance: Optional[Block], value: Any, caller: Optional[Field]=None ) -> None:
         """Set an attribute on an object using the Ref path.
 
         instance
@@ -78,7 +82,7 @@ class Ref( object ):
     @property
     def serialised( self ):
         """Tuple containing the contents of the object."""
-        return common.serialise( self, ('_path', '_allow_write') )
+        return common.serialise( self, ['_path', '_allow_write'] )
 
     def __hash__( self ) -> int:
         return hash( self.serialised )
@@ -90,7 +94,7 @@ class Ref( object ):
 class ConstRef( Ref ):
     """Shortcut for a read-only Ref."""
 
-    def __init__( self, path ):
+    def __init__( self, path: str ):
         """Create a new Ref instance.
 
         path
@@ -102,7 +106,7 @@ class ConstRef( Ref ):
         super().__init__( path, allow_write=False )
 
 
-def property_get( prop: Any, instance: Block, **kwargs: Any ) -> Any:
+def property_get( prop: Any, instance: Optional[Block], caller: Optional[Field]=None ) -> Any:
     """Wrapper for property reads which auto-dereferences Refs if required.
 
     prop
@@ -112,11 +116,11 @@ def property_get( prop: Any, instance: Block, **kwargs: Any ) -> Any:
         The context object used to dereference the Ref.
     """
     if isinstance( prop, Ref ):
-        return prop.get( instance, **kwargs )
+        return prop.get( instance, caller )
     return prop
 
 
-def property_set( prop: Any, instance: Block, value: Any, **kwargs: Any ) -> None:
+def property_set( prop: Any, instance: Optional[Block], value: Any, caller: Optional[Field]=None ) -> None:
     """Wrapper for property writes which auto-deferences Refs.
 
     prop
@@ -132,7 +136,7 @@ def property_set( prop: Any, instance: Block, value: Any, **kwargs: Any ) -> Non
     """
 
     if isinstance( prop, Ref ):
-        prop.set( instance, value, **kwargs )
+        prop.set( instance, value, caller )
         return
     raise AttributeError( f"can't change value of constant {prop} (context: {instance})" )
 
@@ -178,7 +182,7 @@ class EndOffset( Ref ):
         self._neg = neg
         self._align = align
 
-    def get( self, instance: Block, **kwargs: Any ) -> Any:
+    def get( self, instance: Optional[Block], caller: Optional[Field]=None ) -> Any:
         target = instance
         align = property_get( self._align, instance )
         for attr in self._path[:-1]:
@@ -189,19 +193,19 @@ class EndOffset( Ref ):
             target *= -1
         return target
 
-    def set( self, instance: Block, value: Any, **kwargs: Any ) -> None:
+    def set( self, instance: Optional[Block], value: Any, caller: Optional[Field]=None ) -> None:
         raise AttributeError( "can't change the end offset of another field" )
 
     @property
     def serialised( self ):
-        return common.serialise( self, ('_path', '_allow_write', '_neg', '_align') )
+        return common.serialise( self, ['_path', '_allow_write', '_neg', '_align'] )
 
 
 class Chain( Ref ):
     def __init__( self ) -> None:
         super().__init__( '_previous_attr' )
 
-    def get( self, instance: Block, caller: Block=None, **kwargs: Any ) -> int:
+    def get( self, instance: Block, caller: Optional[Block]=None ) -> int:
         if caller is None:
             return 0
         field_name = getattr( caller, self._path[0] )
@@ -209,7 +213,7 @@ class Chain( Ref ):
             return 0
         return instance.get_field_end_offset( field_name )
 
-    def set( self, instance: Block, value: Any, **kwargs: Any ) -> None:
+    def set( self, instance: Block, value: Any, caller: Optional[Block]=None ) -> None:
         raise AttributeError( "can't change the end offset of another field" )
 
     def __repr__( self ) -> str:

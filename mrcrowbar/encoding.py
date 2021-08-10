@@ -1,13 +1,16 @@
 import re
 import struct
-from typing import Dict, List, Callable, Tuple, Type, Union, Optional, Any
+from typing import Dict, List, Callable, Tuple, Type, Union, Optional
 import logging
+from typing_extensions import Literal
 logger = logging.getLogger( __name__ )
 
 NumberType = Union[Type[int], Type[float]]
 Number = Union[int, float]
 
-NumberEncoding = Tuple[NumberType, int, str, Optional[str]]
+SignedEncoding = Literal["signed", "unsigned"]
+EndianEncoding = Literal["big", "little", None]
+NumberEncoding = Tuple[NumberType, int, SignedEncoding, EndianEncoding]
 
 # Python doesn't provide a programmatic way of fetching the supported codec list.
 # The below list is taken from the 3.7 manual.
@@ -230,7 +233,7 @@ RAW_TYPE_NAME: Dict[NumberEncoding, str] = {
 }
 RAW_TYPE_NAME_REVERSE = {v: k for k, v in RAW_TYPE_NAME.items()}
 
-RAW_TYPE_STRUCT: Dict[Tuple[NumberType, int, str], str] = {
+RAW_TYPE_STRUCT: Dict[Tuple[NumberType, int, SignedEncoding], str] = {
     (int, 1, 'unsigned'):   'B',
     (int, 1, 'signed'):     'b',
     (int, 2, 'unsigned'):   'H',
@@ -251,13 +254,13 @@ FROM_RAW_TYPE_ARRAY: Dict[NumberEncoding, Callable[[bytes], List[Number]]] = {}
 TO_RAW_TYPE_ARRAY: Dict[NumberEncoding, Callable[[List[Number]], bytes]] = {}
 
 
-def get_raw_type_struct( format_type: NumberType, field_size: int, signedness: str, endian: Optional[str], count: Optional[int]=None ) -> str:
-    endian = '>' if endian == 'big' else '<'
+def get_raw_type_struct( format_type: NumberType, field_size: int, signedness: SignedEncoding, endian: EndianEncoding, count: Optional[int]=None ) -> str:
+    endianness = '>' if endian == 'big' else '<'
     count_str = count if count is not None else ''
-    return f'{endian}{count_str}{RAW_TYPE_STRUCT[(format_type, field_size, signedness)]}'
+    return f'{endianness}{count_str}{RAW_TYPE_STRUCT[(format_type, field_size, signedness)]}'
 
 
-def get_raw_type_description( format_type: NumberType, field_size: int, signedness: str, endian: Optional[str] ) -> Tuple[str, str]:
+def get_raw_type_description( format_type: NumberType, field_size: int, signedness: SignedEncoding, endian: EndianEncoding ) -> Tuple[str, str]:
     TYPE_NAMES: Dict[NumberType, str] = {
         int: 'integer',
         float: 'floating-point number',
@@ -268,7 +271,7 @@ def get_raw_type_description( format_type: NumberType, field_size: int, signedne
     return f'{prefix}{field_size * 8}-bit {type_name}{suffix}', type_name
 
 
-def _from_raw_type( format_type: NumberType, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[bytes], Number]:
+def _from_raw_type( format_type: NumberType, field_size: int, signedness: SignedEncoding, endian: EndianEncoding ) -> Callable[[bytes], Number]:
     result: Callable[[bytes], Number] = lambda buffer: struct.unpack( get_raw_type_struct( format_type, field_size, signedness, endian ), buffer )[0]
     result.__doc__ = 'Convert a {0} byte string to a Python {1}.'.format(
         *get_raw_type_description( format_type, field_size, signedness, endian )
@@ -276,7 +279,7 @@ def _from_raw_type( format_type: NumberType, field_size: int, signedness: str, e
     return result
 
 
-def _to_raw_type( format_type: NumberType, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[Number], bytes]:
+def _to_raw_type( format_type: NumberType, field_size: int, signedness: SignedEncoding, endian: EndianEncoding ) -> Callable[[Number], bytes]:
     result: Callable[[Number], bytes] = lambda value: struct.pack( get_raw_type_struct( format_type, field_size, signedness, endian ), value )
     result.__doc__ = 'Convert a Python {1} to a {0} byte string.'.format(
         *get_raw_type_description( format_type, field_size, signedness, endian )
@@ -284,7 +287,7 @@ def _to_raw_type( format_type: NumberType, field_size: int, signedness: str, end
     return result
 
 
-def _from_raw_type_array( format_type: NumberType, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[bytes], List[Number]]:
+def _from_raw_type_array( format_type: NumberType, field_size: int, signedness: SignedEncoding, endian: EndianEncoding ) -> Callable[[bytes], List[Number]]:
     result: Callable[[bytes], List[Number]] = lambda buffer: list( struct.unpack( get_raw_type_struct( format_type, field_size, signedness, endian, count=len( buffer )//type_id[1] ), buffer ) )
     result.__doc__ = 'Convert a {0} byte string to a Python list of {1}s.'.format(
         *get_raw_type_description( format_type, field_size, signedness, endian )
@@ -292,7 +295,7 @@ def _from_raw_type_array( format_type: NumberType, field_size: int, signedness: 
     return result
 
 
-def _to_raw_type_array( format_type: NumberType, field_size: int, signedness: str, endian: Optional[str] ) -> Callable[[List[Number]], bytes]:
+def _to_raw_type_array( format_type: NumberType, field_size: int, signedness: SignedEncoding, endian: EndianEncoding ) -> Callable[[List[Number]], bytes]:
     result: Callable[[List[Number]], bytes] = lambda value_list: struct.pack( get_raw_type_struct( format_type, field_size, signedness, endian, count=len( value_list ) ), *value_list )
     result.__doc__ = 'Convert a Python list of {1}s to a {0} byte string.'.format(
         *get_raw_type_description( format_type, field_size, signedness, endian )
@@ -319,8 +322,8 @@ def _to_generic_array( type_id: NumberEncoding, to_raw: Callable[[Number], bytes
 
 # autogenerate conversion methods based on struct
 for format_type, field_size, signedness in RAW_TYPE_STRUCT:
-    endian_choices = [None, 'little', 'big'] if field_size == 1 else ['little', 'big']
-    endian: Optional[str]
+    endian_choices: List[EndianEncoding] = [None, 'little', 'big'] if field_size == 1 else ['little', 'big']
+    endian: EndianEncoding
     for endian in endian_choices:
         type_id = (format_type, field_size, signedness, endian)
         FROM_RAW_TYPE[type_id] = _from_raw_type( *type_id )
@@ -333,6 +336,8 @@ for format_type, field_size, signedness in RAW_TYPE_STRUCT:
 RAW_24 = ['int24_le', 'uint24_le', 'int24_be', 'uint24_be']
 
 def _from_raw_24( type_id: NumberEncoding ):
+    signedness: SignedEncoding
+    endian: EndianEncoding
     format_type, field_size, signedness, endian = type_id
     assert format_type == int
     assert field_size == 3
@@ -351,6 +356,8 @@ def _from_raw_24( type_id: NumberEncoding ):
 
 
 def _to_raw_24( type_id: NumberEncoding ):
+    signedness: SignedEncoding
+    endian: EndianEncoding
     format_type, field_size, signedness, endian = type_id
     assert format_type == int
     assert field_size == 3

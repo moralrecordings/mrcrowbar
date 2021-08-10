@@ -1,11 +1,13 @@
 import array
 import math
 from collections import Counter
+from typing import List
+from mrcrowbar.common import BytesReadType
 
 class Stats( object ):
     """Helper class for performing some basic statistical analysis on binary data."""
 
-    def __init__( self, buffer ):
+    def __init__( self, buffer: BytesReadType ):
         """Generate a Stats instance for a byte string and analyse the data."""
         self.samples = len( buffer )
         # Python's Counter object uses a fast path
@@ -21,7 +23,7 @@ class Stats( object ):
                 cover = count/self.samples
                 self.entropy += -cover * math.log2( cover )
 
-    def histogram( self, width ):
+    def histogram( self, width: int ) -> List[int]:
         if (256 % width) != 0:
             raise ValueError( 'Width of the histogram must be a divisor of 256' )
         elif (width <= 0):
@@ -31,7 +33,7 @@ class Stats( object ):
         bucket = 256//width
         return [sum( self.histo[i:i+bucket] ) for i in range( 0, 256, bucket )]
 
-    def ansi_format( self, width=64, height=12 ):
+    def ansi_format( self, width: int=64, height: int=12 ) -> str:
         """Return a human readable ANSI-terminal printout of the stats.
 
         width
@@ -49,7 +51,7 @@ class Stats( object ):
             raise ValueError( 'Width of the histogram must be less than or equal to 256' )
     
         buckets = self.histogram( width )
-        result = []
+        result: List[str] = []
         for line in format_bar_graph_iter( buckets, width=width, height=height ):
             result.append( f' {line}\n' )
 
@@ -58,9 +60,9 @@ class Stats( object ):
         result.append( f'samples: {self.samples}' )
         return ''.join( result )
 
-    def print( self, *args, **kwargs ):
+    def print( self, width: int=64, height: int=12 ):
         """Print the graphical version of the results produced by ansi_format()."""
-        print( self.ansi_format( *args, **kwargs ) )
+        print( self.ansi_format( width=width, height=height ) )
 
     def __str__( self ):
         return self.ansi_format()

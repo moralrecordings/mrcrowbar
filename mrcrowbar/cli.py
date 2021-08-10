@@ -3,13 +3,15 @@ from mrcrowbar.version import __version__
 
 import argparse
 import os
-from typing import Callable, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import logging
 logger = logging.getLogger( __name__ )
 
 auto_int: Callable[[str], int] = lambda s: int( s, base=0 )
 
-ARGS_RANGE = {
+ArgsType = Dict[Union[str, Tuple[str, ...]], Dict[str, Any]]
+
+ARGS_RANGE: ArgsType = {
     ('--start', '-C'): dict(
         metavar='INT',
         dest='start',
@@ -35,7 +37,7 @@ ARGS_RANGE = {
         help='Length to read in (optional replacement for --end)'
     ),
 }
-ARGS_COMMON = {
+ARGS_COMMON: ArgsType = {
     ('--major-len', '-J'): dict(
         metavar='INT',
         dest='major_len',
@@ -61,7 +63,7 @@ ARGS_COMMON = {
     ),
 }
 
-ARGS_DUMP = {
+ARGS_DUMP: ArgsType = {
     'source': dict(
         metavar='FILE',
         nargs='+',
@@ -86,7 +88,7 @@ ARGS_DUMP = {
     **ARGS_COMMON,
 }
 
-ARGS_DIFF = {
+ARGS_DIFF: ArgsType = {
     'source1': dict(
         metavar='FILE1',
         help='File to inspect',
@@ -118,7 +120,7 @@ ARGS_DIFF = {
     **ARGS_COMMON,
 }
 
-ARGS_HIST = {
+ARGS_HIST: ArgsType = {
    'source': dict(
         metavar='FILE',
         nargs='+',
@@ -161,7 +163,7 @@ ARGS_HIST = {
     **ARGS_RANGE,
 }
 
-ARGS_PIX = {
+ARGS_PIX: ArgsType = {
    'source': dict(
         metavar='FILE',
         nargs='+',
@@ -186,7 +188,7 @@ ARGS_PIX = {
     **ARGS_RANGE,
 }
 
-ARGS_GREP = {
+ARGS_GREP: ArgsType = {
     'pattern': dict(
         metavar='PATTERN',
         help='Pattern to match',
@@ -246,7 +248,7 @@ ARGS_GREP = {
     **ARGS_COMMON,
 }
 
-ARGS_FIND = {
+ARGS_FIND: ArgsType = {
     'string': dict(
         metavar='STRING',
         help='String to search for, or multiple strings separated by a comma',
@@ -316,8 +318,8 @@ ARGS_FIND = {
     **ARGS_COMMON,
 }
 
-def get_parser( args, **kwargs ):
-    parser = argparse.ArgumentParser( **kwargs )
+def get_parser( args: ArgsType, description: Optional[str]=None, epilog: Optional[str]=None ):
+    parser = argparse.ArgumentParser( description=description, epilog=epilog )
     for arg, spec in args.items():
         if isinstance( arg, tuple ):
             parser.add_argument( *arg, **spec )
@@ -408,7 +410,7 @@ def mrchist():
     if raw_args.recursive:
         source_paths = common.file_path_recurse( *source_paths )
 
-    for i, path in enumerate( source_paths ):
+    for _, path in enumerate( source_paths ):
         try:
             with open( path, 'rb' ) as src:
                 if multi:

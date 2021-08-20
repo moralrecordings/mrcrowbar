@@ -16,16 +16,6 @@ from mrcrowbar import ansi, encoding as enco, statistics
 from mrcrowbar.colour import ColourType, TEST_PALETTE, Transparent
 from mrcrowbar.common import BytesReadType, is_bytes, bounds
 
-# insert encoding shortcuts into the utils namespace
-for type_id, from_func in enco.FROM_RAW_TYPE.items():
-    globals()[f'from_{enco.RAW_TYPE_NAME[type_id]}'] = from_func
-for type_id, to_func in enco.TO_RAW_TYPE.items():
-    globals()[f'to_{enco.RAW_TYPE_NAME[type_id]}'] = to_func
-for type_id, from_func in enco.FROM_RAW_TYPE_ARRAY.items():
-    globals()[f'from_{enco.RAW_TYPE_NAME[type_id]}_array'] = from_func
-for type_id, to_func in enco.TO_RAW_TYPE_ARRAY.items():
-    globals()[f'to_{enco.RAW_TYPE_NAME[type_id]}_array'] = to_func
-
 
 def enable_logging( level: str = 'WARNING' ) -> None:
     """Enable sending logs to stderr. Useful for shell sessions.
@@ -1298,3 +1288,125 @@ def pixdump_sweep( source: BytesReadType, range: Sequence[int]=(64,), delay: int
             print( line )
         print()
         time.sleep( delay )
+
+"""
+You can generate the below section using the following script:
+
+from mrcrowbar import encoding as enco
+str_type = lambda type_class, *type_args: f"({type_class.__name__}, {str(type_args)[1:-1]})"
+for type_id, from_func in enco.FROM_RAW_TYPE.items():
+    print(f"from_{enco.RAW_TYPE_NAME[type_id]} = enco.FROM_RAW_TYPE[{str_type(*type_id)}]")
+for type_id, to_func in enco.TO_RAW_TYPE.items():
+    print(f"to_{enco.RAW_TYPE_NAME[type_id]} = enco.TO_RAW_TYPE[{str_type(*type_id)}]")
+for type_id, from_func in enco.FROM_RAW_TYPE_ARRAY.items():
+    print(f"from_{enco.RAW_TYPE_NAME[type_id]}_array = enco.FROM_RAW_TYPE_ARRAY[{str_type(*type_id)}]")
+for type_id, to_func in enco.TO_RAW_TYPE_ARRAY.items():
+    print(f"to_{enco.RAW_TYPE_NAME[type_id]}_array = enco.TO_RAW_TYPE_ARRAY[{str_type(*type_id)}]")
+
+"""
+
+from_uint8 = enco.FROM_RAW_TYPE[(int, 1, 'unsigned', None)]
+from_uint8 = enco.FROM_RAW_TYPE[(int, 1, 'unsigned', 'little')]
+from_uint8 = enco.FROM_RAW_TYPE[(int, 1, 'unsigned', 'big')]
+from_int8 = enco.FROM_RAW_TYPE[(int, 1, 'signed', None)]
+from_int8 = enco.FROM_RAW_TYPE[(int, 1, 'signed', 'little')]
+from_int8 = enco.FROM_RAW_TYPE[(int, 1, 'signed', 'big')]
+from_uint16_le = enco.FROM_RAW_TYPE[(int, 2, 'unsigned', 'little')]
+from_uint16_be = enco.FROM_RAW_TYPE[(int, 2, 'unsigned', 'big')]
+from_int16_le = enco.FROM_RAW_TYPE[(int, 2, 'signed', 'little')]
+from_int16_be = enco.FROM_RAW_TYPE[(int, 2, 'signed', 'big')]
+from_uint32_le = enco.FROM_RAW_TYPE[(int, 4, 'unsigned', 'little')]
+from_uint32_be = enco.FROM_RAW_TYPE[(int, 4, 'unsigned', 'big')]
+from_int32_le = enco.FROM_RAW_TYPE[(int, 4, 'signed', 'little')]
+from_int32_be = enco.FROM_RAW_TYPE[(int, 4, 'signed', 'big')]
+from_uint64_le = enco.FROM_RAW_TYPE[(int, 8, 'unsigned', 'little')]
+from_uint64_be = enco.FROM_RAW_TYPE[(int, 8, 'unsigned', 'big')]
+from_int64_le = enco.FROM_RAW_TYPE[(int, 8, 'signed', 'little')]
+from_int64_be = enco.FROM_RAW_TYPE[(int, 8, 'signed', 'big')]
+from_float32_le = enco.FROM_RAW_TYPE[(float, 4, 'signed', 'little')]
+from_float32_be = enco.FROM_RAW_TYPE[(float, 4, 'signed', 'big')]
+from_float64_le = enco.FROM_RAW_TYPE[(float, 8, 'signed', 'little')]
+from_float64_be = enco.FROM_RAW_TYPE[(float, 8, 'signed', 'big')]
+from_int24_le = enco.FROM_RAW_TYPE[(int, 3, 'signed', 'little')]
+from_uint24_le = enco.FROM_RAW_TYPE[(int, 3, 'unsigned', 'little')]
+from_int24_be = enco.FROM_RAW_TYPE[(int, 3, 'signed', 'big')]
+from_uint24_be = enco.FROM_RAW_TYPE[(int, 3, 'unsigned', 'big')]
+to_uint8 = enco.TO_RAW_TYPE[(int, 1, 'unsigned', None)]
+to_uint8 = enco.TO_RAW_TYPE[(int, 1, 'unsigned', 'little')]
+to_uint8 = enco.TO_RAW_TYPE[(int, 1, 'unsigned', 'big')]
+to_int8 = enco.TO_RAW_TYPE[(int, 1, 'signed', None)]
+to_int8 = enco.TO_RAW_TYPE[(int, 1, 'signed', 'little')]
+to_int8 = enco.TO_RAW_TYPE[(int, 1, 'signed', 'big')]
+to_uint16_le = enco.TO_RAW_TYPE[(int, 2, 'unsigned', 'little')]
+to_uint16_be = enco.TO_RAW_TYPE[(int, 2, 'unsigned', 'big')]
+to_int16_le = enco.TO_RAW_TYPE[(int, 2, 'signed', 'little')]
+to_int16_be = enco.TO_RAW_TYPE[(int, 2, 'signed', 'big')]
+to_uint32_le = enco.TO_RAW_TYPE[(int, 4, 'unsigned', 'little')]
+to_uint32_be = enco.TO_RAW_TYPE[(int, 4, 'unsigned', 'big')]
+to_int32_le = enco.TO_RAW_TYPE[(int, 4, 'signed', 'little')]
+to_int32_be = enco.TO_RAW_TYPE[(int, 4, 'signed', 'big')]
+to_uint64_le = enco.TO_RAW_TYPE[(int, 8, 'unsigned', 'little')]
+to_uint64_be = enco.TO_RAW_TYPE[(int, 8, 'unsigned', 'big')]
+to_int64_le = enco.TO_RAW_TYPE[(int, 8, 'signed', 'little')]
+to_int64_be = enco.TO_RAW_TYPE[(int, 8, 'signed', 'big')]
+to_float32_le = enco.TO_RAW_TYPE[(float, 4, 'signed', 'little')]
+to_float32_be = enco.TO_RAW_TYPE[(float, 4, 'signed', 'big')]
+to_float64_le = enco.TO_RAW_TYPE[(float, 8, 'signed', 'little')]
+to_float64_be = enco.TO_RAW_TYPE[(float, 8, 'signed', 'big')]
+to_int24_le = enco.TO_RAW_TYPE[(int, 3, 'signed', 'little')]
+to_uint24_le = enco.TO_RAW_TYPE[(int, 3, 'unsigned', 'little')]
+to_int24_be = enco.TO_RAW_TYPE[(int, 3, 'signed', 'big')]
+to_uint24_be = enco.TO_RAW_TYPE[(int, 3, 'unsigned', 'big')]
+from_uint8_array = enco.FROM_RAW_TYPE_ARRAY[(int, 1, 'unsigned', None)]
+from_uint8_array = enco.FROM_RAW_TYPE_ARRAY[(int, 1, 'unsigned', 'little')]
+from_uint8_array = enco.FROM_RAW_TYPE_ARRAY[(int, 1, 'unsigned', 'big')]
+from_int8_array = enco.FROM_RAW_TYPE_ARRAY[(int, 1, 'signed', None)]
+from_int8_array = enco.FROM_RAW_TYPE_ARRAY[(int, 1, 'signed', 'little')]
+from_int8_array = enco.FROM_RAW_TYPE_ARRAY[(int, 1, 'signed', 'big')]
+from_uint16_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 2, 'unsigned', 'little')]
+from_uint16_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 2, 'unsigned', 'big')]
+from_int16_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 2, 'signed', 'little')]
+from_int16_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 2, 'signed', 'big')]
+from_uint32_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 4, 'unsigned', 'little')]
+from_uint32_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 4, 'unsigned', 'big')]
+from_int32_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 4, 'signed', 'little')]
+from_int32_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 4, 'signed', 'big')]
+from_uint64_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 8, 'unsigned', 'little')]
+from_uint64_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 8, 'unsigned', 'big')]
+from_int64_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 8, 'signed', 'little')]
+from_int64_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 8, 'signed', 'big')]
+from_float32_le_array = enco.FROM_RAW_TYPE_ARRAY[(float, 4, 'signed', 'little')]
+from_float32_be_array = enco.FROM_RAW_TYPE_ARRAY[(float, 4, 'signed', 'big')]
+from_float64_le_array = enco.FROM_RAW_TYPE_ARRAY[(float, 8, 'signed', 'little')]
+from_float64_be_array = enco.FROM_RAW_TYPE_ARRAY[(float, 8, 'signed', 'big')]
+from_int24_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 3, 'signed', 'little')]
+from_uint24_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 3, 'unsigned', 'little')]
+from_int24_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 3, 'signed', 'big')]
+from_uint24_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 3, 'unsigned', 'big')]
+to_uint8_array = enco.TO_RAW_TYPE_ARRAY[(int, 1, 'unsigned', None)]
+to_uint8_array = enco.TO_RAW_TYPE_ARRAY[(int, 1, 'unsigned', 'little')]
+to_uint8_array = enco.TO_RAW_TYPE_ARRAY[(int, 1, 'unsigned', 'big')]
+to_int8_array = enco.TO_RAW_TYPE_ARRAY[(int, 1, 'signed', None)]
+to_int8_array = enco.TO_RAW_TYPE_ARRAY[(int, 1, 'signed', 'little')]
+to_int8_array = enco.TO_RAW_TYPE_ARRAY[(int, 1, 'signed', 'big')]
+to_uint16_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 2, 'unsigned', 'little')]
+to_uint16_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 2, 'unsigned', 'big')]
+to_int16_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 2, 'signed', 'little')]
+to_int16_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 2, 'signed', 'big')]
+to_uint32_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 4, 'unsigned', 'little')]
+to_uint32_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 4, 'unsigned', 'big')]
+to_int32_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 4, 'signed', 'little')]
+to_int32_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 4, 'signed', 'big')]
+to_uint64_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 8, 'unsigned', 'little')]
+to_uint64_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 8, 'unsigned', 'big')]
+to_int64_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 8, 'signed', 'little')]
+to_int64_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 8, 'signed', 'big')]
+to_float32_le_array = enco.TO_RAW_TYPE_ARRAY[(float, 4, 'signed', 'little')]
+to_float32_be_array = enco.TO_RAW_TYPE_ARRAY[(float, 4, 'signed', 'big')]
+to_float64_le_array = enco.TO_RAW_TYPE_ARRAY[(float, 8, 'signed', 'little')]
+to_float64_be_array = enco.TO_RAW_TYPE_ARRAY[(float, 8, 'signed', 'big')]
+to_int24_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 3, 'signed', 'little')]
+to_uint24_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 3, 'unsigned', 'little')]
+to_int24_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 3, 'signed', 'big')]
+to_uint24_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 3, 'unsigned', 'big')]
+

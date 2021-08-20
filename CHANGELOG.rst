@@ -13,6 +13,7 @@ Unreleased
 - lib.platforms.director.unlock_dir_file: Improve robustness, remove dependency on parser
 - lib.games.sierra: Init
 - sound.resample_audio_iter: Fix broken resampling logic
+- utils: Replace dynamic loading of encoder shortcuts with static loading
 
 0.9.0 - 2021-01-14
 ==================

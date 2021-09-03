@@ -12,12 +12,11 @@ from mrcrowbar import models as mrc
 from mrcrowbar import utils
 
 
-
 class IPSRecord( mrc.Block ):
     offset_maj = mrc.UInt8( 0x00 )
     offset_min = mrc.UInt16_BE( 0x01 )
-    size =       mrc.UInt16_BE( 0x03 )
-    data =       mrc.Bytes( 0x05, length=mrc.Ref( 'size' ) )
+    size = mrc.UInt16_BE( 0x03 )
+    data = mrc.Bytes( 0x05, length=mrc.Ref( "size" ) )
 
     @property
     def offset( self ):
@@ -30,16 +29,16 @@ class IPSRecord( mrc.Block ):
 
     @property
     def repr( self ):
-        return f'offset: 0x{self.offset:06x}, size: 0x{self.size:04x}'
+        return f"offset: 0x{self.offset:06x}, size: 0x{self.size:04x}"
 
 
 class IPS( mrc.Block ):
-    magic =     mrc.Const( mrc.Bytes( 0x00, length=5 ), b'PATCH' )
-    records =   mrc.BlockField( IPSRecord, 0x05, stream=True, stream_end=b'EOF' )
+    magic = mrc.Const( mrc.Bytes( 0x00, length=5 ), b"PATCH" )
+    records = mrc.BlockField( IPSRecord, 0x05, stream=True, stream_end=b"EOF" )
 
     @property
     def repr( self ):
-        return f'records: {len( self.records )}'
+        return f"records: {len( self.records )}"
 
     def create( self, source, target ):
         pass
@@ -52,7 +51,7 @@ class UIntVLV( mrc.Field ):
     def __init__( self, offset, default=0, **kwargs ):
         super().__init__( default=default, **kwargs )
         self.offset = offset
-        
+
     def get_from_buffer( self, buffer, parent=None ):
         assert utils.is_bytes( buffer )
         offset = mrc.property_get( self.offset, parent )
@@ -61,7 +60,7 @@ class UIntVLV( mrc.Field ):
         shift = 0
         while pointer < len( buffer ):
             test = buffer[pointer]
-            pointer += 1 
+            pointer += 1
             total += (test & 0x7f) << shift
             shift += 7
             if test & 0x80:
@@ -74,13 +73,13 @@ class UIntVLV( mrc.Field ):
         offset = mrc.property_get( self.offset, parent )
         length = self.get_size( value, parent )
         remainder = value
-        if len( buffer ) < offset+length:
-            buffer.extend( b'\x00'*(offset+length-len( buffer )) )
+        if len( buffer ) < offset + length:
+            buffer.extend( b"\x00" * (offset + length - len( buffer )) )
         for i in range( length ):
-            buffer[offset+i] = remainder & 0x7f
+            buffer[offset + i] = remainder & 0x7f
             remainder >>= 7
             if remainder == 0:
-                buffer[offset+i] |= 0x80
+                buffer[offset + i] |= 0x80
                 break
             remainder -= 1
         return
@@ -104,42 +103,44 @@ class UIntVLV( mrc.Field ):
         return count
 
     def validate( self, value, parent=None ):
-        if (type( value ) != int):
-            raise mrc.FieldValidationError( f'Expecting type {self.format_type}, not {type( value[i] )}' )
+        if type( value ) != int:
+            raise mrc.FieldValidationError(
+                f"Expecting type {self.format_type}, not {type( value[i] )}"
+            )
         if value < 0:
-            raise mrc.FieldValidationError( 'Value must be unsigned' )
+            raise mrc.FieldValidationError( "Value must be unsigned" )
         return
 
 
 class XORData( mrc.Bytes ):
     def __init__( self, offset, *args, **kwargs ):
-        super().__init__( offset, stream_end=b'\x00', *args, **kwargs )
+        super().__init__( offset, stream_end=b"\x00", *args, **kwargs )
 
     def validate( self, value, parent=None ):
         super().validate( value, parent )
-        if value.find( b'\x00' ) != -1:
-            raise mrc.FieldValidationError( 'XOR data can\'t contain a null character' )
+        if value.find( b"\x00" ) != -1:
+            raise mrc.FieldValidationError( "XOR data can't contain a null character" )
         return
 
 
 class UPSBlock( mrc.Block ):
-    rel_offset =    UIntVLV( 0x00 )
-    xor_data =      XORData( mrc.EndOffset( 'rel_offset' ) )
+    rel_offset = UIntVLV( 0x00 )
+    xor_data = XORData( mrc.EndOffset( "rel_offset" ) )
 
     @property
     def repr( self ):
-        return f'rel_offset: 0x{self.rel_offset:x}, size: {len( self.xor_data )}'
+        return f"rel_offset: 0x{self.rel_offset:x}, size: {len( self.xor_data )}"
 
 
 class UPS( mrc.Block ):
-    STOP_CHECK =    lambda buffer, pointer: pointer >= len( buffer )-12
+    STOP_CHECK = lambda buffer, pointer: pointer >= len( buffer ) - 12
 
-    magic =         mrc.Const( mrc.Bytes( 0x00, length=4 ), b'UPS1' )
-    input_size =    UIntVLV( 0x04 )
-    output_size =   UIntVLV( mrc.EndOffset( 'input_size' ) )
-    blocks =        mrc.BlockField( UPSBlock, mrc.EndOffset( 'output_size' ), stream=True, stop_check=STOP_CHECK )
-    input_crc32 =   mrc.UInt32_LE( mrc.EndOffset( 'blocks' ) )
-    output_crc32 =  mrc.UInt32_LE( mrc.EndOffset( 'input_crc32' ) )
-    patch_crc32 =   mrc.UInt32_LE( mrc.EndOffset( 'output_crc32' ) )
-
-
+    magic = mrc.Const( mrc.Bytes( 0x00, length=4 ), b"UPS1" )
+    input_size = UIntVLV( 0x04 )
+    output_size = UIntVLV( mrc.EndOffset( "input_size" ) )
+    blocks = mrc.BlockField(
+        UPSBlock, mrc.EndOffset( "output_size" ), stream=True, stop_check=STOP_CHECK
+    )
+    input_crc32 = mrc.UInt32_LE( mrc.EndOffset( "blocks" ) )
+    output_crc32 = mrc.UInt32_LE( mrc.EndOffset( "input_crc32" ) )
+    patch_crc32 = mrc.UInt32_LE( mrc.EndOffset( "output_crc32" ) )

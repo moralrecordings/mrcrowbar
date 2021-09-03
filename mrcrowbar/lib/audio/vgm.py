@@ -6,7 +6,7 @@ class DataBlock( mrc.Block ):
     compat_stop = mrc.Const( mrc.UInt8( 0x00 ), 0x66 )
     data_type = mrc.UInt8( 0x01 )
     length = mrc.UInt32_LE( 0x02 )
-    data = mrc.Bytes( 0x06, length=mrc.Ref( 'length' ) )
+    data = mrc.Bytes( 0x06, length=mrc.Ref( "length" ) )
 
 
 class MemoryWrite( mrc.Block ):
@@ -18,10 +18,9 @@ class MemoryWrite( mrc.Block ):
 
 
 class Blank( mrc.Block ):
-    
     @property
     def repr( self ):
-        return ''
+        return ""
 
 
 class Write8( mrc.Block ):
@@ -29,7 +28,7 @@ class Write8( mrc.Block ):
 
     @property
     def repr( self ):
-        return f'value=0x{self.value:02x}'
+        return f"value=0x{self.value:02x}"
 
 
 class Write16( mrc.Block ):
@@ -37,7 +36,7 @@ class Write16( mrc.Block ):
 
     @property
     def repr( self ):
-        return f'value=0x{self.value:04x}'
+        return f"value=0x{self.value:04x}"
 
 
 class RegisterWrite8( mrc.Block ):
@@ -46,7 +45,7 @@ class RegisterWrite8( mrc.Block ):
 
     @property
     def repr( self ):
-        return f'register=0x{self.register:02x}, value=0x{self.value:02x}'
+        return f"register=0x{self.register:02x}, value=0x{self.value:02x}"
 
 
 class Reserved8( mrc.Block ):
@@ -78,7 +77,7 @@ class PSGData( mrc.Block ):
     @property
     def channel( self ):
         return None if not self.type else ((self.data_raw >> 5) & 0x3)
-    
+
     @channel.setter
     def channel( self, value ):
         assert self.type
@@ -87,13 +86,17 @@ class PSGData( mrc.Block ):
 
     @property
     def control( self ):
-        return None if not self.type else ('VOLUME' if ((self.data_raw >> 4) & 1) else 'TONE')
+        return (
+            None
+            if not self.type
+            else ("VOLUME" if ((self.data_raw >> 4) & 1) else "TONE")
+        )
 
     @control.setter
     def control( self, value ):
         assert self.type
         self.data_raw &= 0b1101111
-        if value == 'VOLUME':
+        if value == "VOLUME":
             self.data_raw |= 0b0010000
 
     @property
@@ -111,84 +114,84 @@ class PSGData( mrc.Block ):
 
     @property
     def repr( self ):
-        type_str = 'LATCH' if self.type else 'DATA'
-        result = f'type={type_str}'
+        type_str = "LATCH" if self.type else "DATA"
+        result = f"type={type_str}"
         if self.type:
-            result += f', channel={self.channel}'
-            result += f', control={self.control}'
-            result += f', data={self.data:04b}'
+            result += f", channel={self.channel}"
+            result += f", control={self.control}"
+            result += f", data={self.data:04b}"
         else:
-            result += ', data={self.data:06b}'
+            result += ", data={self.data:06b}"
         return result
 
 
 # source: http://www.smspower.org/uploads/Music/vgmspec170.txt
 
 COMMAND_LIST = [
-    ('GG_STEREO', 0x4f, Write8),
-    ('SN76489', 0x50, PSGData),
-    ('YM2413', 0x51, RegisterWrite8),
-    ('YM2612_0', 0x52, RegisterWrite8),
-    ('YM2612_1', 0x53, RegisterWrite8),
-    ('YM2151', 0x54, RegisterWrite8),
-    ('YM2203', 0x55, RegisterWrite8),
-    ('YM2608_0', 0x56, RegisterWrite8),
-    ('YM2608_1', 0x57, RegisterWrite8),
-    ('YM2610_0', 0x58, RegisterWrite8),
-    ('YM2610_1', 0x59, RegisterWrite8),
-    ('YM3812', 0x5a, RegisterWrite8),
-    ('YM3526', 0x5b, RegisterWrite8),
-    ('Y8950', 0x5c, RegisterWrite8),
-    ('YMZ280B', 0x5d, RegisterWrite8),
-    ('YMF262_0', 0x5e, RegisterWrite8),
-    ('YMF262_1', 0x5f, RegisterWrite8),
-    ('WAIT', 0x61, Write16),
-    ('WAIT_735_60HZ', 0x62, Blank),
-    ('WAIT_882_50HZ', 0x63, Blank),
-    ('END_OF_DATA', 0x66, Blank),
-    ('DATA_BLOCK', 0x67, DataBlock),
-    ('MEMORY_WRITE', 0x68, MemoryWrite),
+    ("GG_STEREO", 0x4f, Write8),
+    ("SN76489", 0x50, PSGData),
+    ("YM2413", 0x51, RegisterWrite8),
+    ("YM2612_0", 0x52, RegisterWrite8),
+    ("YM2612_1", 0x53, RegisterWrite8),
+    ("YM2151", 0x54, RegisterWrite8),
+    ("YM2203", 0x55, RegisterWrite8),
+    ("YM2608_0", 0x56, RegisterWrite8),
+    ("YM2608_1", 0x57, RegisterWrite8),
+    ("YM2610_0", 0x58, RegisterWrite8),
+    ("YM2610_1", 0x59, RegisterWrite8),
+    ("YM3812", 0x5a, RegisterWrite8),
+    ("YM3526", 0x5b, RegisterWrite8),
+    ("Y8950", 0x5c, RegisterWrite8),
+    ("YMZ280B", 0x5d, RegisterWrite8),
+    ("YMF262_0", 0x5e, RegisterWrite8),
+    ("YMF262_1", 0x5f, RegisterWrite8),
+    ("WAIT", 0x61, Write16),
+    ("WAIT_735_60HZ", 0x62, Blank),
+    ("WAIT_882_50HZ", 0x63, Blank),
+    ("END_OF_DATA", 0x66, Blank),
+    ("DATA_BLOCK", 0x67, DataBlock),
+    ("MEMORY_WRITE", 0x68, MemoryWrite),
 ]
 for i in range( 16 ):
-    COMMAND_LIST.append( ( f'WAIT_{i + 1}', 0x70 + i, Blank ) )
+    COMMAND_LIST.append( (f"WAIT_{i + 1}", 0x70 + i, Blank) )
 for i in range( 16 ):
-    COMMAND_LIST.append( ( f'YM2612_0_2A_WAIT_{i}', 0x80 + i, Blank ) )
+    COMMAND_LIST.append( (f"YM2612_0_2A_WAIT_{i}", 0x80 + i, Blank) )
 
 for i in range( 0x30, 0x40 ):
-    COMMAND_LIST.append( ( f'RESERVED_{i:02X}', i,  Reserved8 ) )
+    COMMAND_LIST.append( (f"RESERVED_{i:02X}", i, Reserved8) )
 for i in range( 0x40, 0x4f ):
-    COMMAND_LIST.append( ( f'RESERVED_{i:02X}', i,  Reserved16 ) )
+    COMMAND_LIST.append( (f"RESERVED_{i:02X}", i, Reserved16) )
 for i in range( 0xa1, 0xb0 ):
-    COMMAND_LIST.append( ( f'RESERVED_{i:02X}', i,  Reserved16 ) )
+    COMMAND_LIST.append( (f"RESERVED_{i:02X}", i, Reserved16) )
 for i in range( 0xc5, 0xd0 ):
-    COMMAND_LIST.append( ( f'RESERVED_{i:02X}', i,  Reserved24 ) )
+    COMMAND_LIST.append( (f"RESERVED_{i:02X}", i, Reserved24) )
 for i in range( 0xd5, 0xe0 ):
-    COMMAND_LIST.append( ( f'RESERVED_{i:02X}', i,  Reserved24 ) )
+    COMMAND_LIST.append( (f"RESERVED_{i:02X}", i, Reserved24) )
 for i in range( 0xe1, 0x100 ):
-    COMMAND_LIST.append( ( f'RESERVED_{i:02X}', i,  Reserved32 ) )
+    COMMAND_LIST.append( (f"RESERVED_{i:02X}", i, Reserved32) )
 
-Command = IntEnum( 'Command', [(x[0], x[1]) for x in COMMAND_LIST] )
-COMMAND_MAP = {Command(x[1]): x[2] for x in COMMAND_LIST}
+Command = IntEnum( "Command", [(x[0], x[1]) for x in COMMAND_LIST] )
+COMMAND_MAP = {Command( x[1] ): x[2] for x in COMMAND_LIST}
 
 
 class VGM150( mrc.Block ):
-    magic               = mrc.Const( mrc.Bytes( 0x00, length=0x04, default=b'Vgm ' ), b'Vgm ' )
-    eof_offset          = mrc.UInt32_LE( 0x04 )
-    version             = mrc.UInt32_LE( 0x08 )
-    sn76489_clock       = mrc.UInt32_LE( 0x0c )
-    ym2413_clock        = mrc.UInt32_LE( 0x10 )
-    gd3_offset          = mrc.UInt32_LE( 0x14 )
-    total_sample_count  = mrc.UInt32_LE( 0x18 )
-    loop_offset         = mrc.UInt32_LE( 0x1c )
-    loop_sample_count   = mrc.UInt32_LE( 0x20 )
-    rate                = mrc.UInt32_LE( 0x24 )
-    sn76489_feedback    = mrc.UInt16_LE( 0x28 )
-    sn76489_shiftwidth  = mrc.UInt8( 0x2a )
-    sn76489_flags       = mrc.UInt8( 0x2b )
-    ym2612_clock        = mrc.UInt32_LE( 0x2c )
-    ym2151_clock        = mrc.UInt32_LE( 0x30 )
+    magic = mrc.Const( mrc.Bytes( 0x00, length=0x04, default=b"Vgm " ), b"Vgm " )
+    eof_offset = mrc.UInt32_LE( 0x04 )
+    version = mrc.UInt32_LE( 0x08 )
+    sn76489_clock = mrc.UInt32_LE( 0x0c )
+    ym2413_clock = mrc.UInt32_LE( 0x10 )
+    gd3_offset = mrc.UInt32_LE( 0x14 )
+    total_sample_count = mrc.UInt32_LE( 0x18 )
+    loop_offset = mrc.UInt32_LE( 0x1c )
+    loop_sample_count = mrc.UInt32_LE( 0x20 )
+    rate = mrc.UInt32_LE( 0x24 )
+    sn76489_feedback = mrc.UInt16_LE( 0x28 )
+    sn76489_shiftwidth = mrc.UInt8( 0x2a )
+    sn76489_flags = mrc.UInt8( 0x2b )
+    ym2612_clock = mrc.UInt32_LE( 0x2c )
+    ym2151_clock = mrc.UInt32_LE( 0x30 )
     vgm_data_offset_raw = mrc.UInt32_LE( 0x34 )
-    header_extra        = mrc.Bytes( 0x38, length=0x08, default=b'\x00'*8 )
+    header_extra = mrc.Bytes( 0x38, length=0x08, default=b"\x00" * 8 )
 
     @property
     def vgm_data_offset( self ):
@@ -196,8 +199,12 @@ class VGM150( mrc.Block ):
             return self.vgm_data_offset_raw + 0x34
         return 0x40
 
-    vgm_data = mrc.ChunkField( COMMAND_MAP, mrc.Ref( 'vgm_data_offset' ), id_field=mrc.UInt8, id_enum=Command, default_klass=mrc.Unknown, stream_end=b'\x66' )
-    extra = mrc.Bytes( mrc.EndOffset( 'vgm_data' ), default=b'' )
-
-
-
+    vgm_data = mrc.ChunkField(
+        COMMAND_MAP,
+        mrc.Ref( "vgm_data_offset" ),
+        id_field=mrc.UInt8,
+        id_enum=Command,
+        default_klass=mrc.Unknown,
+        stream_end=b"\x66",
+    )
+    extra = mrc.Bytes( mrc.EndOffset( "vgm_data" ), default=b"" )

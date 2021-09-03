@@ -20,7 +20,7 @@ class FieldDescriptor( object ):
         """
         self.name = name
 
-    def __get__( self, instance: 'Block', cls ) -> Any:
+    def __get__( self, instance: "Block", cls ) -> Any:
         try:
             if instance is None:
                 return cls._fields[self.name]
@@ -28,7 +28,7 @@ class FieldDescriptor( object ):
         except KeyError:
             raise AttributeError( self.name )
 
-    def __set__( self, instance: 'Block', value: Any ):
+    def __set__( self, instance: "Block", value: Any ):
         if instance is None:
             return
         instance._field_data[self.name] = value
@@ -36,7 +36,9 @@ class FieldDescriptor( object ):
 
     def __delete__( self, instance ):
         if self.name not in instance._fields:
-            raise AttributeError( f"{type( instance ).__name__} has no attribute {self.name}" )
+            raise AttributeError(
+                f"{type( instance ).__name__} has no attribute {self.name}"
+            )
         del instance._fields[self.name]
 
 
@@ -49,13 +51,15 @@ class RefDescriptor( object ):
         """
         self.name = name
 
-    def __get__( self, instance: 'Block', cls ):
+    def __get__( self, instance: "Block", cls ):
         try:
             if instance is None:
                 return cls._refs[self.name]
             # FIXME: don't cache until we evaluate if the performance suffers
-            if True: #self.name not in instance._ref_cache:
-                instance._ref_cache[self.name] = instance._refs[self.name].get( instance )
+            if True:  # self.name not in instance._ref_cache:
+                instance._ref_cache[self.name] = instance._refs[self.name].get(
+                    instance
+                )
             return instance._ref_cache[self.name]
         except KeyError:
             raise AttributeError( self.name )
@@ -84,17 +88,19 @@ class BlockMeta( type ):
 
         # add base class attributes to structs
         for base in bases:
-            if hasattr( base, '_fields' ):
+            if hasattr( base, "_fields" ):
                 fields.update( base._fields )
-            if hasattr( base, '_refs' ):
+            if hasattr( base, "_refs" ):
                 refs.update( base._refs )
-            if hasattr( base, '_checks' ):
+            if hasattr( base, "_checks" ):
                 checks.update( base._checks )
 
         # Parse this class's attributes into meta structures
         previous = None
         # Python 3.6+ uses an ordered dict for class attributes; prior to that we cheat
-        attrs_compat = OrderedDict( sorted( attrs.items(), key=lambda i: getattr(i[1], '_position_hint', 0) ) )
+        attrs_compat = OrderedDict(
+            sorted( attrs.items(), key=lambda i: getattr( i[1], "_position_hint", 0 ) )
+        )
         for key, value in attrs_compat.items():
             if isinstance( value, Field ):
                 fields[key] = value
@@ -107,7 +113,7 @@ class BlockMeta( type ):
                 check_fields = value.get_fields()
                 if isinstance( check_fields, dict ):
                     for field_id, field in value.get_fields().items():
-                        sub_key = f'{key}__{field_id}'
+                        sub_key = f"{key}__{field_id}"
                         fields[sub_key] = field
                         field._previous_attr = previous
                         previous = sub_key
@@ -116,7 +122,6 @@ class BlockMeta( type ):
                     check_fields._previous_attr = previous
                     previous = key
 
-
         # Convert list of types into fields for new klass
         for key, field in fields.items():
             attrs[key] = FieldDescriptor( key )
@@ -124,9 +129,9 @@ class BlockMeta( type ):
             attrs[key] = RefDescriptor( key )
 
         # Ready meta data to be klass attributes
-        attrs['_fields'] = fields
-        attrs['_refs'] = refs
-        attrs['_checks'] = checks
+        attrs["_fields"] = fields
+        attrs["_refs"] = refs
+        attrs["_checks"] = checks
 
         klass = type.__new__( mcs, name, bases, attrs )
 
@@ -142,7 +147,7 @@ class BlockMeta( type ):
     @property
     def refs( cls ):
         return cls._refs
-    
+
     @property
     def checks( cls ):
         return cls._checks
@@ -155,15 +160,26 @@ class Block( object, metaclass=BlockMeta ):
     _bytes = None
     _repr_values: Optional[List[str]] = None
 
-    def __init__( self, source_data=None, *, parent=None, preload_attrs=None, endian=None, cache_bytes=False, path_hint=None, strict=False, cache_refs=True ):
+    def __init__(
+        self,
+        source_data=None,
+        *,
+        parent=None,
+        preload_attrs=None,
+        endian=None,
+        cache_bytes=False,
+        path_hint=None,
+        strict=False,
+        cache_refs=True,
+    ):
         """Base class for Blocks.
 
         source_data
-            Source data to construct Block with. Can be a byte string, dictionary 
+            Source data to construct Block with. Can be a byte string, dictionary
             of attribute: value pairs, or another Block object.
 
         parent
-            Parent Block object where this Block is defined. Used for e.g. 
+            Parent Block object where this Block is defined. Used for e.g.
             evaluating Refs.
 
         preload_attrs
@@ -171,7 +187,7 @@ class Block( object, metaclass=BlockMeta ):
             for linking in dependencies before loading.
 
         endian
-            Platform endianness to use when interpreting the Block data. 
+            Platform endianness to use when interpreting the Block data.
             Useful for Blocks which have the same data layout but different
             endianness for stored numbers. Has no effect on fields with an
             predefined endianness.
@@ -196,10 +212,12 @@ class Block( object, metaclass=BlockMeta ):
         if parent is not None:
             assert isinstance( parent, Block )
         self._parent = parent
-        self._endian = endian if endian else (parent._endian if parent else self._endian)
+        self._endian = (
+            endian if endian else (parent._endian if parent else self._endian)
+        )
         self._path_hint = path_hint
         if self._path_hint is None:
-            self._path_hint = f'<{self.__class__.__name__}>'
+            self._path_hint = f"<{self.__class__.__name__}>"
         self._strict = strict
         self._cache_refs = cache_refs
 
@@ -221,45 +239,53 @@ class Block( object, metaclass=BlockMeta ):
             self.update_data( source_data )
         else:
             self.import_data( source_data )
-        
+
         # cache all refs
         if self._cache_refs:
             for key, ref in self._refs.items():
                 ref.cache( self, key )
 
     def __repr__( self ) -> str:
-        desc = f'0x{id( self ):016x}'
+        desc = f"0x{id( self ):016x}"
         if isinstance( self.repr, str ):
             desc = self.repr
-        return f'<{self.__class__.__name__}: {desc}>'
+        return f"<{self.__class__.__name__}: {desc}>"
 
     @property
     def repr( self ) -> Optional[str]:
         """Plaintext summary of the Block."""
         value_map: Dict[str, Any] = {}
         if self._repr_values and isinstance( self._repr_values, list ):
-            value_map = {x: getattr( self, x ) for x in self._repr_values if hasattr( self, x )}
+            value_map = {
+                x: getattr( self, x ) for x in self._repr_values if hasattr( self, x )
+            }
         else:
             value_map = {k: v for k, v in self._field_data.items()}
         values: List[str] = []
         for name, value in value_map.items():
-            output = ''
+            output = ""
             if isinstance( value, str ):
-                output = f'str[{len(value)}]'
+                output = f"str[{len(value)}]"
             elif common.is_bytes( value ):
-                output = f'bytes[{len(value)}]'
+                output = f"bytes[{len(value)}]"
             elif isinstance( value, Sequence ):
-                output = f'list[{len(value)}]'
+                output = f"list[{len(value)}]"
             else:
-                output = str(value)
-            values.append(f'{name}={output}')
-        return ', '.join(values)
+                output = str( value )
+            values.append( f"{name}={output}" )
+        return ", ".join( values )
 
     @property
     def serialised( self ):
         """Tuple containing the contents of the Block."""
         klass = self.__class__
-        return ((klass.__module__, klass.__name__), tuple( (name, field.serialise( self._field_data[name], parent=self ) ) for name, field in klass._fields.items()))
+        return (
+            (klass.__module__, klass.__name__),
+            tuple(
+                (name, field.serialise( self._field_data[name], parent=self ))
+                for name, field in klass._fields.items()
+            ),
+        )
 
     def clone_data( self, source: Block ):
         """Clone data from another Block.
@@ -293,24 +319,26 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
         if raw_buffer is not None:
             assert common.is_bytes( raw_buffer )
-#            raw_buffer = memoryview( raw_buffer )
+        #            raw_buffer = memoryview( raw_buffer )
 
         self._field_data = {}
 
-        logger.debug( f'{self}: loading fields' )
+        logger.debug( f"{self}: loading fields" )
 
         for name in klass._fields:
             if raw_buffer is not None:
                 if logger.isEnabledFor( logging.DEBUG ):
-                    logger.debug( f'{name} [{klass._fields[name]}]: input buffer' )
+                    logger.debug( f"{name} [{klass._fields[name]}]: input buffer" )
                 self._field_data[name] = klass._fields[name].get_from_buffer(
                     raw_buffer, parent=self
                 )
                 if logger.isEnabledFor( logging.DEBUG ):
-                    logger.debug( f'Result for {name} [{klass._fields[name]}]: {self._field_data[name]}' )
+                    logger.debug(
+                        f"Result for {name} [{klass._fields[name]}]: {self._field_data[name]}"
+                    )
             else:
                 self._field_data[name] = klass._fields[name].default
-        
+
         if raw_buffer is not None:
             for name, check in klass._checks.items():
                 check.check_buffer( raw_buffer, parent=self )
@@ -319,22 +347,22 @@ class Block( object, metaclass=BlockMeta ):
             if logger.isEnabledFor( logging.INFO ):
                 test = self.export_data()
                 if logger.getEffectiveLevel() <= logging.DEBUG:
-                    logger.debug( f'Stats for {self}:' )
-                    logger.debug( f'Import buffer size: {len( raw_buffer )}' )
-                    logger.debug( f'Export size: {len( test )}' )
+                    logger.debug( f"Stats for {self}:" )
+                    logger.debug( f"Import buffer size: {len( raw_buffer )}" )
+                    logger.debug( f"Export size: {len( test )}" )
                     if test == raw_buffer:
-                        logger.debug( 'Content: exact match!' )
-                    elif test == raw_buffer[:len( test )]:
-                        logger.debug( 'Content: exact match with overflow!' )
+                        logger.debug( "Content: exact match!" )
+                    elif test == raw_buffer[: len( test )]:
+                        logger.debug( "Content: exact match with overflow!" )
                     else:
-                        logger.debug( 'Content: different!' )
-                        for x in utils.diffdump_iter( raw_buffer[:len( test )], test ):
+                        logger.debug( "Content: different!" )
+                        for x in utils.diffdump_iter( raw_buffer[: len( test )], test ):
                             logger.debug( x )
-                elif test != raw_buffer[:len( test )]:
-                    logger.info( f'{self} export produced changed output from import' )
+                elif test != raw_buffer[: len( test )]:
+                    logger.info( f"{self} export produced changed output from import" )
 
-#        if raw_buffer:
-#            raw_buffer.release()
+        #        if raw_buffer:
+        #            raw_buffer.release()
         return
 
     load = import_data
@@ -354,7 +382,7 @@ class Block( object, metaclass=BlockMeta ):
 
         self.update_deps()
 
-        output = bytearray( b'\x00'*self.get_size() )
+        output = bytearray( b"\x00" * self.get_size() )
 
         for name in klass._fields:
             klass._fields[name].update_buffer_with_value(
@@ -389,7 +417,12 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
         size = 0
         for name in klass._fields:
-            size = max( size, klass._fields[name].get_end_offset( self._field_data[name], parent=self ) )
+            size = max(
+                size,
+                klass._fields[name].get_end_offset(
+                    self._field_data[name], parent=self
+                ),
+            )
         for check in klass._checks.values():
             size = max( size, check.get_end_offset( parent=self ) )
         return size
@@ -410,12 +443,12 @@ class Block( object, metaclass=BlockMeta ):
             Field object on the object to reference.
         """
         klass = self.__class__
-        return next(name for name, value in klass._fields.items() if value == field)
+        return next( name for name, value in klass._fields.items() if value == field )
 
     def get_field_names( self ) -> List[str]:
         """Get the list of Fields associated with this Block class."""
         klass = self.__class__
-        return list(klass._fields.keys())
+        return list( klass._fields.keys() )
 
     def get_field_path( self, field ):
         """Return the path of this Block and a child Field in the current object tree.
@@ -428,8 +461,8 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
         for field_name, field_obj in klass._fields.items():
             if field_obj == field:
-                return f'{self.get_path()}.{field_name}'
-        return f'{self.get_path()}.?'
+                return f"{self.get_path()}.{field_name}"
+        return f"{self.get_path()}.?"
 
     def get_path( self ):
         """Return the path of this Block in the current object tree.
@@ -437,22 +470,30 @@ class Block( object, metaclass=BlockMeta ):
         Used for error messages."""
         klass = self.__class__
         if not self._parent:
-            self._path_hint = f'<{klass.__name__}>'
+            self._path_hint = f"<{klass.__name__}>"
         else:
             pklass = self._parent.__class__
             for field_name, field_obj in pklass._fields.items():
                 if field_name in self._parent._field_data:
                     if self._parent._field_data[field_name] == self:
-                        self._path_hint = f'{self._parent.get_path()}.{field_name}'
+                        self._path_hint = f"{self._parent.get_path()}.{field_name}"
                     elif type( self._parent._field_data[field_name] ) == list:
-                        for i, subobject in enumerate( self._parent._field_data[field_name] ):
+                        for i, subobject in enumerate(
+                            self._parent._field_data[field_name]
+                        ):
                             if subobject == self:
-                                self._path_hint = f'{self._parent.get_path()}.{field_name}[{i}]'
-                            elif hasattr( subobject, 'obj' ) and subobject.obj == self:
-                                self._path_hint = f'{self._parent.get_path()}.{field_name}[{i}].obj'
+                                self._path_hint = (
+                                    f"{self._parent.get_path()}.{field_name}[{i}]"
+                                )
+                            elif hasattr( subobject, "obj" ) and subobject.obj == self:
+                                self._path_hint = (
+                                    f"{self._parent.get_path()}.{field_name}[{i}].obj"
+                                )
         return self._path_hint
 
-    def get_field_start_offset( self, field_name: str, index: Optional[int]=None ) -> int:
+    def get_field_start_offset(
+        self, field_name: str, index: Optional[int] = None
+    ) -> int:
         """Return the start offset of where a Field's data is to be stored in the Block.
 
         field_name
@@ -463,9 +504,11 @@ class Block( object, metaclass=BlockMeta ):
             takes a list of objects.
         """
         klass = self.__class__
-        return klass._fields[field_name].get_start_offset( self._field_data[field_name], parent=self, index=index )
+        return klass._fields[field_name].get_start_offset(
+            self._field_data[field_name], parent=self, index=index
+        )
 
-    def get_field_size( self, field_name: str, index: Optional[int]=None ) -> int:
+    def get_field_size( self, field_name: str, index: Optional[int] = None ) -> int:
         """Return the size of a Field's data (in bytes).
 
         field_name
@@ -476,7 +519,9 @@ class Block( object, metaclass=BlockMeta ):
             takes a list of objects.
         """
         klass = self.__class__
-        return klass._fields[field_name].get_size( self._field_data[field_name], parent=self, index=index )
+        return klass._fields[field_name].get_size(
+            self._field_data[field_name], parent=self, index=index
+        )
 
     def get_field_end_offset( self, field_name, index=None ):
         """Return the end offset of a Field's data. Useful for chainloading.
@@ -489,7 +534,9 @@ class Block( object, metaclass=BlockMeta ):
             takes a list of objects.
         """
         klass = self.__class__
-        return klass._fields[field_name].get_end_offset( self._field_data[field_name], parent=self, index=index )
+        return klass._fields[field_name].get_end_offset(
+            self._field_data[field_name], parent=self, index=index
+        )
 
     def scrub_field( self, field_name ):
         """Return a Field's data coerced to the correct type (if necessary).
@@ -501,7 +548,9 @@ class Block( object, metaclass=BlockMeta ):
         """
 
         klass = self.__class__
-        self._field_data[field_name] = klass._fields[field_name].scrub( self._field_data[field_name], parent=self )
+        self._field_data[field_name] = klass._fields[field_name].scrub(
+            self._field_data[field_name], parent=self
+        )
         return self._field_data[field_name]
 
     def update_deps_on_field( self, field_name ):
@@ -511,7 +560,9 @@ class Block( object, metaclass=BlockMeta ):
             Name of the Field to inspect.
         """
         klass = self.__class__
-        return klass._fields[field_name].update_deps( self._field_data[field_name], parent=self )
+        return klass._fields[field_name].update_deps(
+            self._field_data[field_name], parent=self
+        )
 
     def validate_field( self, field_name ):
         """Validate that a correctly-typed Python object meets the constraints for a Field.
@@ -523,7 +574,9 @@ class Block( object, metaclass=BlockMeta ):
 
         """
         klass = self.__class__
-        return klass._fields[field_name].validate( self._field_data[field_name], parent=self )
+        return klass._fields[field_name].validate(
+            self._field_data[field_name], parent=self
+        )
 
     def update_deps_on_check( self, check_name ):
         """Update all dependent variables derived from a Check.
@@ -535,7 +588,18 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
         return klass._checks[check_name].update_deps( parent=self )
 
-    def hexdump( self, start=None, end=None, length=None, major_len=8, minor_len=4, colour=True, address_base=None, show_offsets=True, show_glyphs=True ):
+    def hexdump(
+        self,
+        start=None,
+        end=None,
+        length=None,
+        major_len=8,
+        minor_len=4,
+        colour=True,
+        address_base=None,
+        show_offsets=True,
+        show_glyphs=True,
+    ):
         """Print the exported data in tabular hexadecimal/ASCII format.
 
         start
@@ -568,13 +632,27 @@ class Block( object, metaclass=BlockMeta ):
         Raises ValueError if both end and length are defined.
         """
         utils.hexdump(
-            self.export_data(), start=start, end=end,
-            length=length, major_len=major_len, minor_len=minor_len,
-            colour=colour, address_base=address_base,
-            show_offsets=show_offsets, show_glyphs=show_glyphs
+            self.export_data(),
+            start=start,
+            end=end,
+            length=length,
+            major_len=major_len,
+            minor_len=minor_len,
+            colour=colour,
+            address_base=address_base,
+            show_offsets=show_offsets,
+            show_glyphs=show_glyphs,
         )
 
-    def histdump( self, start=None, end=None, length=None, samples=0x10000, width=64, address_base=None ):
+    def histdump(
+        self,
+        start=None,
+        end=None,
+        length=None,
+        samples=0x10000,
+        width=64,
+        address_base=None,
+    ):
         """Print the histogram of the exported data.
 
         start
@@ -596,11 +674,23 @@ class Block( object, metaclass=BlockMeta ):
             Base address to use for labelling (default: start)
         """
         utils.histdump(
-            self.export_data(), start=start, end=end, length=length,
-            samples=samples, width=width, address_base=address_base
+            self.export_data(),
+            start=start,
+            end=end,
+            length=length,
+            samples=samples,
+            width=width,
+            address_base=address_base,
         )
 
-    def search( self, pattern, encoding='utf8', fixed_string=False, hex_format=False, ignore_case=False ):
+    def search(
+        self,
+        pattern,
+        encoding="utf8",
+        fixed_string=False,
+        hex_format=False,
+        ignore_case=False,
+    ):
         """Find the Fields that match a byte pattern.
 
         pattern
@@ -618,13 +708,21 @@ class Block( object, metaclass=BlockMeta ):
         ignore_case
             Perform a case-insensitive search
         """
-        return [x for x in utils.search_iter(
-            pattern, source, prefix=f'<{self.__class__.__name__}>',
-            depth=None, encoding=encoding, fixed_string=fixed_string,
-            hex_format=hex_format, ignore_cast=ignore_case
-        )]
+        return [
+            x
+            for x in utils.search_iter(
+                pattern,
+                source,
+                prefix=f"<{self.__class__.__name__}>",
+                depth=None,
+                encoding=encoding,
+                fixed_string=fixed_string,
+                hex_format=hex_format,
+                ignore_cast=ignore_case,
+            )
+        ]
 
-    def diffdump( self, target, prefix='source', depth=None ):
+    def diffdump( self, target, prefix="source", depth=None ):
         """Find differences between this Block and another.
 
         target
@@ -637,4 +735,3 @@ class Block( object, metaclass=BlockMeta ):
             Maximum number of levels to traverse.
         """
         return utils.objdiffdump( self, target, prefix, depth )
-

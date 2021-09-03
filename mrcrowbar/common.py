@@ -11,7 +11,7 @@ BytesWriteType = Union[bytearray]
 
 def is_bytes( obj: Any ) -> bool:
     """Returns whether obj is an acceptable Python byte string."""
-    return isinstance( obj, getattr( BytesReadType, '__args__' ) )
+    return isinstance( obj, getattr( BytesReadType, "__args__" ) )
 
 
 def read( fp: BinaryIO ) -> BytesReadType:
@@ -23,16 +23,18 @@ def read( fp: BinaryIO ) -> BytesReadType:
     return region
 
 
-def bounds( start: Optional[int], end: Optional[int], length: Optional[int], src_size: int ) -> Tuple[int, int]:
+def bounds(
+    start: Optional[int], end: Optional[int], length: Optional[int], src_size: int
+) -> Tuple[int, int]:
     if length is not None and length < 0:
-        raise ValueError( 'Length can\'t be a negative number!' )
+        raise ValueError( "Length can't be a negative number!" )
     start = 0 if (start is None) else start
 
     if (end is not None) and (length is not None):
-        raise ValueError( 'Can\'t define both an end and a length!' )
-    elif (length is not None):
+        raise ValueError( "Can't define both an end and a length!" )
+    elif length is not None:
         end = start + length
-    elif (end is not None):
+    elif end is not None:
         pass
     else:
         end = src_size
@@ -46,10 +48,15 @@ def bounds( start: Optional[int], end: Optional[int], length: Optional[int], src
 
     return start, end
 
+
 SerialiseType = Tuple[Tuple[str, str], Tuple[Tuple[str, Any], ...]]
 
+
 def serialise( obj: Any, fields: Sequence[str] ) -> SerialiseType:
-    return ((obj.__class__.__module__, obj.__class__.__name__), tuple( (x, getattr( obj, x )) for x in fields ))
+    return (
+        (obj.__class__.__module__, obj.__class__.__name__),
+        tuple( (x, getattr( obj, x )) for x in fields ),
+    )
 
 
 def file_path_recurse( *root_list: str ) -> Iterator[str]:

@@ -3,3 +3,4 @@ sphinx-rtd-theme >= 0.4.2
 sphinx-argparse >= 0.2.5
 coveralls >= 1.8.1
 mypy >= 0.812
+git+https://github.com/moralrecordings/mrblack@e99a6fba1bbb543ef8d5ccaa41b5fc04d7e1a589#egg=black

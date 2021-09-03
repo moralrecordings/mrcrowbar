@@ -24,7 +24,7 @@ class BaseColour( object ):
     @property
     def g_8( self ) -> int:
         return round( self.g * 255 )
-    
+
     @g_8.setter
     def g_8( self, value: int ):
         self.g = value / 255
@@ -32,7 +32,7 @@ class BaseColour( object ):
     @property
     def b_8( self ) -> int:
         return round( self.b * 255 )
-    
+
     @b_8.setter
     def b_8( self, value: int ):
         self.b = value / 255
@@ -40,11 +40,11 @@ class BaseColour( object ):
     @property
     def a_8( self ) -> int:
         return round( self.a * 255 )
-    
+
     @a_8.setter
     def a_8( self, value: int ):
         self.a = value / 255
- 
+
     @property
     def chroma( self ) -> float:
         M = max( self.r, self.g, self.b )
@@ -53,7 +53,7 @@ class BaseColour( object ):
 
     @property
     def luma( self ) -> float:
-        return 0.299*self.r + 0.587*self.g + 0.114*self.b
+        return 0.299 * self.r + 0.587 * self.g + 0.114 * self.b
 
     @property
     def rgba( self ):
@@ -84,21 +84,27 @@ class BaseColour( object ):
 
     @property
     def repr( self ):
-        return f'#{self.r_8:02X}{self.g_8:02X}{self.b_8:02X}{self.a_8:02X}'
+        return f"#{self.r_8:02X}{self.g_8:02X}{self.b_8:02X}{self.a_8:02X}"
 
-    def ansi_format( self, text: Optional[str]=None ):
+    def ansi_format( self, text: Optional[str] = None ):
         from mrcrowbar.ansi import format_string
+
         if text is None:
-            text = f' {self.repr} '
+            text = f" {self.repr} "
         colour = White() if self.luma < 0.5 else Black()
         return format_string( text, colour, self )
 
-    def print( self, text: Optional[str]=None ):
+    def print( self, text: Optional[str] = None ):
         print( self.ansi_format( text ) )
 
     def __eq__( self, other: Any ) -> bool:
         if isinstance( other, BaseColour ):
-            return (self.r_8 == other.r_8) and (self.g_8 == other.g_8) and (self.b_8 == other.b_8) and (self.a_8 == other.a_8)
+            return (
+                (self.r_8 == other.r_8)
+                and (self.g_8 == other.g_8)
+                and (self.b_8 == other.b_8)
+                and (self.a_8 == other.a_8)
+            )
         return False
 
 
@@ -118,7 +124,9 @@ class Transparent( BaseColour ):
     a = 0.0
 
 
-ColourType = Optional[Union[int, Tuple[int, int, int], Tuple[int, int, int, int], BaseColour]]
+ColourType = Optional[
+    Union[int, Tuple[int, int, int], Tuple[int, int, int, int], BaseColour]
+]
 
 
 def normalise_rgba( raw_colour: ColourType ) -> Tuple[int, int, int, int]:
@@ -130,35 +138,70 @@ def normalise_rgba( raw_colour: ColourType ) -> Tuple[int, int, int, int]:
         return (raw_colour[0], raw_colour[1], raw_colour[2], 255)
     elif isinstance( raw_colour, tuple ) and len( raw_colour ) == 4:
         return (raw_colour[0], raw_colour[1], raw_colour[2], raw_colour[3])
-    raise ValueError( 'raw_colour must be either None, a BaseColour, or a tuple (RGB/RGBA)' )
+    raise ValueError(
+        "raw_colour must be either None, a BaseColour, or a tuple (RGB/RGBA)"
+    )
 
 
-def to_palette_bytes( palette: Sequence[ColourType], stride: int=3, order: Sequence[int]=(0, 1, 2) ):
+def to_palette_bytes(
+    palette: Sequence[ColourType], stride: int = 3, order: Sequence[int] = (0, 1, 2)
+):
     assert stride >= max( order )
     assert min( order ) >= 0
-    blanks = tuple((0 for _ in range( stride-max( order )-1 )))
-    ORDER_MAP = {0: 'r_8', 1: 'g_8', 2: 'b_8', 3: 'a_8'}
+    blanks = tuple( (0 for _ in range( stride - max( order ) - 1 )) )
+    ORDER_MAP = {0: "r_8", 1: "g_8", 2: "b_8", 3: "a_8"}
     channel: Callable[[ColourType, int], int] = lambda c, o: getattr( c, ORDER_MAP[o] )
-    return bytes( itertools.chain( *(tuple((channel( c, o ) for o in order))+blanks for c in palette) ) )
+    return bytes(
+        itertools.chain(
+            *(tuple( (channel( c, o ) for o in order) ) + blanks for c in palette)
+        )
+    )
 
 
-def from_palette_bytes( palette_bytes: BytesReadType, stride: int=3, order: Union[Tuple[int], Tuple[int, int, int], Tuple[int, int, int, int]]=(0, 1, 2) ):
+def from_palette_bytes(
+    palette_bytes: BytesReadType,
+    stride: int = 3,
+    order: Union[Tuple[int], Tuple[int, int, int], Tuple[int, int, int, int]] = (
+        0,
+        1,
+        2,
+    ),
+):
     assert stride >= max( order )
     assert min( order ) >= 0
     assert len( order ) in (1, 3, 4)
     result: List[BaseColour] = []
-    for i in range( math.floor( len( palette_bytes )/stride ) ):
+    for i in range( math.floor( len( palette_bytes ) / stride ) ):
         if len( order ) == 1:
-            result.append( BaseColour().set_rgb( palette_bytes[stride*i+order[0]], palette_bytes[stride*i+order[0]], palette_bytes[stride*i+order[0]] ) )
+            result.append(
+                BaseColour().set_rgb(
+                    palette_bytes[stride * i + order[0]],
+                    palette_bytes[stride * i + order[0]],
+                    palette_bytes[stride * i + order[0]],
+                )
+            )
         elif len( order ) == 3:
-            result.append( BaseColour().set_rgb( palette_bytes[stride*i+order[0]], palette_bytes[stride*i+order[1]], palette_bytes[stride*i+order[2]] ) )
+            result.append(
+                BaseColour().set_rgb(
+                    palette_bytes[stride * i + order[0]],
+                    palette_bytes[stride * i + order[1]],
+                    palette_bytes[stride * i + order[2]],
+                )
+            )
         elif len( order ) == 4:
-            result.append( BaseColour().set_rgba( palette_bytes[stride*i+order[0]], palette_bytes[stride*i+order[1]], palette_bytes[stride*i+order[2]], palette_bytes[stride*i+order[3]] ) )
+            result.append(
+                BaseColour().set_rgba(
+                    palette_bytes[stride * i + order[0]],
+                    palette_bytes[stride * i + order[1]],
+                    palette_bytes[stride * i + order[2]],
+                    palette_bytes[stride * i + order[3]],
+                )
+            )
     return result
 
 
 def mix( a: Union[int, float], b: Union[int, float], alpha: float ) -> float:
-    return (b - a)*alpha + a
+    return (b - a) * alpha + a
 
 
 def mix_line( points: Sequence[Union[int, float]], alpha: float ):
@@ -166,9 +209,9 @@ def mix_line( points: Sequence[Union[int, float]], alpha: float ):
     if alpha == 1:
         return points[-1]
     return mix(
-        points[math.floor( alpha*count )],
-        points[math.floor( alpha*count )+1],
-        math.fmod( alpha*count, 1 )
+        points[math.floor( alpha * count )],
+        points[math.floor( alpha * count ) + 1],
+        math.fmod( alpha * count, 1 ),
     )
 
 
@@ -186,10 +229,11 @@ def mix_colour_line( points: Sequence[BaseColour], alpha: float ):
     if alpha == 1:
         return points[-1]
     return mix_colour(
-        points[math.floor( alpha*count )],
-        points[math.floor( alpha*count )+1],
-        math.fmod( alpha*count, 1 )
+        points[math.floor( alpha * count )],
+        points[math.floor( alpha * count ) + 1],
+        math.fmod( alpha * count, 1 ),
     )
+
 
 TEST_PALETTE_POINTS = [
     BaseColour().set_rgb( 0x00, 0x00, 0x00 ),
@@ -199,8 +243,11 @@ TEST_PALETTE_POINTS = [
     BaseColour().set_rgb( 0xf8, 0xec, 0xa0 ),
 ]
 
-def gradient_to_palette( points: Sequence[BaseColour]=TEST_PALETTE_POINTS, size: int=256 ):
-    return [mix_colour_line( points, i/max(size-1, 1) ) for i in range( size )]
+
+def gradient_to_palette(
+    points: Sequence[BaseColour] = TEST_PALETTE_POINTS, size: int = 256
+):
+    return [mix_colour_line( points, i / max( size - 1, 1 ) ) for i in range( size )]
 
 
 TEST_PALETTE = gradient_to_palette()

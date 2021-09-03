@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class Ref( object ):
     """Base class for defining cross-references."""
 
-    def __init__( self, path: str, allow_write: bool=True ):
+    def __init__( self, path: str, allow_write: bool = True ):
         """Create a new Ref instance.
 
         path
@@ -28,8 +28,8 @@ class Ref( object ):
         self._position_hint = next( common.next_position_hint )
         # very simple path syntax for now: walk down the chain of properties
         if not type( path ) == str:
-            raise TypeError( 'path argument to Ref() should be a string' )
-        self._path = tuple( path.split( '.' ) )
+            raise TypeError( "path argument to Ref() should be a string" )
+        self._path = tuple( path.split( "." ) )
         self._allow_write = allow_write
 
     def cache( self, instance: Block, name: str ) -> None:
@@ -38,7 +38,7 @@ class Ref( object ):
         Called by the parent Block constructor."""
         pass
 
-    def get( self, instance: Optional[Block], caller: Optional[Field]=None ) -> Any:
+    def get( self, instance: Optional[Block], caller: Optional[Field] = None ) -> Any:
         """Return an attribute from an object using the Ref path.
 
         instance
@@ -49,7 +49,9 @@ class Ref( object ):
             target = getattr( target, attr )
         return target
 
-    def set( self, instance: Optional[Block], value: Any, caller: Optional[Field]=None ) -> None:
+    def set(
+        self, instance: Optional[Block], value: Any, caller: Optional[Field] = None
+    ) -> None:
         """Set an attribute on an object using the Ref path.
 
         instance
@@ -68,10 +70,10 @@ class Ref( object ):
         setattr( target, self._path[-1], value )
 
     def __repr__( self ) -> str:
-        desc = f'0x{id( self ):016x}'
-        if hasattr( self, 'repr' ) and isinstance( self.repr, str ):
+        desc = f"0x{id( self ):016x}"
+        if hasattr( self, "repr" ) and isinstance( self.repr, str ):
             desc = self.repr
-        return f'<{self.__class__.__name__}: {desc}>'
+        return f"<{self.__class__.__name__}: {desc}>"
 
     @property
     def repr( self ) -> str:
@@ -82,7 +84,7 @@ class Ref( object ):
     @property
     def serialised( self ):
         """Tuple containing the contents of the object."""
-        return common.serialise( self, ['_path', '_allow_write'] )
+        return common.serialise( self, ["_path", "_allow_write"] )
 
     def __hash__( self ) -> int:
         return hash( self.serialised )
@@ -106,7 +108,9 @@ class ConstRef( Ref ):
         super().__init__( path, allow_write=False )
 
 
-def property_get( prop: Any, instance: Optional[Block], caller: Optional[Field]=None ) -> Any:
+def property_get(
+    prop: Any, instance: Optional[Block], caller: Optional[Field] = None
+) -> Any:
     """Wrapper for property reads which auto-dereferences Refs if required.
 
     prop
@@ -120,7 +124,9 @@ def property_get( prop: Any, instance: Optional[Block], caller: Optional[Field]=
     return prop
 
 
-def property_set( prop: Any, instance: Optional[Block], value: Any, caller: Optional[Field]=None ) -> None:
+def property_set(
+    prop: Any, instance: Optional[Block], value: Any, caller: Optional[Field] = None
+) -> None:
     """Wrapper for property writes which auto-deferences Refs.
 
     prop
@@ -138,18 +144,21 @@ def property_set( prop: Any, instance: Optional[Block], value: Any, caller: Opti
     if isinstance( prop, Ref ):
         prop.set( instance, value, caller )
         return
-    raise AttributeError( f"can't change value of constant {prop} (context: {instance})" )
+    raise AttributeError(
+        f"can't change value of constant {prop} (context: {instance})"
+    )
 
 
 def view_property( prop: str ) -> property:
     """Wrapper for attributes of a View class which auto-dereferences Refs.
-    
+
     Equivalent to setting a property on the class with the getter wrapped
     with property_get(), and the setter wrapped with property_set().
 
     prop
         A string containing the name of the class attribute to wrap.
     """
+
     def getter( self: Any ) -> Any:
         return property_get( getattr( self, prop ), self.parent )
 
@@ -161,7 +170,8 @@ def view_property( prop: str ) -> property:
 
 class EndOffset( Ref ):
     """Cross-reference for getting the offset of the end of a Field. Used for chaining variable length Fields."""
-    def __init__( self, path: str, neg: bool=False, align: int=1 ):
+
+    def __init__( self, path: str, neg: bool = False, align: int = 1 ):
         """Create a new EndOffset instance.
 
         path
@@ -182,30 +192,32 @@ class EndOffset( Ref ):
         self._neg = neg
         self._align = align
 
-    def get( self, instance: Optional[Block], caller: Optional[Field]=None ) -> Any:
+    def get( self, instance: Optional[Block], caller: Optional[Field] = None ) -> Any:
         target = instance
         align = property_get( self._align, instance )
         for attr in self._path[:-1]:
             target = getattr( target, attr )
         target = target.get_field_end_offset( self._path[-1] )
-        target -= (target % -align)
+        target -= target % -align
         if self._neg:
             target *= -1
         return target
 
-    def set( self, instance: Optional[Block], value: Any, caller: Optional[Field]=None ) -> None:
+    def set(
+        self, instance: Optional[Block], value: Any, caller: Optional[Field] = None
+    ) -> None:
         raise AttributeError( "can't change the end offset of another field" )
 
     @property
     def serialised( self ):
-        return common.serialise( self, ['_path', '_allow_write', '_neg', '_align'] )
+        return common.serialise( self, ["_path", "_allow_write", "_neg", "_align"] )
 
 
 class Chain( Ref ):
     def __init__( self ) -> None:
-        super().__init__( '_previous_attr' )
+        super().__init__( "_previous_attr" )
 
-    def get( self, instance: Block, caller: Optional[Block]=None ) -> int:
+    def get( self, instance: Block, caller: Optional[Block] = None ) -> int:
         if caller is None:
             return 0
         field_name = getattr( caller, self._path[0] )
@@ -213,8 +225,10 @@ class Chain( Ref ):
             return 0
         return instance.get_field_end_offset( field_name )
 
-    def set( self, instance: Block, value: Any, caller: Optional[Block]=None ) -> None:
+    def set(
+        self, instance: Block, value: Any, caller: Optional[Block] = None
+    ) -> None:
         raise AttributeError( "can't change the end offset of another field" )
 
     def __repr__( self ) -> str:
-        return '<Chain>'
+        return "<Chain>"

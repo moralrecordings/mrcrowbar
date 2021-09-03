@@ -31,9 +31,9 @@ class VOCTypedSoundData( mrc.Block ):
     @property
     def signedness( self ):
         if self.codec == VOCCodec.PCM_UINT8:
-            return 'unsigned'
+            return "unsigned"
         elif self.codec == VOCCodec.PCM_INT16:
-            return 'signed'
+            return "signed"
         return None
 
     @property
@@ -43,7 +43,6 @@ class VOCTypedSoundData( mrc.Block ):
         elif self.codec == VOCCodec.PCM_INT16:
             return 2
         return None
-
 
 
 class VOCSoundData( mrc.Block ):
@@ -56,7 +55,7 @@ class VOCSilence( mrc.Block ):
 
     @property
     def length( self ):
-        return self.length+1
+        return self.length + 1
 
     @property
     def sample_rate( self ):
@@ -94,7 +93,7 @@ class VOCExtra( mrc.Block ):
 
     @property
     def sample_rate( self ):
-        return 256000000 // ((self.channels)*(65536 - self.freq_divisor))
+        return 256000000 // ((self.channels) * (65536 - self.freq_divisor))
 
 
 class VOCSoundData12( mrc.Block ):
@@ -124,12 +123,19 @@ VOC_CHUNK_MAP = {
 
 
 class VOC( mrc.Block ):
-    magic = mrc.Const( mrc.Bytes( 0x00, length=0x14 ), b'Creative Voice File\x1a' )
+    magic = mrc.Const( mrc.Bytes( 0x00, length=0x14 ), b"Creative Voice File\x1a" )
     header_size = mrc.UInt16_LE( 0x14 )
     version = mrc.Bytes( 0x16, length=2 )
     checksum = mrc.Bytes( 0x18, length=2 )
 
-    chunks = mrc.ChunkField( VOC_CHUNK_MAP, 0x1a, stream=True, id_field=mrc.UInt8, length_field=mrc.UInt24_LE, stream_end=b'\x00' )
+    chunks = mrc.ChunkField(
+        VOC_CHUNK_MAP,
+        0x1a,
+        stream=True,
+        id_field=mrc.UInt8,
+        length_field=mrc.UInt24_LE,
+        stream_end=b"\x00",
+    )
 
     @property
     def audio_chunk( self ):
@@ -140,5 +146,14 @@ class VOC( mrc.Block ):
         return None
 
     def __init__( self, *args, **kwargs ):
-        self.audio = aud.Wave( self, mrc.Ref( 'audio_chunk.data' ), channels=1, sample_rate=mrc.Ref( 'audio_chunk.sample_rate' ), format_type=int, field_size=mrc.Ref( 'audio_chunk.sample_width' ), signedness=mrc.Ref( 'audio_chunk.signedness' ),  endian='little' )
+        self.audio = aud.Wave(
+            self,
+            mrc.Ref( "audio_chunk.data" ),
+            channels=1,
+            sample_rate=mrc.Ref( "audio_chunk.sample_rate" ),
+            format_type=int,
+            field_size=mrc.Ref( "audio_chunk.sample_width" ),
+            signedness=mrc.Ref( "audio_chunk.signedness" ),
+            endian="little",
+        )
         super().__init__( *args, **kwargs )

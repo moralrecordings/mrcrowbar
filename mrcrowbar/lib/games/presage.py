@@ -9,7 +9,7 @@ class PRSChunk( mrc.Block ):
     unk1 = mrc.UInt16_LE( 0x04 )
     name = mrc.CString( 0x06, length=0x12 )
     size = mrc.UInt32_LE( 0x18 )  # length of chunk header + data
-    data = mrc.Bytes( 0x1c, length=mrc.Ref( 'size_data' ) )
+    data = mrc.Bytes( 0x1c, length=mrc.Ref( "size_data" ) )
 
     @property
     def size_data( self ):
@@ -17,7 +17,7 @@ class PRSChunk( mrc.Block ):
 
 
 class PRSFile( mrc.Block ):
-    magic = mrc.Const( mrc.Bytes( 0x00, length=0x18 ), b'PRS Format Resource File' )
+    magic = mrc.Const( mrc.Bytes( 0x00, length=0x18 ), b"PRS Format Resource File" )
     unk1 = mrc.UInt8( 0x18 )
     unk2 = mrc.UInt8( 0x19 )
     unk3 = mrc.UInt8( 0x1f )

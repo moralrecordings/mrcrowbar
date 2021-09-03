@@ -1,20 +1,24 @@
 from __future__ import annotations
 
 import logging
+
 logger = logging.getLogger( __name__ )
 
 from mrcrowbar.refs import Ref, property_get, property_set
 from mrcrowbar import common, utils
 
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from mrcrowbar.fields import Field
+
 
 class CheckException( Exception ):
     pass
 
+
 class Check( object ):
-    def __init__( self, raise_exception: bool=False ):
+    def __init__( self, raise_exception: bool = False ):
         """Base class for Checks.
 
         raise_exception
@@ -35,10 +39,10 @@ class Check( object ):
         pass
 
     def __repr__( self ):
-        desc = f'0x{id( self ):016x}'
-        if hasattr( self, 'repr' ) and isinstance( self.repr, str ):
+        desc = f"0x{id( self ):016x}"
+        if hasattr( self, "repr" ) and isinstance( self.repr, str ):
             desc = self.repr
-        return f'<{self.__class__.__name__}: {desc}>'
+        return f"<{self.__class__.__name__}: {desc}>"
 
     def get_fields( self ):
         """Return None, a single field, or a dictionary of Fields embedded within the Check."""
@@ -83,7 +87,7 @@ class Const( Check ):
         test = self.field.get_from_buffer( buffer, parent )
         value = property_get( self.target, parent )
         if test != value:
-            mismatch = f'{self}:{value}, found {test}!'
+            mismatch = f"{self}:{value}, found {test}!"
             if self.raise_exception:
                 raise CheckException( mismatch )
             logger.warning( mismatch )
@@ -105,7 +109,7 @@ class Const( Check ):
 
     @property
     def repr( self ):
-        return f'{self.field} == {self.value}'
+        return f"{self.field} == {self.value}"
 
 
 class Pointer( Check ):
@@ -147,7 +151,7 @@ class Pointer( Check ):
 
     @property
     def repr( self ):
-        return f'{self.field} -> {self.value}'
+        return f"{self.field} -> {self.value}"
 
 
 class Updater( Check ):
@@ -164,4 +168,4 @@ class Updater( Check ):
 
     @property
     def repr( self ):
-        return f'{self.target} = {self.source}'
+        return f"{self.target} = {self.source}"

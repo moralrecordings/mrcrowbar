@@ -486,7 +486,7 @@ class ChunkField( StreamField ):
     def __init__( self, chunk_map, offset: OffsetType=Chain(), *, count: Optional[int]=None, length: Optional[int]=None, stream: bool=True,
             alignment: int=1, stream_end: Optional[bytes]=None, stop_check: Optional[StopCheckType]=None, default_klass: Optional[Type[Block]]=None,
             id_size: Optional[int]=None, id_field: Optional[Type[Field]]=None, id_enum: Optional[IntEnum]=None, length_field: Optional[Type[NumberField]]=None,
-            fill: Optional[bytes]=None, **kwargs ):
+            fill: Optional[bytes]=None, length_inclusive: bool=False, **kwargs ):
         """Field for inserting a tokenised Block stream into the parent class.
     
         chunk_map
@@ -533,6 +533,10 @@ class ChunkField( StreamField ):
 
         fill
             Exact byte sequence that denotes an empty Chunk object.
+
+        length_inclusive
+            True if the length field indicates the total length of the chunk, inclusive of the ID field and the length field.
+            Defaults to False.
         """
 
         super().__init__( offset=offset, default=None, count=count, length=length,
@@ -544,6 +548,7 @@ class ChunkField( StreamField ):
             self.length_field = length_field( 0x00 )
         else:
             self.length_field = None
+        self.length_inclusive = length_inclusive
         if id_field:
             assert issubclass( id_field, (NumberField) )
             if id_enum:
@@ -601,6 +606,8 @@ class ChunkField( StreamField ):
         if self.length_field:
             size = self.length_field.get_from_buffer( buffer[pointer:], parent=parent )
             pointer += self.length_field.field_size
+            if self.length_inclusive:
+                size -= pointer - offset
             chunk_buffer = buffer[pointer:pointer+size]
             pointer += size
             if chunk_buffer == fill:
@@ -617,6 +624,7 @@ class ChunkField( StreamField ):
     def update_buffer_with_element( self, offset, element, buffer, parent=None, index=None ):
         chunk_map = property_get( self.chunk_map, parent )
         fill = property_get( self.fill, parent )
+        alignment = property_get( self.alignment, parent )
 
         data = bytearray()
         if self.id_field:
@@ -635,15 +643,22 @@ class ChunkField( StreamField ):
 
         if self.length_field:
             length_buf = bytearray( b'\x00'*self.length_field.field_size )
-            self.length_field.update_buffer_with_value( len( payload ), length_buf, parent=parent )
+            size = len( payload )
+            if self.length_inclusive:
+                size += len( length_buf )
+                size += len( data )
+            width = size % alignment
+            if width:
+                size += alignment - width
+            self.length_field.update_buffer_with_value( size, length_buf, parent=parent )
             data.extend( length_buf )
 
         data += payload
 
         if len( buffer ) < offset+len( data ):
-            buffer.extend( b'\x00'*(offset+len( data )-len( buffer )) )
-        buffer[offset:offset+len( data )] = data
-        return offset+len( data )
+            buffer.extend( b'\x00' * (offset + len( data ) - len( buffer )) )
+        buffer[offset:offset + len( data )] = data
+        return offset + len( data )
 
     def validate_element( self, element, parent=None, index=None ):
         from mrcrowbar.unknown import Unknown

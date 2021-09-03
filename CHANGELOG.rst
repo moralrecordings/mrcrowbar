@@ -15,6 +15,7 @@ Unreleased
 - sound.resample_audio_iter: Fix broken resampling logic
 - utils: Replace dynamic loading of encoder shortcuts with static loading
 - block.Block: Add default repr showing the field data
+- field.ChunkField: Add length_inclusive flag 
 
 0.9.0 - 2021-01-14
 ==================

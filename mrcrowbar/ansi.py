@@ -157,7 +157,7 @@ def format_string(
     underline: bool = False,
     blink: bool = False,
     inverted: bool = False,
-):
+) -> str:
     """Returns a Unicode string formatted with an ANSI escape sequence.
 
     string

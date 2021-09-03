@@ -4,7 +4,7 @@ import itertools
 import math
 from mrcrowbar.common import BytesReadType
 
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 
 class BaseColour( object ):
@@ -18,7 +18,7 @@ class BaseColour( object ):
         return round( self.r * 255 )
 
     @r_8.setter
-    def r_8( self, value: int ):
+    def r_8( self, value: int ) -> None:
         self.r = value / 255
 
     @property
@@ -26,7 +26,7 @@ class BaseColour( object ):
         return round( self.g * 255 )
 
     @g_8.setter
-    def g_8( self, value: int ):
+    def g_8( self, value: int ) -> None:
         self.g = value / 255
 
     @property
@@ -34,7 +34,7 @@ class BaseColour( object ):
         return round( self.b * 255 )
 
     @b_8.setter
-    def b_8( self, value: int ):
+    def b_8( self, value: int ) -> None:
         self.b = value / 255
 
     @property
@@ -42,7 +42,7 @@ class BaseColour( object ):
         return round( self.a * 255 )
 
     @a_8.setter
-    def a_8( self, value: int ):
+    def a_8( self, value: int ) -> None:
         self.a = value / 255
 
     @property
@@ -56,16 +56,16 @@ class BaseColour( object ):
         return 0.299 * self.r + 0.587 * self.g + 0.114 * self.b
 
     @property
-    def rgba( self ):
+    def rgba( self ) -> Tuple[int, int, int, int]:
         return (self.r_8, self.g_8, self.b_8, self.a_8)
 
-    def set_rgb( self, r_8: int, g_8: int, b_8: int ):
+    def set_rgb( self, r_8: int, g_8: int, b_8: int ) -> BaseColour:
         self.r_8 = r_8
         self.g_8 = g_8
         self.b_8 = b_8
         return self
 
-    def set_a( self, a_8: int ):
+    def set_a( self, a_8: int ) -> BaseColour:
         self.a_8 = a_8
         return self
 
@@ -76,17 +76,18 @@ class BaseColour( object ):
         self.a_8 = a_8
         return self
 
-    def clone_data( self, source: BaseColour ):
+    def clone_data( self, source: BaseColour ) -> BaseColour:
         self.r_8 = source.r_8
         self.g_8 = source.g_8
         self.b_8 = source.b_8
         self.a_8 = source.a_8
+        return self
 
     @property
-    def repr( self ):
+    def repr( self ) -> str:
         return f"#{self.r_8:02X}{self.g_8:02X}{self.b_8:02X}{self.a_8:02X}"
 
-    def ansi_format( self, text: Optional[str] = None ):
+    def ansi_format( self, text: Optional[str] = None ) -> str:
         from mrcrowbar.ansi import format_string
 
         if text is None:
@@ -94,7 +95,7 @@ class BaseColour( object ):
         colour = White() if self.luma < 0.5 else Black()
         return format_string( text, colour, self )
 
-    def print( self, text: Optional[str] = None ):
+    def print( self, text: Optional[str] = None ) -> None:
         print( self.ansi_format( text ) )
 
     def __eq__( self, other: Any ) -> bool:
@@ -144,13 +145,23 @@ def normalise_rgba( raw_colour: ColourType ) -> Tuple[int, int, int, int]:
 
 
 def to_palette_bytes(
-    palette: Sequence[ColourType], stride: int = 3, order: Sequence[int] = (0, 1, 2)
-):
+    palette: Sequence[BaseColour], stride: int = 3, order: Sequence[int] = (0, 1, 2)
+) -> bytes:
     assert stride >= max( order )
     assert min( order ) >= 0
     blanks = tuple( (0 for _ in range( stride - max( order ) - 1 )) )
-    ORDER_MAP = {0: "r_8", 1: "g_8", 2: "b_8", 3: "a_8"}
-    channel: Callable[[ColourType, int], int] = lambda c, o: getattr( c, ORDER_MAP[o] )
+
+    def channel( colour: BaseColour, order: int ) -> int:
+        if order == 0:
+            return colour.r_8
+        elif order == 1:
+            return colour.g_8
+        elif order == 2:
+            return colour.b_8
+        elif order == 3:
+            return colour.a_8
+        raise ValueError( f"{order} is not a valid order" )
+
     return bytes(
         itertools.chain(
             *(tuple( (channel( c, o ) for o in order) ) + blanks for c in palette)
@@ -166,7 +177,7 @@ def from_palette_bytes(
         1,
         2,
     ),
-):
+) -> List[BaseColour]:
     assert stride >= max( order )
     assert min( order ) >= 0
     assert len( order ) in (1, 3, 4)
@@ -204,7 +215,7 @@ def mix( a: Union[int, float], b: Union[int, float], alpha: float ) -> float:
     return (b - a) * alpha + a
 
 
-def mix_line( points: Sequence[Union[int, float]], alpha: float ):
+def mix_line( points: Sequence[Union[int, float]], alpha: float ) -> float:
     count = len( points ) - 1
     if alpha == 1:
         return points[-1]
@@ -215,7 +226,7 @@ def mix_line( points: Sequence[Union[int, float]], alpha: float ):
     )
 
 
-def mix_colour( col_a: BaseColour, col_b: BaseColour, alpha: float ):
+def mix_colour( col_a: BaseColour, col_b: BaseColour, alpha: float ) -> BaseColour:
     r = round( mix( col_a.r_8, col_b.r_8, alpha ) )
     g = round( mix( col_a.g_8, col_b.g_8, alpha ) )
     b = round( mix( col_a.b_8, col_b.b_8, alpha ) )
@@ -224,7 +235,7 @@ def mix_colour( col_a: BaseColour, col_b: BaseColour, alpha: float ):
     return BaseColour().set_rgb( r, g, b ).set_a( a )
 
 
-def mix_colour_line( points: Sequence[BaseColour], alpha: float ):
+def mix_colour_line( points: Sequence[BaseColour], alpha: float ) -> BaseColour:
     count = len( points ) - 1
     if alpha == 1:
         return points[-1]
@@ -235,7 +246,7 @@ def mix_colour_line( points: Sequence[BaseColour], alpha: float ):
     )
 
 
-TEST_PALETTE_POINTS = [
+TEST_PALETTE_POINTS: List[BaseColour] = [
     BaseColour().set_rgb( 0x00, 0x00, 0x00 ),
     BaseColour().set_rgb( 0x70, 0x34, 0x00 ),
     BaseColour().set_rgb( 0xe8, 0x6c, 0x00 ),
@@ -246,7 +257,7 @@ TEST_PALETTE_POINTS = [
 
 def gradient_to_palette(
     points: Sequence[BaseColour] = TEST_PALETTE_POINTS, size: int = 256
-):
+) -> List[BaseColour]:
     return [mix_colour_line( points, i / max( size - 1, 1 ) ) for i in range( size )]
 
 

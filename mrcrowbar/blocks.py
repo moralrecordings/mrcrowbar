@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 import logging
-from typing import Any, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Sequence, TYPE_CHECKING
 
 logger = logging.getLogger( __name__ )
 
@@ -153,6 +153,7 @@ class Block( object, metaclass=BlockMeta ):
     _endian = None
     _cache_bytes = False
     _bytes = None
+    _repr_values: Optional[List[str]] = None
 
     def __init__( self, source_data=None, *, parent=None, preload_attrs=None, endian=None, cache_bytes=False, path_hint=None, strict=False, cache_refs=True ):
         """Base class for Blocks.
@@ -226,16 +227,33 @@ class Block( object, metaclass=BlockMeta ):
             for key, ref in self._refs.items():
                 ref.cache( self, key )
 
-    def __repr__( self ):
+    def __repr__( self ) -> str:
         desc = f'0x{id( self ):016x}'
-        if hasattr( self, 'repr' ) and isinstance( self.repr, str ):
+        if isinstance( self.repr, str ):
             desc = self.repr
         return f'<{self.__class__.__name__}: {desc}>'
 
     @property
-    def repr( self ):
+    def repr( self ) -> Optional[str]:
         """Plaintext summary of the Block."""
-        return None
+        value_map: Dict[str, Any] = {}
+        if self._repr_values and isinstance( self._repr_values, list ):
+            value_map = {x: getattr( self, x ) for x in self._repr_values if hasattr( self, x )}
+        else:
+            value_map = {k: v for k, v in self._field_data.items()}
+        values: List[str] = []
+        for name, value in value_map.items():
+            output = ''
+            if isinstance( value, str ):
+                output = f'str[{len(value)}]'
+            elif common.is_bytes( value ):
+                output = f'bytes[{len(value)}]'
+            elif isinstance( value, Sequence ):
+                output = f'list[{len(value)}]'
+            else:
+                output = str(value)
+            values.append(f'{name}={output}')
+        return ', '.join(values)
 
     @property
     def serialised( self ):
@@ -243,7 +261,7 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
         return ((klass.__module__, klass.__name__), tuple( (name, field.serialise( self._field_data[name], parent=self ) ) for name, field in klass._fields.items()))
 
-    def clone_data( self, source ):
+    def clone_data( self, source: Block ):
         """Clone data from another Block.
 
         source

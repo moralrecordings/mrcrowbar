@@ -14,6 +14,7 @@ Unreleased
 - lib.games.sierra: Init
 - sound.resample_audio_iter: Fix broken resampling logic
 - utils: Replace dynamic loading of encoder shortcuts with static loading
+- block.Block: Add default repr showing the field data
 
 0.9.0 - 2021-01-14
 ==================

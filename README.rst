@@ -24,7 +24,7 @@ The eventual goal is to provide a library for storing file format information th
 Getting started
 ===============
 
-Mr. Crowbar is written in Python 3. You can install the latest point release of the library from the Python Package Index:
+Mr. Crowbar requires Python 3.7 or newer. You can install the latest point release of the library from the Python Package Index:
 
 .. code:: bash
 

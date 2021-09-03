@@ -323,7 +323,7 @@ class Block( object, metaclass=BlockMeta ):
 
         self._field_data = {}
 
-        logger.debug( f"{self}: loading fields" )
+        logger.debug( f"{self.__class__.__name__}: loading fields" )
 
         for name in klass._fields:
             if raw_buffer is not None:
@@ -359,7 +359,9 @@ class Block( object, metaclass=BlockMeta ):
                         for x in utils.diffdump_iter( raw_buffer[: len( test )], test ):
                             logger.debug( x )
                 elif test != raw_buffer[: len( test )]:
-                    logger.info( f"{self} export produced changed output from import" )
+                    logger.info(
+                        f"{self.__class__.__name__} export produced changed output from import"
+                    )
 
         #        if raw_buffer:
         #            raw_buffer.release()

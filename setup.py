@@ -30,7 +30,9 @@ setup(
         "Programming Language :: Python :: 3.9",
     ],
     python_requires=">=3",
-    install_requires=[],
+    install_requires=[
+        "typing_extensions>=3.10.0.0; python_version < '3.10'",
+    ],
     extras_require={
         "images": ["Pillow >= 2.8.1"],
         "audio": ["miniaudio >= 1.41"],

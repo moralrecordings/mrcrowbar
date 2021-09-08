@@ -4,6 +4,7 @@ from __future__ import annotations
 import collections
 import math
 import logging
+from mrcrowbar.transforms import Transform
 
 logger = logging.getLogger( __name__ )
 
@@ -270,12 +271,13 @@ class StreamField( Field ):
         offset: OffsetType = Chain(),
         *,
         default: Any = None,
-        count: Optional[int] = None,
-        length: Optional[int] = None,
-        stream: bool = False,
-        alignment: int = 1,
+        count: Optional[Union[int, Ref]] = None,
+        length: Optional[Union[int, Ref]] = None,
+        stream: Union[bool, Ref] = False,
+        alignment: Union[int, Ref] = 1,
         stream_end: Optional[bytes] = None,
         stop_check: Optional[StopCheckType] = None,
+        exists: Union[bool, Ref] = True,
     ):
         """Base class for accessing one or more streamable elements.
 
@@ -305,6 +307,10 @@ class StreamField( Field ):
         stop_check
             A function that takes a data buffer and an offset; should return True if
             the end of the data stream has been reached and False otherwise.
+
+        exists
+            True if this Field should be parsed and generate values, False if it should be skipped.
+            Can be set programmatically as a Ref. Defaults to True.
         """
         if count is not None and default is None:
             default = []
@@ -318,6 +324,7 @@ class StreamField( Field ):
             assert common.is_bytes( stream_end )
         self.stream_end = stream_end
         self.stop_check = stop_check
+        self.exists = exists
 
     def get_element_from_buffer(
         self,
@@ -336,6 +343,10 @@ class StreamField( Field ):
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         alignment = property_get( self.alignment, parent )
+        exists = property_get( self.exists, parent )
+
+        if not exists:
+            return None
 
         is_array = stream or (count is not None)
         count = count if is_array else 1
@@ -346,7 +357,7 @@ class StreamField( Field ):
             buffer = buffer[: offset + length]
 
         pointer = offset
-        result = []
+        result: List[Any] = []
         while pointer < len( buffer ):
             start_offset = pointer
             # stop if we've hit the maximum number of items
@@ -412,6 +423,10 @@ class StreamField( Field ):
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         alignment = property_get( self.alignment, parent )
+        exists = property_get( self.exists, parent )
+
+        if not exists:
+            return
 
         is_array = stream or (count is not None)
 
@@ -450,9 +465,27 @@ class StreamField( Field ):
         if self.stream_end is not None:
             buffer[new_size - len( self.stream_end ) : new_size] = self.stream_end
 
-    def update_deps( self, value: Union[Any, Sequence[Any]], parent=None ):
+    def update_deps(
+        self, value: Union[Any, Sequence[Any]], parent: Optional[Block] = None
+    ):
         count = property_get( self.count, parent )
         length = property_get( self.length, parent )
+        exists = property_get( self.exists, parent )
+
+        if exists and value is None:
+            if not isinstance( self.exists, Ref ):
+                # non-programmatic exists gets a free pass
+                pass
+            elif isinstance( exists, int ):
+                property_set( self.exists, parent, 1 )
+            elif isinstance( exists, bool ):
+                property_set( self.exists, parent, True )
+        elif not exists and value is not None:
+            if isinstance( exists, int ):
+                property_set( self.exists, parent, 0 )
+            elif isinstance( exists, bool ):
+                property_set( self.exists, parent, False )
+
         if count is not None and count != len( value ):
             property_set( self.count, parent, len( value ) )
         target_length = self.get_size( value, parent )
@@ -467,11 +500,25 @@ class StreamField( Field ):
     def validate(
         self, value: Union[Any, Sequence[Any]], parent: Optional[Block] = None
     ):
-        offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
-        is_array = stream or (count is not None)
+        exists = property_get( self.exists, parent )
 
+        if exists is not None and not isinstance( exists, (int, bool) ):
+            raise FieldValidationError(
+                f"{self.get_path( parent )}: Exists only supports int or bool. To control with other types, use a Ref pointing to a property."
+            )
+
+        # for the case where exists=True without a ref, allow None
+        # to fall through to validate_element.
+        # however if exists=False without a ref, that's a problem.
+        if not exists:
+            if (value is not None) and not isinstance( self.exists, Ref ):
+                raise FieldValidationError(
+                    f"{self.get_path( parent )}: Exists defined as a constant, was expecting None but got {value}!"
+                )
+
+        is_array = stream or (count is not None)
         if is_array:
             try:
                 _ = iter( value )
@@ -510,10 +557,11 @@ class StreamField( Field ):
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         alignment = property_get( self.alignment, parent )
+        exists = property_get( self.exists, parent )
         is_array = stream or (count is not None)
 
         pointer = offset
-        if index is not None:
+        if exists and index is not None:
             if not is_array:
                 raise IndexError(
                     f"{self.get_path( parent )}: Can't use index for a non-array"
@@ -544,9 +592,13 @@ class StreamField( Field ):
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         alignment = property_get( self.alignment, parent )
+        exists = property_get( self.exists, parent )
         is_array = stream or (count is not None)
 
         pointer = 0
+
+        if not exists:
+            return pointer
 
         if index is not None:
             if not is_array:
@@ -603,10 +655,10 @@ class ChunkField( StreamField ):
         chunk_map: Dict[Union[bytes, int], Type[Block]],
         offset: OffsetType = Chain(),
         *,
-        count: Optional[int] = None,
-        length: Optional[int] = None,
-        stream: bool = True,
-        alignment: int = 1,
+        count: Optional[Union[int, Ref]] = None,
+        length: Optional[Union[int, Ref]] = None,
+        stream: Union[bool, Ref] = True,
+        alignment: Union[int, Ref] = 1,
         stream_end: Optional[bytes] = None,
         stop_check: Optional[StopCheckType] = None,
         default_klass: Optional[Type[Block]] = None,
@@ -616,6 +668,7 @@ class ChunkField( StreamField ):
         length_field: Optional[Type[NumberField]] = None,
         fill: Optional[bytes] = None,
         length_inclusive: bool = False,
+        exists: Union[bool, Ref] = True,
     ):
         """Field for inserting a tokenised Block stream into the parent class.
 
@@ -667,6 +720,10 @@ class ChunkField( StreamField ):
         length_inclusive
             True if the length field indicates the total length of the chunk, inclusive of the ID field and the length field.
             Defaults to False.
+
+        exists
+            True if this Field should be parsed and generate values, False if it should be skipped.
+            Can be set programmatically as a Ref. Defaults to True.
         """
 
         super().__init__(
@@ -678,6 +735,7 @@ class ChunkField( StreamField ):
             alignment=alignment,
             stream_end=stream_end,
             stop_check=stop_check,
+            exists=exists,
         )
         self.chunk_map = chunk_map
         if length_field:
@@ -878,20 +936,21 @@ class ChunkField( StreamField ):
 class BlockField( StreamField ):
     def __init__(
         self,
-        block_klass,
-        offset=Chain(),
+        block_klass: Union[Type[Block], Dict[Any, Type[Block]]],
+        offset: OffsetType = Chain(),
         *,
-        block_kwargs=None,
-        count=None,
-        fill=None,
-        block_type=None,
-        default_klass=None,
-        length=None,
-        stream=False,
-        alignment=1,
-        transform=None,
-        stream_end=None,
-        stop_check=None,
+        block_kwargs: Optional[Dict[str, Any]] = None,
+        count: Optional[Union[int, Ref]] = None,
+        fill: Optional[bytes] = None,
+        block_type: Optional[Ref] = None,
+        default_klass: Optional[Type[Block]] = None,
+        length: Optional[Union[int, Ref]] = None,
+        stream: Union[bool, Ref] = False,
+        alignment: Union[int, Ref] = 1,
+        transform: Optional[Transform] = None,
+        stream_end: Optional[bytes] = None,
+        stop_check: Optional[StopCheckType] = None,
+        exists: Union[bool, Ref] = True,
     ):
         """Field for inserting another Block into the parent class.
 
@@ -938,6 +997,10 @@ class BlockField( StreamField ):
             A function that takes a data buffer and an offset; should return True if
             the end of the data stream has been reached and False otherwise.
 
+        exists
+            True if this Field should be parsed and generate values, False if it should be skipped.
+            Can be set programmatically as a Ref. Defaults to True.
+
         """
         super().__init__(
             offset=offset,
@@ -948,6 +1011,7 @@ class BlockField( StreamField ):
             alignment=alignment,
             stream_end=stream_end,
             stop_check=stop_check,
+            exists=exists,
         )
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
@@ -1059,7 +1123,9 @@ class BlockField( StreamField ):
             if element is not None:
                 element.update_deps()
 
-    def validate_element( self, element, parent=None, index=None ):
+    def validate_element(
+        self, element: Any, parent: Optional[Block] = None, index: Optional[int] = None
+    ):
         from mrcrowbar.unknown import Unknown
 
         klass = self.get_klass( parent )
@@ -1072,7 +1138,9 @@ class BlockField( StreamField ):
                     f"{self.get_path( parent, index )}: Expecting block class {klass}, not {type( element )}"
                 )
 
-    def get_element_size( self, element, parent=None, index=None ):
+    def get_element_size(
+        self, element: Any, parent: Optional[Block] = None, index: Optional[int] = None
+    ):
         fill = property_get( self.fill, parent )
         if self.transform:
             data = self.transform.export_data(
@@ -1119,22 +1187,23 @@ class BlockField( StreamField ):
 class StringField( StreamField ):
     def __init__(
         self,
-        offset=Chain(),
+        offset: OffsetType = Chain(),
         *,
-        default=None,
-        count=None,
-        length=None,
-        stream=False,
-        alignment=1,
-        stream_end=None,
-        stop_check=None,
-        transform=None,
-        encoding=False,
-        length_field=None,
-        fill=None,
-        element_length=None,
-        element_end=None,
-        zero_pad=False,
+        default: Any = None,
+        count: Optional[Union[int, Ref]] = None,
+        length: Optional[Union[int, Ref]] = None,
+        stream: Union[bool, Ref] = False,
+        alignment: Union[int, Ref] = 1,
+        stream_end: Optional[bytes] = None,
+        stop_check: Optional[StopCheckType] = None,
+        transform: Optional[Transform] = None,
+        encoding: Optional[str] = False,
+        length_field: Optional[Type[NumberField]] = None,
+        fill: Optional[bytes] = None,
+        element_length: Optional[int] = None,
+        element_end: Optional[bytes] = None,
+        zero_pad: bool = False,
+        exists: Union[bool, Ref] = True,
     ):
         """Field class for string data.
 
@@ -1190,6 +1259,10 @@ class StringField( StreamField ):
             length elements. The data size must be up to or equal to the length.
             Defaults to False.
 
+        exists
+            True if this Field should be parsed and generate values, False if it should be skipped.
+            Can be set programmatically as a Ref. Defaults to True.
+
         """
         super().__init__(
             offset=offset,
@@ -1200,6 +1273,7 @@ class StringField( StreamField ):
             alignment=alignment,
             stream_end=stream_end,
             stop_check=stop_check,
+            exists=exists,
         )
 
         if count is not None:
@@ -1456,23 +1530,24 @@ N = TypeVar
 class NumberField( StreamField ):
     def __init__(
         self,
-        format_type: encoding.NumberType,
-        field_size: int,
-        signedness: encoding.SignedEncoding,
-        endian: encoding.EndianEncoding,
+        format_type: Union[encoding.NumberType, Ref],
+        field_size: Union[int, Ref],
+        signedness: Union[encoding.SignedEncoding, Ref],
+        endian: Union[encoding.EndianEncoding, Ref],
         format_range: Sequence[int],
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[int] = None,
-        length: Optional[int] = None,
-        stream: bool = False,
-        alignment: int = 1,
+        count: Optional[Union[int, Ref]] = None,
+        length: Optional[Union[int, Ref]] = None,
+        stream: Union[bool, Ref] = False,
+        alignment: Union[int, Ref] = 1,
         stream_end: Optional[bytes] = None,
         stop_check: Optional[StopCheckType] = None,
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
+        exists: Union[bool, Ref] = True,
     ):
         """Base class for numeric value Fields.
 
@@ -1527,6 +1602,10 @@ class NumberField( StreamField ):
 
         enum
             Restrict allowed values to those provided by a Python enum type. Used for validation.
+
+        exists
+            True if this Field should be parsed and generate values, False if it should be skipped.
+            Can be set programmatically as a Ref. Defaults to True.
         """
         super().__init__(
             offset=offset,
@@ -1537,6 +1616,7 @@ class NumberField( StreamField ):
             alignment=alignment,
             stream_end=stream_end,
             stop_check=stop_check,
+            exists=exists,
         )
         self.format_type = format_type
         self.field_size = field_size
@@ -1684,7 +1764,7 @@ class NumberField( StreamField ):
             ),
         )
 
-    def serialise( self, value, parent=None ):
+    def serialise( self, value: Any, parent: Optional[Block] = None ):
         self.validate( value, parent )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
@@ -1695,7 +1775,7 @@ class NumberField( StreamField ):
 
 
 class Int8( NumberField ):
-    def __init__( self, offset=Chain(), **kwargs ):
+    def __init__( self, offset: OffsetType = Chain(), **kwargs ):
         super().__init__(
             int, 1, "signed", None, range( -1 << 7, 1 << 7 ), offset=offset, **kwargs
         )

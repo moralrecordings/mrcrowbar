@@ -16,6 +16,7 @@ Unreleased
 - utils: Replace dynamic loading of encoder shortcuts with static loading
 - block.Block: Add default repr showing the field data
 - field.ChunkField: Add length_inclusive flag 
+- field.StreamField: Add exists flag
 
 0.9.0 - 2021-01-14
 ==================

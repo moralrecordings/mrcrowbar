@@ -263,6 +263,32 @@ class TestBlockField( unittest.TestCase ):
         with self.assertRaises( Exception ):
             test = Outer( payload, strict=True )
 
+    def test_exists( self ):
+        class Inner( mrc.Block ):
+            field = mrc.UInt8()
+
+        class Outer( mrc.Block ):
+            existy = mrc.UInt8()
+            field = mrc.BlockField( Inner, count=3, exists=mrc.Ref( "existy" ) )
+            extra = mrc.Bytes()
+
+        payload = b"\x01\x09\x09\x09"
+
+        test = Outer( payload, strict=True )
+        self.assertEqual( test.existy, 1 )
+        self.assertEqual( len( test.field ), 3 )
+        self.assertEqual( test.field[0].field, 9 )
+        self.assertEqual( test.field[1].field, 9 )
+        self.assertEqual( test.field[2].field, 9 )
+        self.assertEqual( test.extra, b"" )
+
+        payload = b"\x00\x09\x09\x09"
+
+        test = Outer( payload, strict=True )
+        self.assertEqual( test.existy, 0 )
+        self.assertEqual( test.field, None )
+        self.assertEqual( test.extra, b"\x09\x09\x09" )
+
 
 class TestStringField( unittest.TestCase ):
     def test_fixed_pad( self ):

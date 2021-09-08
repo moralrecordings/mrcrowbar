@@ -336,7 +336,13 @@ class Block( object, metaclass=BlockMeta ):
 
         self._field_data = {}
 
-        logger.debug( f"{self.__class__.__name__}: loading fields" )
+        if logger.isEnabledFor( logging.DEBUG ):
+            logger.debug(
+                f"{self.get_path()}<{self.__class__.__name__}>: loading fields"
+            )
+            if raw_buffer is not None:
+                for x in utils.hexdump_iter( raw_buffer, end=0x200 ):
+                    logger.debug( x )
 
         for name in klass._fields:
             if raw_buffer is not None:
@@ -346,9 +352,23 @@ class Block( object, metaclass=BlockMeta ):
                     raw_buffer, parent=self
                 )
                 if logger.isEnabledFor( logging.DEBUG ):
-                    logger.debug(
-                        f"Result for {name} [{klass._fields[name]}]: {self._field_data[name]}"
-                    )
+                    if isinstance( self._field_data[name], str ):
+                        logger.debug(
+                            f"Result for {name} [{klass._fields[name]}]: str[{len(self._field_data[name])}]"
+                        )
+
+                    elif common.is_bytes( self._field_data[name] ):
+                        logger.debug(
+                            f"Result for {name} [{klass._fields[name]}]: bytes[{len(self._field_data[name])}]"
+                        )
+                    elif isinstance( self._field_data[name], Sequence ):
+                        logger.debug(
+                            f"Result for {name} [{klass._fields[name]}]: list[{len(self._field_data[name])}]"
+                        )
+                    else:
+                        logger.debug(
+                            f"Result for {name} [{klass._fields[name]}]: {self._field_data[name]}"
+                        )
             else:
                 self._field_data[name] = klass._fields[name].default
 

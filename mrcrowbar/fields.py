@@ -79,7 +79,7 @@ class Field( object ):
             return super().__hash__()
         return hash( self.serialised )
 
-    def __eq__( self, other ):
+    def __eq__( self, other: Any ):
         serial = self.serialised
         if serial is None:
             return super().__eq__( other )
@@ -259,7 +259,7 @@ class Field( object ):
         parent
             Parent block object where this Field is defined.
         """
-        if not parent:
+        if parent is None:
             return False
         return parent._cache_refs
 
@@ -276,7 +276,6 @@ class StreamField( Field ):
         alignment: int = 1,
         stream_end: Optional[bytes] = None,
         stop_check: Optional[StopCheckType] = None,
-        **kwargs,
     ):
         """Base class for accessing one or more streamable elements.
 
@@ -309,7 +308,7 @@ class StreamField( Field ):
         """
         if count is not None and default is None:
             default = []
-        super().__init__( default=default, **kwargs )
+        super().__init__( default=default )
         self.offset = offset
         self.count = count
         self.length = length
@@ -601,7 +600,7 @@ class Chunk( ChunkBase ):
 class ChunkField( StreamField ):
     def __init__(
         self,
-        chunk_map,
+        chunk_map: Dict[Union[bytes, int], Type[Block]],
         offset: OffsetType = Chain(),
         *,
         count: Optional[int] = None,
@@ -617,7 +616,6 @@ class ChunkField( StreamField ):
         length_field: Optional[Type[NumberField]] = None,
         fill: Optional[bytes] = None,
         length_inclusive: bool = False,
-        **kwargs,
     ):
         """Field for inserting a tokenised Block stream into the parent class.
 
@@ -680,7 +678,6 @@ class ChunkField( StreamField ):
             alignment=alignment,
             stream_end=stream_end,
             stop_check=stop_check,
-            **kwargs,
         )
         self.chunk_map = chunk_map
         if length_field:
@@ -895,7 +892,6 @@ class BlockField( StreamField ):
         transform=None,
         stream_end=None,
         stop_check=None,
-        **kwargs,
     ):
         """Field for inserting another Block into the parent class.
 
@@ -952,7 +948,6 @@ class BlockField( StreamField ):
             alignment=alignment,
             stream_end=stream_end,
             stop_check=stop_check,
-            **kwargs,
         )
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
@@ -1140,7 +1135,6 @@ class StringField( StreamField ):
         element_length=None,
         element_end=None,
         zero_pad=False,
-        **kwargs,
     ):
         """Field class for string data.
 
@@ -1206,7 +1200,6 @@ class StringField( StreamField ):
             alignment=alignment,
             stream_end=stream_end,
             stop_check=stop_check,
-            **kwargs,
         )
 
         if count is not None:
@@ -1480,7 +1473,6 @@ class NumberField( StreamField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        **kwargs,
     ):
         """Base class for numeric value Fields.
 
@@ -1545,7 +1537,6 @@ class NumberField( StreamField ):
             alignment=alignment,
             stream_end=stream_end,
             stop_check=stop_check,
-            **kwargs,
         )
         self.format_type = format_type
         self.field_size = field_size

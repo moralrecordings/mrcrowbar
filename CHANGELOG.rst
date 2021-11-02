@@ -17,6 +17,7 @@ Unreleased
 - block.Block: Add default repr showing the field data
 - field.ChunkField: Add length_inclusive flag 
 - field.StreamField: Add exists flag
+- utils.find_iter: Fix searching with a single substring
 
 0.9.0 - 2021-01-14
 ==================

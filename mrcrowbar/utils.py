@@ -171,7 +171,11 @@ def find_iter(
     """
     start, end = bounds( start, end, length, len( source ) )
 
-    substrings = substring if isinstance( substring, Sequence ) else substring
+    substrings = (
+        [substring]
+        if isinstance( substring, str ) or is_bytes( substring )
+        else substring
+    )
     substrings = [bytes( x ) if is_bytes( x ) else x for x in substrings]
 
     if ignore_case:

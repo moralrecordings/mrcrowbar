@@ -6,7 +6,7 @@ from mrcrowbar.transforms import Transform
 
 logger = logging.getLogger( __name__ )
 
-from typing import Any, Dict, List, Optional, TYPE_CHECKING, Type
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, Type, Union
 
 if TYPE_CHECKING:
     from mrcrowbar.blocks import Block
@@ -125,7 +125,7 @@ class LinearStore( View ):
         block_klass: Type["Block"],
         offsets: Any = None,
         sizes: Any = None,
-        base_offset: int = 0,
+        base_offset: Union[int, Ref] = 0,
         fill: bytes = b"\x00",
         block_kwargs: Optional[Dict[str, Any]] = None,
         transform: Optional[Transform] = None,
@@ -134,7 +134,7 @@ class LinearStore( View ):
         self._source = source
         self._offsets = offsets
         self._sizes = sizes
-        self._base_offset = base_offset
+        self._base_offset: Union[int, Ref] = base_offset
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
         self.transform = transform
@@ -169,7 +169,7 @@ class LinearStore( View ):
 
     def cache( self ):
         self.validate()
-        offsets = self.offsets
+        offsets = [x + self.base_offset for x in self.offsets]
         sizes = self.sizes
         if not sizes:
             sizes = [offsets[i + 1] - offsets[i] for i in range( len( offsets ) - 1 )]
@@ -177,8 +177,7 @@ class LinearStore( View ):
         elif not offsets:
             offsets = [sum( sizes[:i] ) for i in range( len( sizes ) )]
         buffers = [
-            self.source[self.base_offset + offsets[i] :][: sizes[i]]
-            for i in range( len( offsets ) )
+            self.source[offsets[i] :][: sizes[i]] for i in range( len( offsets ) )
         ]
         if self.transform:
             buffers = [

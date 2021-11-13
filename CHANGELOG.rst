@@ -18,6 +18,7 @@ Unreleased
 - field.ChunkField: Add length_inclusive flag 
 - field.StreamField: Add exists flag
 - utils.find_iter: Fix searching with a single substring
+- lib.games.sierra: More TIM structures
 
 0.9.0 - 2021-01-14
 ==================

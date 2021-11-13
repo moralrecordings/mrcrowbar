@@ -1422,3 +1422,53 @@ def unlock_dir_file( filename, klass=DirectorV4, dry_run=False ):
             f.seek( location[0] )
             f.write( new_data )
     f.close()
+
+
+def rip_dir_from_exe( filename ):
+    data = open( filename, "rb" ).read()
+
+    # find the inner PJ93 index container
+    offset = utils.from_uint32_le( data[-4:] )
+    p = PJ93_LE( data[offset:-4] )
+
+    # from that, grab the second inner container that contains the movie data
+    rifx_inner = riff.XFIR( data[p.rifx_offset : -4] )
+    index = [
+        i for i, x in enumerate( rifx_inner.map.stream ) if x.id == riff.Tag( b"RIFX" )
+    ][0]
+
+    # collect the movie data as a XFIR blob
+    blob = bytearray(
+        b"XFIR" + utils.to_uint32_le( len( rifx_inner.map.stream[index].obj.data ) )
+    )
+    blob.extend( rifx_inner.map.stream[index].obj.data )
+
+    # there's a catch! the imap and mmap blocks are using
+    # EXE-relative offsets. we need to go back and fix those up
+    dir_offset = (
+        p.rifx_offset
+        + rifx_inner.get_field_start_offset( "map" )
+        + rifx_inner.map.get_field_start_offset( "stream", index )
+    )
+
+    # patch imap offset
+    imap_offset = 0xc
+    assert blob[imap_offset : imap_offset + 4] == b"pami"
+    imap_len = utils.from_uint32_le( blob[imap_offset + 4 : imap_offset + 8] )
+    imap = IMapV4( blob[imap_offset + 8 : imap_offset + 8 + imap_len], endian="little" )
+    imap.mmap_offset -= dir_offset
+    blob[imap_offset + 8 : imap_offset + 8 + imap_len] = imap.export_data()
+
+    # patch the mmap table
+    assert blob[imap.mmap_offset : imap.mmap_offset + 4] == b"pamm"
+    mmap_len = utils.from_uint32_le( blob[imap.mmap_offset + 4 : imap.mmap_offset + 8] )
+    mmap = MMapV4(
+        blob[imap.mmap_offset + 8 : imap.mmap_offset + 8 + mmap_len], endian="little"
+    )
+    for e in mmap.entries:
+        if e.offset > 0:
+            e.offset -= dir_offset
+    blob[imap.mmap_offset + 8 : imap.mmap_offset + 8 + mmap_len] = mmap.export_data()
+
+    output = open( f"{filename}.dir", "wb" )
+    output.write( blob )

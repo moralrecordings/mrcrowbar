@@ -20,6 +20,7 @@ Unreleased
 - utils.find_iter: Fix searching with a single substring
 - lib.games.sierra: More TIM structures
 - lib.platforms.director: Add rip_dir_from_exe
+- lib.platforms.director: Rework unlock_dir_file to not rely on DirectorV4
 
 0.9.0 - 2021-01-14
 ==================

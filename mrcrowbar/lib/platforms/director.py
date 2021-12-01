@@ -1388,17 +1388,49 @@ def checksum_v4( data ):
     return checksum
 
 
-def unlock_dir_file( filename, klass=DirectorV4, dry_run=False ):
+def unlock_dir_file( filename, endian="big", dry_run=False ):
     f = open( filename, "r+b" )
 
-    data = f.read()
-    d = klass( data )
-    f.seek( 0 )
-    configs = [x for x in d.map.stream if x.id == riff.Tag( b"VWCF" )]
-    if not configs:
+    blob = f.read()
+
+    conv = utils.from_uint32_le if endian == "little" else utils.from_uint32_be
+
+    # DirectorV4 is still very unstable, so find the VWCF section manually.
+    # get imap block
+    imap_offset = 0xc
+    assert (
+        blob[imap_offset : imap_offset + 4] == b"pami"
+        if endian == "little"
+        else b"imap"
+    )
+    imap_len = conv( blob[imap_offset + 4 : imap_offset + 8] )
+    imap = IMapV4( blob[imap_offset + 8 : imap_offset + 8 + imap_len], endian=endian )
+
+    # get the mmap table
+    assert (
+        blob[imap.mmap_offset : imap.mmap_offset + 4] == b"pamm"
+        if endian == "little"
+        else b"mmap"
+    )
+    mmap_len = conv( blob[imap.mmap_offset + 4 : imap.mmap_offset + 8] )
+    mmap = MMapV4(
+        blob[imap.mmap_offset + 8 : imap.mmap_offset + 8 + mmap_len], endian=endian
+    )
+    conf_offsets = [e for e in mmap.entries if e.chunk_id == riff.Tag( b"VWCF" )]
+    if not conf_offsets:
         print( "Could not find a VWCF block! Aborting..." )
         return
-    chunk = configs[0].obj
+    f.seek( 0 )
+
+    conf_offset = conf_offsets[0].offset
+    assert (
+        blob[conf_offset : conf_offset + 4] == b"FCWV"
+        if endian == "little"
+        else b"VWCF"
+    )
+    conf_len = conv( blob[conf_offset + 4 : conf_offset + 8] )
+    chunk = ConfigV4( blob[conf_offset + 8 : conf_offset + 8 + conf_len] )
+
     print( f"Orig chunk:        {chunk.export_data().hex()}" )
     print( f"Orig checksum:     {chunk.checksum:08x}" )
     print( f"Calc checksum:     {chunk.checksum_v4:08x}" )
@@ -1418,7 +1450,7 @@ def unlock_dir_file( filename, klass=DirectorV4, dry_run=False ):
         new_data = chunk.export_data()
         if dry_run:
             return
-        for location in utils.find( old_data, data ):
+        for location in utils.find( old_data, blob ):
             f.seek( location[0] )
             f.write( new_data )
     f.close()

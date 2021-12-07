@@ -276,7 +276,7 @@ class StoreRef( Ref ):
         self.block_kwargs = block_kwargs
         self.transform = transform
 
-    def cache( self, instance: Any ):
+    def cache( self, instance: Block, name: str ):
         store = property_get( self.store, instance )
         store.cache_object(
             instance,

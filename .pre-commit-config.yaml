@@ -1,5 +1,5 @@
 repos:
 - repo: https://github.com/moralrecordings/mrblack
-  rev: e99a6fba1bbb543ef8d5ccaa41b5fc04d7e1a589
+  rev: mrblack-21.12b0
   hooks:
     - id: black

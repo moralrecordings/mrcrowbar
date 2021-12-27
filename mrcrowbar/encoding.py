@@ -360,7 +360,7 @@ def _from_raw_type_array(
                 field_size,
                 signedness,
                 endian,
-                count=len( buffer ) // type_id[1],
+                count=len( buffer ) // field_size,
             ),
             buffer,
         )

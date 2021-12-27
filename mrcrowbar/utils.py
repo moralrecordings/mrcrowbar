@@ -5,6 +5,7 @@ import json
 import logging
 import math
 import re
+import sys
 import time
 from typing import (
     Any,
@@ -21,7 +22,11 @@ from typing import (
 
 if TYPE_CHECKING:
     from mrcrowbar.blocks import Block
-from typing_extensions import Literal
+
+if sys.version_info >= (3, 10):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
 
 logger = logging.getLogger( __name__ )
 

@@ -1,8 +1,14 @@
 import re
 import struct
+import sys
+
 from typing import Dict, List, Callable, Tuple, Type, Union, Optional
 import logging
-from typing_extensions import Literal
+
+if sys.version_info >= (3, 10):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
 
 logger = logging.getLogger( __name__ )
 

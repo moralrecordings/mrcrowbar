@@ -281,6 +281,7 @@ class TestBlockField( unittest.TestCase ):
         self.assertEqual( test.field[1].field, 9 )
         self.assertEqual( test.field[2].field, 9 )
         self.assertEqual( test.extra, b"" )
+        self.assertEqual( test.export_data(), payload )
 
         payload = b"\x00\x09\x09\x09"
 
@@ -288,6 +289,7 @@ class TestBlockField( unittest.TestCase ):
         self.assertEqual( test.existy, 0 )
         self.assertEqual( test.field, None )
         self.assertEqual( test.extra, b"\x09\x09\x09" )
+        self.assertEqual( test.export_data(), payload )
 
 
 class TestStringField( unittest.TestCase ):

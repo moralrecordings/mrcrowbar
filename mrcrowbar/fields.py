@@ -512,11 +512,14 @@ class StreamField( Field ):
         # for the case where exists=True without a ref, allow None
         # to fall through to validate_element.
         # however if exists=False without a ref, that's a problem.
-        if not exists:
-            if (value is not None) and not isinstance( self.exists, Ref ):
-                raise FieldValidationError(
-                    f"{self.get_path( parent )}: Exists defined as a constant, was expecting None but got {value}!"
-                )
+        if exists == False:
+            if value is not None:
+                if not isinstance( self.exists, Ref ):
+                    raise FieldValidationError(
+                        f"{self.get_path( parent )}: Exists defined as a constant, was expecting None but got {value}!"
+                    )
+            else:
+                return
 
         is_array = stream or (count is not None)
         if is_array:
@@ -1110,13 +1113,14 @@ class BlockField( StreamField ):
     def update_deps( self, value, parent=None ):
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
+        exists = property_get( self.exists, parent )
 
         is_array = stream or (count is not None)
 
-        if count is not None and count != len( value ):
+        if exists == True and count is not None and count != len( value ):
             property_set( self.count, parent, len( value ) )
 
-        if not is_array:
+        if not is_array or exists == False:
             value = [value]
 
         for element in value:

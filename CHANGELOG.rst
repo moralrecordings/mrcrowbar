@@ -21,6 +21,7 @@ Unreleased
 - lib.games.sierra: More TIM structures
 - lib.platforms.director: Add rip_dir_from_exe
 - lib.platforms.director: Rework unlock_dir_file to not rely on DirectorV4
+- fields.BlockField: Fix validation of exists flag
 
 0.9.0 - 2021-01-14
 ==================

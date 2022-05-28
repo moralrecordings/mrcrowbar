@@ -5,10 +5,10 @@ import json
 import logging
 import math
 import re
-import sys
 import time
 from typing import (
     Any,
+    Callable,
     Sequence,
     Union,
     Iterator,
@@ -23,10 +23,7 @@ from typing import (
 if TYPE_CHECKING:
     from mrcrowbar.blocks import Block
 
-if sys.version_info >= (3, 10):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
+from typing_extensions import Literal
 
 logger = logging.getLogger( __name__ )
 
@@ -315,7 +312,7 @@ def find(
     length: Optional[int] = None,
     overlap: bool = False,
     ignore_case: bool = False,
-    encodings: Union[str, List[str]] = ["utf_8"],
+    encodings: Union[List[str], Literal["all"]] = ["utf_8"],
     brute: bool = False,
     char_size: int = 1,
 ):
@@ -527,7 +524,7 @@ def grepdump(
     after: int = 2,
     title: Optional[str] = None,
     format: Literal["hex", "text", "json"] = "hex",
-):
+) -> None:
     """Find the contents of a byte string that matches a regular expression pattern and renders the result.
 
     pattern
@@ -758,24 +755,24 @@ def search(
 
 
 def finddump_iter(
-    substring,
-    source,
-    start=None,
-    end=None,
-    length=None,
-    overlap=False,
-    ignore_case=False,
-    encodings=["utf_8"],
-    brute=False,
-    char_size=1,
-    major_len=8,
-    minor_len=4,
-    colour=True,
-    address_base=None,
-    before=2,
-    after=2,
-    title=None,
-    format="hex",
+    substring: Union[str, BytesReadType, Sequence[BytesReadType], Sequence[str]],
+    source: Union[str, BytesReadType],
+    start: Optional[int] = None,
+    end: Optional[int] = None,
+    length: Optional[int] = None,
+    overlap: bool = False,
+    ignore_case: bool = False,
+    encodings: Union[List[str], Literal["all"]] = ["utf_8"],
+    brute: bool = False,
+    char_size: int = 1,
+    major_len: int = 8,
+    minor_len: int = 4,
+    colour: bool = True,
+    address_base: Optional[int] = None,
+    before: int = 2,
+    after: int = 2,
+    title: Optional[str] = None,
+    format: Literal["hex", "text", "json"] = "hex",
 ):
     """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings, and renders the result.
 
@@ -928,25 +925,25 @@ def finddump_iter(
 
 
 def finddump(
-    substring,
-    source,
-    start=None,
-    end=None,
-    length=None,
-    overlap=False,
-    ignore_case=False,
-    encodings=["utf_8"],
-    brute=False,
-    char_size=1,
-    major_len=8,
-    minor_len=4,
-    colour=True,
-    address_base=None,
-    before=2,
-    after=2,
-    title=None,
-    format="hex",
-):
+    substring: Union[str, BytesReadType, Sequence[BytesReadType], Sequence[str]],
+    source: Union[str, BytesReadType],
+    start: Optional[int] = None,
+    end: Optional[int] = None,
+    length: Optional[int] = None,
+    overlap: bool = False,
+    ignore_case: bool = False,
+    encodings: Union[List[str], Literal["all"]] = ["utf_8"],
+    brute: bool = False,
+    char_size: int = 1,
+    major_len: int = 8,
+    minor_len: int = 4,
+    colour: bool = True,
+    address_base: Optional[int] = None,
+    before: int = 2,
+    after: int = 2,
+    title: Optional[str] = None,
+    format: Literal["hex", "text", "json"] = "hex",
+) -> None:
     """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings, and renders the result.
 
     substring
@@ -1184,7 +1181,7 @@ def objdiff(
 
 def objdiffdump_iter(
     source1: Any, source2: Any, prefix: str = "source", depth: Optional[int] = None
-):
+) -> Iterator[str]:
     """Return an iterator that renders a list of differences between two objects.
 
     source1
@@ -1217,7 +1214,7 @@ def objdiffdump_iter(
 
 def objdiffdump(
     source1: Any, source2: Any, prefix: str = "source", depth: Optional[int] = None
-):
+) -> None:
     """Print a list of differences between two objects.
 
     source1
@@ -1295,7 +1292,7 @@ def histdump(
     samples: int = 0x10000,
     width: int = 64,
     address_base: Optional[int] = None,
-):
+) -> None:
     """Print a histogram of a byte string.
 
     source
@@ -1336,7 +1333,7 @@ def hexdump_iter(
     address_base: Optional[int] = None,
     show_offsets: bool = True,
     show_glyphs: bool = True,
-):
+) -> Iterator[str]:
     """Return an iterator that renders a byte string in tabular hexadecimal/ASCII format.
 
     source
@@ -1404,7 +1401,7 @@ def hexdump(
     address_base: Optional[int] = None,
     show_offsets: bool = True,
     show_glyphs: bool = True,
-):
+) -> None:
     """Print a byte string in tabular hexadecimal/ASCII format.
 
     source
@@ -1605,7 +1602,7 @@ def diffdump(
     before: int = 2,
     after: int = 2,
     address_base: Optional[int] = None,
-):
+) -> None:
     """Print the differences between two byte strings.
 
     source1
@@ -1666,7 +1663,7 @@ def stats(
     length: Optional[int] = None,
     width: int = 64,
     height: int = 12,
-):
+) -> None:
     """Print histogram graph for a byte string.
 
     source
@@ -1761,7 +1758,7 @@ def pixdump(
     width: int = 64,
     height: Optional[int] = None,
     palette: Optional[Sequence[ColourType]] = None,
-):
+) -> None:
     """Print the contents of a byte string as a 256 colour image.
 
     source
@@ -1799,7 +1796,7 @@ def pixdump_sweep(
     length: Optional[int] = None,
     height: Optional[int] = None,
     palette: Optional[Sequence[ColourType]] = None,
-):
+) -> None:
     """Test printing the contents of a byte string as a 256 colour image for a range of widths.
 
     source
@@ -1840,117 +1837,116 @@ You can generate the below section using the following script:
 from mrcrowbar import encoding as enco
 str_type = lambda type_class, *type_args: f"({type_class.__name__}, {str(type_args)[1:-1]})"
 for type_id, from_func in enco.FROM_RAW_TYPE.items():
-    print(f"from_{enco.RAW_TYPE_NAME[type_id]} = enco.FROM_RAW_TYPE[{str_type(*type_id)}]")
+    print(f"from_{enco.RAW_TYPE_NAME[type_id]}: Callable[[BytesReadType], {type_id[0].__name__}] = enco.FROM_RAW_TYPE[{str_type(*type_id)}]    # type: ignore")
 for type_id, to_func in enco.TO_RAW_TYPE.items():
-    print(f"to_{enco.RAW_TYPE_NAME[type_id]} = enco.TO_RAW_TYPE[{str_type(*type_id)}]")
+    print(f"to_{enco.RAW_TYPE_NAME[type_id]}: Callable[[{type_id[0].__name__}], bytes] = enco.TO_RAW_TYPE[{str_type(*type_id)}]    # type: ignore")
 for type_id, from_func in enco.FROM_RAW_TYPE_ARRAY.items():
-    print(f"from_{enco.RAW_TYPE_NAME[type_id]}_array = enco.FROM_RAW_TYPE_ARRAY[{str_type(*type_id)}]")
+    print(f"from_{enco.RAW_TYPE_NAME[type_id]}_array: Callable[[BytesReadType], List[{type_id[0].__name__}]]  = enco.FROM_RAW_TYPE_ARRAY[{str_type(*type_id)}]    # type: ignore")
 for type_id, to_func in enco.TO_RAW_TYPE_ARRAY.items():
-    print(f"to_{enco.RAW_TYPE_NAME[type_id]}_array = enco.TO_RAW_TYPE_ARRAY[{str_type(*type_id)}]")
+    print(f"to_{enco.RAW_TYPE_NAME[type_id]}_array: Callable[[Sequence[{type_id[0].__name__}]], bytes]  = enco.TO_RAW_TYPE_ARRAY[{str_type(*type_id)}]    # type: ignore")
 
 """
-
-from_uint8 = enco.FROM_RAW_TYPE[(int, 1, "unsigned", None)]
-from_uint8 = enco.FROM_RAW_TYPE[(int, 1, "unsigned", "little")]
-from_uint8 = enco.FROM_RAW_TYPE[(int, 1, "unsigned", "big")]
-from_int8 = enco.FROM_RAW_TYPE[(int, 1, "signed", None)]
-from_int8 = enco.FROM_RAW_TYPE[(int, 1, "signed", "little")]
-from_int8 = enco.FROM_RAW_TYPE[(int, 1, "signed", "big")]
-from_uint16_le = enco.FROM_RAW_TYPE[(int, 2, "unsigned", "little")]
-from_uint16_be = enco.FROM_RAW_TYPE[(int, 2, "unsigned", "big")]
-from_int16_le = enco.FROM_RAW_TYPE[(int, 2, "signed", "little")]
-from_int16_be = enco.FROM_RAW_TYPE[(int, 2, "signed", "big")]
-from_uint32_le = enco.FROM_RAW_TYPE[(int, 4, "unsigned", "little")]
-from_uint32_be = enco.FROM_RAW_TYPE[(int, 4, "unsigned", "big")]
-from_int32_le = enco.FROM_RAW_TYPE[(int, 4, "signed", "little")]
-from_int32_be = enco.FROM_RAW_TYPE[(int, 4, "signed", "big")]
-from_uint64_le = enco.FROM_RAW_TYPE[(int, 8, "unsigned", "little")]
-from_uint64_be = enco.FROM_RAW_TYPE[(int, 8, "unsigned", "big")]
-from_int64_le = enco.FROM_RAW_TYPE[(int, 8, "signed", "little")]
-from_int64_be = enco.FROM_RAW_TYPE[(int, 8, "signed", "big")]
-from_float32_le = enco.FROM_RAW_TYPE[(float, 4, "signed", "little")]
-from_float32_be = enco.FROM_RAW_TYPE[(float, 4, "signed", "big")]
-from_float64_le = enco.FROM_RAW_TYPE[(float, 8, "signed", "little")]
-from_float64_be = enco.FROM_RAW_TYPE[(float, 8, "signed", "big")]
-from_int24_le = enco.FROM_RAW_TYPE[(int, 3, "signed", "little")]
-from_uint24_le = enco.FROM_RAW_TYPE[(int, 3, "unsigned", "little")]
-from_int24_be = enco.FROM_RAW_TYPE[(int, 3, "signed", "big")]
-from_uint24_be = enco.FROM_RAW_TYPE[(int, 3, "unsigned", "big")]
-to_uint8 = enco.TO_RAW_TYPE[(int, 1, "unsigned", None)]
-to_uint8 = enco.TO_RAW_TYPE[(int, 1, "unsigned", "little")]
-to_uint8 = enco.TO_RAW_TYPE[(int, 1, "unsigned", "big")]
-to_int8 = enco.TO_RAW_TYPE[(int, 1, "signed", None)]
-to_int8 = enco.TO_RAW_TYPE[(int, 1, "signed", "little")]
-to_int8 = enco.TO_RAW_TYPE[(int, 1, "signed", "big")]
-to_uint16_le = enco.TO_RAW_TYPE[(int, 2, "unsigned", "little")]
-to_uint16_be = enco.TO_RAW_TYPE[(int, 2, "unsigned", "big")]
-to_int16_le = enco.TO_RAW_TYPE[(int, 2, "signed", "little")]
-to_int16_be = enco.TO_RAW_TYPE[(int, 2, "signed", "big")]
-to_uint32_le = enco.TO_RAW_TYPE[(int, 4, "unsigned", "little")]
-to_uint32_be = enco.TO_RAW_TYPE[(int, 4, "unsigned", "big")]
-to_int32_le = enco.TO_RAW_TYPE[(int, 4, "signed", "little")]
-to_int32_be = enco.TO_RAW_TYPE[(int, 4, "signed", "big")]
-to_uint64_le = enco.TO_RAW_TYPE[(int, 8, "unsigned", "little")]
-to_uint64_be = enco.TO_RAW_TYPE[(int, 8, "unsigned", "big")]
-to_int64_le = enco.TO_RAW_TYPE[(int, 8, "signed", "little")]
-to_int64_be = enco.TO_RAW_TYPE[(int, 8, "signed", "big")]
-to_float32_le = enco.TO_RAW_TYPE[(float, 4, "signed", "little")]
-to_float32_be = enco.TO_RAW_TYPE[(float, 4, "signed", "big")]
-to_float64_le = enco.TO_RAW_TYPE[(float, 8, "signed", "little")]
-to_float64_be = enco.TO_RAW_TYPE[(float, 8, "signed", "big")]
-to_int24_le = enco.TO_RAW_TYPE[(int, 3, "signed", "little")]
-to_uint24_le = enco.TO_RAW_TYPE[(int, 3, "unsigned", "little")]
-to_int24_be = enco.TO_RAW_TYPE[(int, 3, "signed", "big")]
-to_uint24_be = enco.TO_RAW_TYPE[(int, 3, "unsigned", "big")]
-from_uint8_array = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "unsigned", None)]
-from_uint8_array = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "unsigned", "little")]
-from_uint8_array = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "unsigned", "big")]
-from_int8_array = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "signed", None)]
-from_int8_array = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "signed", "little")]
-from_int8_array = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "signed", "big")]
-from_uint16_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "unsigned", "little")]
-from_uint16_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "unsigned", "big")]
-from_int16_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "signed", "little")]
-from_int16_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "signed", "big")]
-from_uint32_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "unsigned", "little")]
-from_uint32_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "unsigned", "big")]
-from_int32_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "signed", "little")]
-from_int32_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "signed", "big")]
-from_uint64_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "unsigned", "little")]
-from_uint64_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "unsigned", "big")]
-from_int64_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "signed", "little")]
-from_int64_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "signed", "big")]
-from_float32_le_array = enco.FROM_RAW_TYPE_ARRAY[(float, 4, "signed", "little")]
-from_float32_be_array = enco.FROM_RAW_TYPE_ARRAY[(float, 4, "signed", "big")]
-from_float64_le_array = enco.FROM_RAW_TYPE_ARRAY[(float, 8, "signed", "little")]
-from_float64_be_array = enco.FROM_RAW_TYPE_ARRAY[(float, 8, "signed", "big")]
-from_int24_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "signed", "little")]
-from_uint24_le_array = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "unsigned", "little")]
-from_int24_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "signed", "big")]
-from_uint24_be_array = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "unsigned", "big")]
-to_uint8_array = enco.TO_RAW_TYPE_ARRAY[(int, 1, "unsigned", None)]
-to_uint8_array = enco.TO_RAW_TYPE_ARRAY[(int, 1, "unsigned", "little")]
-to_uint8_array = enco.TO_RAW_TYPE_ARRAY[(int, 1, "unsigned", "big")]
-to_int8_array = enco.TO_RAW_TYPE_ARRAY[(int, 1, "signed", None)]
-to_int8_array = enco.TO_RAW_TYPE_ARRAY[(int, 1, "signed", "little")]
-to_int8_array = enco.TO_RAW_TYPE_ARRAY[(int, 1, "signed", "big")]
-to_uint16_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 2, "unsigned", "little")]
-to_uint16_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 2, "unsigned", "big")]
-to_int16_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 2, "signed", "little")]
-to_int16_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 2, "signed", "big")]
-to_uint32_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 4, "unsigned", "little")]
-to_uint32_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 4, "unsigned", "big")]
-to_int32_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 4, "signed", "little")]
-to_int32_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 4, "signed", "big")]
-to_uint64_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 8, "unsigned", "little")]
-to_uint64_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 8, "unsigned", "big")]
-to_int64_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 8, "signed", "little")]
-to_int64_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 8, "signed", "big")]
-to_float32_le_array = enco.TO_RAW_TYPE_ARRAY[(float, 4, "signed", "little")]
-to_float32_be_array = enco.TO_RAW_TYPE_ARRAY[(float, 4, "signed", "big")]
-to_float64_le_array = enco.TO_RAW_TYPE_ARRAY[(float, 8, "signed", "little")]
-to_float64_be_array = enco.TO_RAW_TYPE_ARRAY[(float, 8, "signed", "big")]
-to_int24_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 3, "signed", "little")]
-to_uint24_le_array = enco.TO_RAW_TYPE_ARRAY[(int, 3, "unsigned", "little")]
-to_int24_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 3, "signed", "big")]
-to_uint24_be_array = enco.TO_RAW_TYPE_ARRAY[(int, 3, "unsigned", "big")]
+from_uint8: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 1, "unsigned", None)]  # type: ignore
+from_uint8: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 1, "unsigned", "little")]  # type: ignore
+from_uint8: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 1, "unsigned", "big")]  # type: ignore
+from_int8: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 1, "signed", None)]  # type: ignore
+from_int8: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 1, "signed", "little")]  # type: ignore
+from_int8: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 1, "signed", "big")]  # type: ignore
+from_uint16_le: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 2, "unsigned", "little")]  # type: ignore
+from_uint16_be: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 2, "unsigned", "big")]  # type: ignore
+from_int16_le: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 2, "signed", "little")]  # type: ignore
+from_int16_be: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 2, "signed", "big")]  # type: ignore
+from_uint32_le: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 4, "unsigned", "little")]  # type: ignore
+from_uint32_be: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 4, "unsigned", "big")]  # type: ignore
+from_int32_le: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 4, "signed", "little")]  # type: ignore
+from_int32_be: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 4, "signed", "big")]  # type: ignore
+from_uint64_le: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 8, "unsigned", "little")]  # type: ignore
+from_uint64_be: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 8, "unsigned", "big")]  # type: ignore
+from_int64_le: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 8, "signed", "little")]  # type: ignore
+from_int64_be: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 8, "signed", "big")]  # type: ignore
+from_float32_le: Callable[[BytesReadType], float] = enco.FROM_RAW_TYPE[(float, 4, "signed", "little")]  # type: ignore
+from_float32_be: Callable[[BytesReadType], float] = enco.FROM_RAW_TYPE[(float, 4, "signed", "big")]  # type: ignore
+from_float64_le: Callable[[BytesReadType], float] = enco.FROM_RAW_TYPE[(float, 8, "signed", "little")]  # type: ignore
+from_float64_be: Callable[[BytesReadType], float] = enco.FROM_RAW_TYPE[(float, 8, "signed", "big")]  # type: ignore
+from_int24_le: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 3, "signed", "little")]  # type: ignore
+from_uint24_le: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 3, "unsigned", "little")]  # type: ignore
+from_int24_be: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 3, "signed", "big")]  # type: ignore
+from_uint24_be: Callable[[BytesReadType], int] = enco.FROM_RAW_TYPE[(int, 3, "unsigned", "big")]  # type: ignore
+to_uint8: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 1, "unsigned", None)]  # type: ignore
+to_uint8: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 1, "unsigned", "little")]  # type: ignore
+to_uint8: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 1, "unsigned", "big")]  # type: ignore
+to_int8: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 1, "signed", None)]  # type: ignore
+to_int8: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 1, "signed", "little")]  # type: ignore
+to_int8: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 1, "signed", "big")]  # type: ignore
+to_uint16_le: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 2, "unsigned", "little")]  # type: ignore
+to_uint16_be: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 2, "unsigned", "big")]  # type: ignore
+to_int16_le: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 2, "signed", "little")]  # type: ignore
+to_int16_be: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 2, "signed", "big")]  # type: ignore
+to_uint32_le: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 4, "unsigned", "little")]  # type: ignore
+to_uint32_be: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 4, "unsigned", "big")]  # type: ignore
+to_int32_le: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 4, "signed", "little")]  # type: ignore
+to_int32_be: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 4, "signed", "big")]  # type: ignore
+to_uint64_le: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 8, "unsigned", "little")]  # type: ignore
+to_uint64_be: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 8, "unsigned", "big")]  # type: ignore
+to_int64_le: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 8, "signed", "little")]  # type: ignore
+to_int64_be: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 8, "signed", "big")]  # type: ignore
+to_float32_le: Callable[[float], bytes] = enco.TO_RAW_TYPE[(float, 4, "signed", "little")]  # type: ignore
+to_float32_be: Callable[[float], bytes] = enco.TO_RAW_TYPE[(float, 4, "signed", "big")]  # type: ignore
+to_float64_le: Callable[[float], bytes] = enco.TO_RAW_TYPE[(float, 8, "signed", "little")]  # type: ignore
+to_float64_be: Callable[[float], bytes] = enco.TO_RAW_TYPE[(float, 8, "signed", "big")]  # type: ignore
+to_int24_le: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 3, "signed", "little")]  # type: ignore
+to_uint24_le: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 3, "unsigned", "little")]  # type: ignore
+to_int24_be: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 3, "signed", "big")]  # type: ignore
+to_uint24_be: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 3, "unsigned", "big")]  # type: ignore
+from_uint8_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "unsigned", None)]  # type: ignore
+from_uint8_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "unsigned", "little")]  # type: ignore
+from_uint8_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "unsigned", "big")]  # type: ignore
+from_int8_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "signed", None)]  # type: ignore
+from_int8_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "signed", "little")]  # type: ignore
+from_int8_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "signed", "big")]  # type: ignore
+from_uint16_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "unsigned", "little")]  # type: ignore
+from_uint16_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "unsigned", "big")]  # type: ignore
+from_int16_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "signed", "little")]  # type: ignore
+from_int16_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "signed", "big")]  # type: ignore
+from_uint32_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "unsigned", "little")]  # type: ignore
+from_uint32_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "unsigned", "big")]  # type: ignore
+from_int32_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "signed", "little")]  # type: ignore
+from_int32_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "signed", "big")]  # type: ignore
+from_uint64_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "unsigned", "little")]  # type: ignore
+from_uint64_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "unsigned", "big")]  # type: ignore
+from_int64_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "signed", "little")]  # type: ignore
+from_int64_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "signed", "big")]  # type: ignore
+from_float32_le_array: Callable[[BytesReadType], List[float]] = enco.FROM_RAW_TYPE_ARRAY[(float, 4, "signed", "little")]  # type: ignore
+from_float32_be_array: Callable[[BytesReadType], List[float]] = enco.FROM_RAW_TYPE_ARRAY[(float, 4, "signed", "big")]  # type: ignore
+from_float64_le_array: Callable[[BytesReadType], List[float]] = enco.FROM_RAW_TYPE_ARRAY[(float, 8, "signed", "little")]  # type: ignore
+from_float64_be_array: Callable[[BytesReadType], List[float]] = enco.FROM_RAW_TYPE_ARRAY[(float, 8, "signed", "big")]  # type: ignore
+from_int24_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "signed", "little")]  # type: ignore
+from_uint24_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "unsigned", "little")]  # type: ignore
+from_int24_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "signed", "big")]  # type: ignore
+from_uint24_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "unsigned", "big")]  # type: ignore
+to_uint8_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 1, "unsigned", None)]  # type: ignore
+to_uint8_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 1, "unsigned", "little")]  # type: ignore
+to_uint8_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 1, "unsigned", "big")]  # type: ignore
+to_int8_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 1, "signed", None)]  # type: ignore
+to_int8_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 1, "signed", "little")]  # type: ignore
+to_int8_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 1, "signed", "big")]  # type: ignore
+to_uint16_le_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 2, "unsigned", "little")]  # type: ignore
+to_uint16_be_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 2, "unsigned", "big")]  # type: ignore
+to_int16_le_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 2, "signed", "little")]  # type: ignore
+to_int16_be_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 2, "signed", "big")]  # type: ignore
+to_uint32_le_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 4, "unsigned", "little")]  # type: ignore
+to_uint32_be_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 4, "unsigned", "big")]  # type: ignore
+to_int32_le_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 4, "signed", "little")]  # type: ignore
+to_int32_be_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 4, "signed", "big")]  # type: ignore
+to_uint64_le_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 8, "unsigned", "little")]  # type: ignore
+to_uint64_be_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 8, "unsigned", "big")]  # type: ignore
+to_int64_le_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 8, "signed", "little")]  # type: ignore
+to_int64_be_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 8, "signed", "big")]  # type: ignore
+to_float32_le_array: Callable[[Sequence[float]], bytes] = enco.TO_RAW_TYPE_ARRAY[(float, 4, "signed", "little")]  # type: ignore
+to_float32_be_array: Callable[[Sequence[float]], bytes] = enco.TO_RAW_TYPE_ARRAY[(float, 4, "signed", "big")]  # type: ignore
+to_float64_le_array: Callable[[Sequence[float]], bytes] = enco.TO_RAW_TYPE_ARRAY[(float, 8, "signed", "little")]  # type: ignore
+to_float64_be_array: Callable[[Sequence[float]], bytes] = enco.TO_RAW_TYPE_ARRAY[(float, 8, "signed", "big")]  # type: ignore
+to_int24_le_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 3, "signed", "little")]  # type: ignore
+to_uint24_le_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 3, "unsigned", "little")]  # type: ignore
+to_int24_be_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 3, "signed", "big")]  # type: ignore
+to_uint24_be_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 3, "unsigned", "big")]  # type: ignore

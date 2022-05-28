@@ -1,14 +1,12 @@
 import re
 import struct
-import sys
 
-from typing import Dict, List, Callable, Tuple, Type, Union, Optional
+from typing import Dict, List, Callable, Sequence, Tuple, Type, Union, Optional
 import logging
 
-if sys.version_info >= (3, 10):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
+from mrcrowbar.common import BytesReadType
+
+from typing_extensions import Literal
 
 logger = logging.getLogger( __name__ )
 
@@ -285,10 +283,10 @@ RAW_TYPE_STRUCT: Dict[Tuple[NumberType, int, SignedEncoding], str] = {
 }
 
 
-FROM_RAW_TYPE: Dict[NumberEncoding, Callable[[bytes], Number]] = {}
+FROM_RAW_TYPE: Dict[NumberEncoding, Callable[[BytesReadType], Number]] = {}
 TO_RAW_TYPE: Dict[NumberEncoding, Callable[[Number], bytes]] = {}
-FROM_RAW_TYPE_ARRAY: Dict[NumberEncoding, Callable[[bytes], List[Number]]] = {}
-TO_RAW_TYPE_ARRAY: Dict[NumberEncoding, Callable[[List[Number]], bytes]] = {}
+FROM_RAW_TYPE_ARRAY: Dict[NumberEncoding, Callable[[BytesReadType], List[Number]]] = {}
+TO_RAW_TYPE_ARRAY: Dict[NumberEncoding, Callable[[Sequence[Number]], bytes]] = {}
 
 
 def get_raw_type_struct(
@@ -328,8 +326,8 @@ def _from_raw_type(
     field_size: int,
     signedness: SignedEncoding,
     endian: EndianEncoding,
-) -> Callable[[bytes], Number]:
-    result: Callable[[bytes], Number] = lambda buffer: struct.unpack(
+) -> Callable[[BytesReadType], Number]:
+    result: Callable[[BytesReadType], Number] = lambda buffer: struct.unpack(
         get_raw_type_struct( format_type, field_size, signedness, endian ), buffer
     )[0]
     result.__doc__ = "Convert a {0} byte string to a Python {1}.".format(
@@ -358,8 +356,8 @@ def _from_raw_type_array(
     field_size: int,
     signedness: SignedEncoding,
     endian: EndianEncoding,
-) -> Callable[[bytes], List[Number]]:
-    result: Callable[[bytes], List[Number]] = lambda buffer: list(
+) -> Callable[[BytesReadType], List[Number]]:
+    result: Callable[[BytesReadType], List[Number]] = lambda buffer: list(
         struct.unpack(
             get_raw_type_struct(
                 format_type,
@@ -382,8 +380,8 @@ def _to_raw_type_array(
     field_size: int,
     signedness: SignedEncoding,
     endian: EndianEncoding,
-) -> Callable[[List[Number]], bytes]:
-    result: Callable[[List[Number]], bytes] = lambda value_list: struct.pack(
+) -> Callable[[Sequence[Number]], bytes]:
+    result: Callable[[Sequence[Number]], bytes] = lambda value_list: struct.pack(
         get_raw_type_struct(
             format_type, field_size, signedness, endian, count=len( value_list )
         ),
@@ -395,8 +393,10 @@ def _to_raw_type_array(
     return result
 
 
-def _from_generic_array( type_id: NumberEncoding, from_raw: Callable[[bytes], Number] ):
-    result: Callable[[bytes], List[Number]] = lambda buffer: [
+def _from_generic_array(
+    type_id: NumberEncoding, from_raw: Callable[[BytesReadType], Number]
+):
+    result: Callable[[BytesReadType], List[Number]] = lambda buffer: [
         from_raw( buffer[i : i + type_id[1]] )
         for i in range( 0, len( buffer ), type_id[1] )
     ]
@@ -407,7 +407,7 @@ def _from_generic_array( type_id: NumberEncoding, from_raw: Callable[[bytes], Nu
 
 
 def _to_generic_array( type_id: NumberEncoding, to_raw: Callable[[Number], bytes] ):
-    result: Callable[[List[Number]], bytes] = lambda value_list: b"".join(
+    result: Callable[[Sequence[Number]], bytes] = lambda value_list: b"".join(
         [to_raw( value ) for value in value_list]
     )
     result.__doc__ = "Convert a Python list of {1}s to a {0} byte string.".format(
@@ -443,15 +443,15 @@ def _from_raw_24( type_id: NumberEncoding ):
     assert endian in ("little", "big")
     assert signedness in ("signed", "unsigned")
 
-    def result( buffer: bytes ):
+    def result( buffer: BytesReadType ):
         if endian == "little":
-            buffer = buffer + (
+            buffer = bytes( buffer ) + (
                 b"\xff" if (signedness == "signed" and buffer[2] >= 0x80) else b"\x00"
             )
         elif endian == "big":
             buffer = (
                 b"\xff" if (signedness == "signed" and buffer[0] >= 0x80) else b"\x00"
-            ) + buffer
+            ) + bytes(buffer)
         return FROM_RAW_TYPE[(format_type, 4, signedness, endian)]( buffer )
 
     result.__doc__ = "Convert a {0} byte string to a Python {1}.".format(

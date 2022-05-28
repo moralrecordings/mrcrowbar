@@ -31,7 +31,7 @@ setup(
     ],
     python_requires=">=3",
     install_requires=[
-        "typing_extensions>=3.10.0.0; python_version < '3.10'",
+        "typing_extensions",
     ],
     extras_require={
         "images": ["Pillow >= 2.8.1"],

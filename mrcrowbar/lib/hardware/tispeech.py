@@ -1,13 +1,48 @@
+from typing import Callable, List, NamedTuple, Sequence, Tuple, Union
+from typing_extensions import TypedDict
 from mrcrowbar import models as mrc
 from mrcrowbar import bits, utils
-
-from collections import namedtuple
+from mrcrowbar.common import BytesReadType
 
 # LPC chip constants taken from mame/src/devices/sound/tms5110r.hxx
 
-TI_0280_PATENT_ENERGY = (0, 0, 1, 1, 2, 3, 5, 7, 10, 15, 21, 30, 43, 61, 86, 0)
-TI_028X_LATER_ENERGY = (0, 1, 2, 3, 4, 6, 8, 11, 16, 23, 33, 47, 63, 85, 114, 0)
-TI_0280_2801_PATENT_PITCH = (
+TI_0280_PATENT_ENERGY: Tuple[int, ...] = (
+    0,
+    0,
+    1,
+    1,
+    2,
+    3,
+    5,
+    7,
+    10,
+    15,
+    21,
+    30,
+    43,
+    61,
+    86,
+    0,
+)
+TI_028X_LATER_ENERGY: Tuple[int, ...] = (
+    0,
+    1,
+    2,
+    3,
+    4,
+    6,
+    8,
+    11,
+    16,
+    23,
+    33,
+    47,
+    63,
+    85,
+    114,
+    0,
+)
+TI_0280_2801_PATENT_PITCH: Tuple[int, ...] = (
     0,
     41,
     43,
@@ -41,7 +76,7 @@ TI_0280_2801_PATENT_PITCH = (
     147,
     153,
 )
-TI_5110_PITCH = (
+TI_5110_PITCH: Tuple[int, ...] = (
     0,
     15,
     16,
@@ -75,7 +110,7 @@ TI_5110_PITCH = (
     144,
     159,
 )
-TI_5220_PITCH = (
+TI_5220_PITCH: Tuple[int, ...] = (
     0,
     15,
     16,
@@ -141,7 +176,7 @@ TI_5220_PITCH = (
     153,
     159,
 )
-TI_0280_PATENT_LPC = (
+TI_0280_PATENT_LPC: Tuple[Tuple[int, ...], ...] = (
     # K1
     (
         -501,
@@ -280,7 +315,7 @@ TI_0280_PATENT_LPC = (
     # K10
     (-179, -122, -61, 1, 62, 123, 179, 231),
 )
-TI_5110_5220_LPC = (
+TI_5110_5220_LPC: Tuple[Tuple[int, ...], ...] = (
     # K1
     (
         -501,
@@ -387,19 +422,50 @@ TI_5110_5220_LPC = (
 )
 
 
-find_closest_index = lambda source, value: source.index(
+find_closest_index: Callable[
+    [Tuple[int, ...], int], int
+] = lambda source, value: source.index(
     sorted( source, key=lambda x: abs( x - value ) )[0]
 )
 
 
-VoicedFrame = namedtuple(
-    "VoicedFrame",
-    ["energy", "pitch", "k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8", "k9", "k10"],
-)
-UnvoicedFrame = namedtuple( "UnvoicedFrame", ["energy", "k1", "k2", "k3", "k4"] )
-RepeatedFrame = namedtuple( "RepeatedFrame", ["energy", "pitch"] )
-SilentFrame = namedtuple( "SilentFrame", [] )
-StopFrame = namedtuple( "StopFrame", [] )
+class VoicedFrame( NamedTuple ):
+    energy: int
+    pitch: int
+    k1: int
+    k2: int
+    k3: int
+    k4: int
+    k5: int
+    k6: int
+    k7: int
+    k8: int
+    k9: int
+    k10: int
+
+
+class UnvoicedFrame( NamedTuple ):
+    energy: int
+    k1: int
+    k2: int
+    k3: int
+    k4: int
+
+
+class RepeatedFrame( NamedTuple ):
+    energy: int
+    pitch: int
+
+
+class SilentFrame( NamedTuple ):
+    pass
+
+
+class StopFrame( NamedTuple ):
+    pass
+
+
+FrameType = Union[VoicedFrame, UnvoicedFrame, RepeatedFrame, SilentFrame, StopFrame]
 
 
 # source: http://furrtek.free.fr/index.php?a=speakandspell&ss=6&i=2
@@ -432,18 +498,51 @@ class SpeakAndSpellROM( mrc.Block ):
     raw_data = mrc.Bytes( mrc.EndOffset( "list_d" ) )
 
 
-def parse_tms5110_rom( buffer ):
+class TISpeechSample( TypedDict ):
+    frames: List[FrameType]
+    size: int
+
+
+class TISpeechROM( TypedDict ):
+    index: List[int]
+    segments: List[bytes]
+    streams: List[TISpeechSample]
+
+
+def parse_tms5110_rom( buffer: BytesReadType ) -> TISpeechROM:
     index_end = utils.from_uint16_le( buffer[0:2] )
     index = utils.from_uint16_le_array( buffer[0:index_end] )
     index2 = index + [len( buffer )]
-    segments = [buffer[index2[i] :] for i in range( len( index ) )]
+    segments = [
+        bytes( buffer[index2[i] : index2[i + 1]] ) for i in range( len( index ) )
+    ]
     streams = [TMS5110Stream.parse_stream( seg ) for seg in segments]
-    return {"index": index, "segments": segments, "streams": streams}
+    return TISpeechROM( index=index, segments=segments, streams=streams )
+
+
+def parse_tms5220_rom( buffer: BytesReadType ) -> TISpeechROM:
+    index_end = utils.from_uint16_le( buffer[0:2] )
+    index = utils.from_uint16_le_array( buffer[0:index_end] )
+    index2 = index + [len( buffer )]
+    segments = [
+        bytes( buffer[index2[i] : index2[i + 1]] ) for i in range( len( index ) )
+    ]
+    streams = [TMS5220Stream.parse_stream( seg ) for seg in segments]
+    return TISpeechROM( index=index, segments=segments, streams=streams )
 
 
 class TMSBase( object ):
+    ENERGY_BITS: int
+    REPEAT_BITS: int
+    PITCH_BITS: int
+    K_BITS: Tuple[int, ...]
+    ENERGY_LUT: Tuple[int, ...]
+    ENERGY_LUT_FLOOR: int
+    PITCH_LUT: Tuple[int, ...]
+    K_LUT: Tuple[Tuple[int, ...], ...]
+
     @classmethod
-    def dump_stream( cls, frames ):
+    def dump_stream( cls, frames: Sequence[FrameType] ) -> bytes:
         writer = bits.BitStream( bytearray(), io_endian="big", bit_endian="little" )
         for frame in frames:
             if isinstance( frame, SilentFrame ):
@@ -531,9 +630,9 @@ class TMSBase( object ):
         return writer.get_buffer()
 
     @classmethod
-    def parse_stream( cls, buffer ):
+    def parse_stream( cls, buffer: BytesReadType ) -> TISpeechSample:
 
-        frames = []
+        frames: List[FrameType] = []
         reader = bits.BitStream( buffer, io_endian="big", bit_endian="little" )
 
         while not reader.tell() == (len( buffer ), 0):
@@ -602,7 +701,7 @@ class TMS0280Stream( TMSBase ):
     ENERGY_BITS = 4
     REPEAT_BITS = 1
     PITCH_BITS = 5
-    K_BITS = [5, 5, 4, 4, 4, 4, 4, 3, 3, 3]
+    K_BITS = (5, 5, 4, 4, 4, 4, 4, 3, 3, 3)
     ENERGY_LUT = TI_0280_PATENT_ENERGY
     ENERGY_LUT_FLOOR = 3
     PITCH_LUT = TI_0280_2801_PATENT_PITCH
@@ -613,7 +712,7 @@ class TMS5110Stream( TMSBase ):
     ENERGY_BITS = 4
     REPEAT_BITS = 1
     PITCH_BITS = 5
-    K_BITS = [5, 5, 4, 4, 4, 4, 4, 3, 3, 3]
+    K_BITS = (5, 5, 4, 4, 4, 4, 4, 3, 3, 3)
     ENERGY_LUT = TI_028X_LATER_ENERGY
     ENERGY_LUT_FLOOR = 1
     PITCH_LUT = TI_5110_PITCH
@@ -624,7 +723,7 @@ class TMS5220Stream( TMSBase ):
     ENERGY_BITS = 4
     REPEAT_BITS = 1
     PITCH_BITS = 6
-    K_BITS = [5, 5, 4, 4, 4, 4, 4, 3, 3, 3]
+    K_BITS = (5, 5, 4, 4, 4, 4, 4, 3, 3, 3)
     ENERGY_LUT = TI_028X_LATER_ENERGY
     ENERGY_LUT_FLOOR = 1
     PITCH_LUT = TI_5220_PITCH

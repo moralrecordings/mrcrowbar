@@ -489,7 +489,7 @@ def grepdump_iter(
                 + "x}"
             )
             line = (digits + ":" + digits).format( start_off, end_off )
-            line += ":{repr( match.group( 0 ) )}"
+            line += f":{repr( match.group( 0 ) )}"
             if title:
                 line = "{title}:" + line
             yield line

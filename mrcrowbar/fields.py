@@ -33,6 +33,10 @@ from mrcrowbar import common, encoding
 OffsetType = Union[int, Ref]
 
 
+class FieldDefinitionError( Exception ):
+    pass
+
+
 class ParseError( Exception ):
     pass
 
@@ -273,6 +277,7 @@ class StreamField( Field ):
         default: Any = None,
         count: Optional[Union[int, Ref]] = None,
         length: Optional[Union[int, Ref]] = None,
+        end_offset: Optional[Union[int, Ref]] = None,
         stream: Union[bool, Ref] = False,
         alignment: Union[int, Ref] = 1,
         stream_end: Optional[bytes] = None,
@@ -294,6 +299,9 @@ class StreamField( Field ):
 
         length
             Maximum size of the buffer to read in.
+
+        end_offset
+            Maximum end offset of the buffer to read in.
 
         stream
             Read elements continuously until a stop condition is met. Defaults to False.
@@ -317,7 +325,10 @@ class StreamField( Field ):
         super().__init__( default=default )
         self.offset = offset
         self.count = count
+        if length is not None and end_offset is not None:
+            raise FieldDefinitionError( f"Can't define both length and end_offset!" )
         self.length = length
+        self.end_offset = end_offset
         self.stream = stream
         self.alignment = alignment
         if stream_end is not None:
@@ -341,9 +352,15 @@ class StreamField( Field ):
         assert common.is_bytes( buffer )
         offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
+        length = property_get( self.length, parent )
+        end_offset = property_get( self.end_offset, parent )
         stream = property_get( self.stream, parent )
         alignment = property_get( self.alignment, parent )
         exists = property_get( self.exists, parent )
+
+        # If we're using end_offset, convert it to a length
+        if end_offset is not None:
+            length = end_offset - offset
 
         if not exists:
             return None
@@ -352,7 +369,6 @@ class StreamField( Field ):
         count = count if is_array else 1
         if count is not None:
             assert count >= 0
-        length = property_get( self.length, parent )
         if length is not None:
             buffer = buffer[: offset + length]
 
@@ -468,8 +484,10 @@ class StreamField( Field ):
     def update_deps(
         self, value: Union[Any, Sequence[Any]], parent: Optional[Block] = None
     ):
+        offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         length = property_get( self.length, parent )
+        end_offset = property_get( self.end_offset, parent )
         exists = property_get( self.exists, parent )
 
         if exists and value is None:
@@ -489,6 +507,10 @@ class StreamField( Field ):
         if count is not None and count != len( value ):
             property_set( self.count, parent, len( value ) )
         target_length = self.get_size( value, parent )
+
+        if end_offset is not None and (end_offset - offset) != target_length:
+            property_set( self.end_offset, parent, offset + target_length )
+
         if length is not None and length != target_length:
             property_set( self.length, parent, target_length )
 
@@ -660,6 +682,7 @@ class ChunkField( StreamField ):
         *,
         count: Optional[Union[int, Ref]] = None,
         length: Optional[Union[int, Ref]] = None,
+        end_offset: Optional[Union[int, Ref]] = None,
         stream: Union[bool, Ref] = True,
         alignment: Union[int, Ref] = 1,
         stream_end: Optional[bytes] = None,
@@ -688,6 +711,9 @@ class ChunkField( StreamField ):
 
         length
             Maximum size of the buffer to read in.
+
+        end_offset
+            Maximum end offset of the buffer to read in.
 
         stream
             Read elements continuously until a stop condition is met. Defaults to True.
@@ -734,6 +760,7 @@ class ChunkField( StreamField ):
             default=None,
             count=count,
             length=length,
+            end_offset=end_offset,
             stream=stream,
             alignment=alignment,
             stream_end=stream_end,
@@ -948,6 +975,7 @@ class BlockField( StreamField ):
         block_type: Optional[Ref] = None,
         default_klass: Optional[Type[Block]] = None,
         length: Optional[Union[int, Ref]] = None,
+        end_offset: Optional[Union[int, Ref]] = None,
         stream: Union[bool, Ref] = False,
         alignment: Union[int, Ref] = 1,
         transform: Optional[Transform] = None,
@@ -983,6 +1011,9 @@ class BlockField( StreamField ):
         length
             Maximum size of the buffer to read in.
 
+        end_offset
+            Maximum end offset of the buffer to read in.
+
         stream
             Read Blocks continuously until a stop condition is met.
 
@@ -1010,6 +1041,7 @@ class BlockField( StreamField ):
             default=None,
             count=count,
             length=length,
+            end_offset=end_offset,
             stream=stream,
             alignment=alignment,
             stream_end=stream_end,
@@ -1179,6 +1211,9 @@ class BlockField( StreamField ):
         self.validate( value, parent )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
+        exists = property_get( self.exists, parent )
+        if exists == False:
+            return None
         is_array = stream or (count is not None)
         if is_array:
             return (
@@ -1196,6 +1231,7 @@ class StringField( StreamField ):
         default: Any = None,
         count: Optional[Union[int, Ref]] = None,
         length: Optional[Union[int, Ref]] = None,
+        end_offset: Optional[Union[int, Ref]] = None,
         stream: Union[bool, Ref] = False,
         alignment: Union[int, Ref] = 1,
         stream_end: Optional[bytes] = None,
@@ -1224,6 +1260,9 @@ class StringField( StreamField ):
 
         length
             Maximum size of the buffer to read in.
+
+        end_offset
+            Maximum end offset of the buffer to read in.
 
         stream
             Read strings continuously until a stop condition is met. Defaults to False.
@@ -1273,6 +1312,7 @@ class StringField( StreamField ):
             default=default,
             count=count,
             length=length,
+            end_offset=end_offset,
             stream=stream,
             alignment=alignment,
             stream_end=stream_end,
@@ -1544,6 +1584,7 @@ class NumberField( StreamField ):
         default: int = 0,
         count: Optional[Union[int, Ref]] = None,
         length: Optional[Union[int, Ref]] = None,
+        end_offset: Optional[Union[int, Ref]] = None,
         stream: Union[bool, Ref] = False,
         alignment: Union[int, Ref] = 1,
         stream_end: Optional[bytes] = None,
@@ -1584,6 +1625,9 @@ class NumberField( StreamField ):
         length
             Maximum size of the buffer to read in.
 
+        length
+            Maximum end offset of the buffer to read in.
+
         stream
             Read elements continuously until a stop condition is met.
 
@@ -1616,6 +1660,7 @@ class NumberField( StreamField ):
             default=default,
             count=count,
             length=length,
+            end_offset=end_offset,
             stream=stream,
             alignment=alignment,
             stream_end=stream_end,

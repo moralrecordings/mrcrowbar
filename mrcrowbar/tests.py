@@ -292,6 +292,58 @@ class TestBlockField( unittest.TestCase ):
         self.assertEqual( test.export_data(), payload )
 
 
+class TestStreamField( unittest.TestCase ):
+    def test_length( self ):
+        class Test( mrc.Block ):
+            field1 = mrc.UInt8()
+            field2 = mrc.Bytes( length=4 )
+
+        in_payload = b"\x01\x02\x03\x04\x05\x06\x07\x08"
+        out_payload = b"\x02\x03\x04\x05"
+
+        test = Test( in_payload )
+        self.assertEqual( test.field2, out_payload )
+
+    def test_variable_length( self ):
+        class Test( mrc.Block ):
+            field1 = mrc.UInt8()
+            field2 = mrc.Bytes( length=mrc.Ref( "field1" ) )
+
+        in_payload = b"\x04\x02\x03\x04\x05\x06\x07\x08"
+        out_payload = b"\x02\x03\x04\x05"
+
+        test = Test( in_payload )
+        self.assertEqual( test.field2, out_payload )
+
+        test.field2 = b"\x00\x00"
+        self.assertEqual( test.export_data(), b"\x02\x00\x00" )
+
+    def test_end_offset( self ):
+        class Test( mrc.Block ):
+            field1 = mrc.UInt8()
+            field2 = mrc.Bytes( end_offset=5 )
+
+        in_payload = b"\x01\x02\x03\x04\x05\x06\x07\x08"
+        out_payload = b"\x02\x03\x04\x05"
+
+        test = Test( in_payload )
+        self.assertEqual( test.field2, out_payload )
+
+    def test_variable_end_offset( self ):
+        class Test( mrc.Block ):
+            field1 = mrc.UInt8()
+            field2 = mrc.Bytes( end_offset=mrc.Ref( "field1" ) )
+
+        in_payload = b"\x05\x02\x03\x04\x05\x06\x07\x08"
+        out_payload = b"\x02\x03\x04\x05"
+
+        test = Test( in_payload )
+        self.assertEqual( test.field2, out_payload )
+
+        test.field2 = b"\x00\x00"
+        self.assertEqual( test.export_data(), b"\x03\x00\x00" )
+
+
 class TestStringField( unittest.TestCase ):
     def test_fixed_pad( self ):
         payload = b"abcd\x00\x00\x00\x00efghijklmn\x00\x00\x00\x00\x00\x00"

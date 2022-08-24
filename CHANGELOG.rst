@@ -22,6 +22,7 @@ Unreleased
 - lib.platforms.director: Add rip_dir_from_exe
 - lib.platforms.director: Rework unlock_dir_file to not rely on DirectorV4
 - fields.BlockField: Fix validation of exists flag
+- fields.StreamField: Add end_offset as an alternative to length
 
 0.9.0 - 2021-01-14
 ==================

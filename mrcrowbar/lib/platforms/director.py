@@ -1,4 +1,6 @@
+from typing import Callable
 from mrcrowbar import models as mrc
+from mrcrowbar.common import BytesReadType
 from mrcrowbar.lib.images import base as img
 from mrcrowbar.lib.audio import base as aud
 from mrcrowbar.lib.containers import riff
@@ -1349,13 +1351,13 @@ class DirectorV4Parser( object ):
             print()
 
 
-def checksum_v4( data ):
-    mul = lambda a, b: (a * b) & 0xffffffff
-    div = lambda a, b: (a // b) & 0xffffffff
-    add = lambda a, b: (a + b) & 0xffffffff
-    sub = lambda a, b: (a - b) & 0xffffffff
+def checksum_v4( data: BytesReadType ):
+    mul: Callable[[int, int], int] = lambda a, b: (a * b) & 0xffffffff
+    div: Callable[[int, int], int] = lambda a, b: (a // b) & 0xffffffff
+    add: Callable[[int, int], int] = lambda a, b: (a + b) & 0xffffffff
+    sub: Callable[[int, int], int] = lambda a, b: (a - b) & 0xffffffff
 
-    checksum = utils.from_uint16_be( data[0x00:0x02] ) + 1
+    checksum: int = utils.from_uint16_be( data[0x00:0x02] ) + 1
     checksum = mul( checksum, (utils.from_uint16_be( data[0x02:0x04] ) + 2) )
     checksum = div( checksum, (utils.from_int16_be( data[0x04:0x06] ) + 3) )
     checksum = mul( checksum, (utils.from_int16_be( data[0x06:0x08] ) + 4) )
@@ -1363,7 +1365,7 @@ def checksum_v4( data ):
     checksum = mul( checksum, (utils.from_int16_be( data[0x0a:0x0c] ) + 6) )
     checksum = sub( checksum, (utils.from_uint16_be( data[0x0c:0x0e] ) + 7) )
     checksum = mul( checksum, (utils.from_uint16_be( data[0x0e:0x10] ) + 8) )
-    checksum = sub( checksum, (utils.from_uint8( data[0x10:0x11] ) + 9) )
+    checksum = sub( checksum, (utils.from_int8( data[0x10:0x11] ) + 9) )
     checksum = sub( checksum, (utils.from_uint8( data[0x11:0x12] ) + 10) )
     checksum = add( checksum, (utils.from_int16_be( data[0x12:0x14] ) + 11) )
     checksum = mul( checksum, (utils.from_int16_be( data[0x14:0x16] ) + 12) )

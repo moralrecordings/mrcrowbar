@@ -695,6 +695,7 @@ class ChunkField( StreamField ):
         fill: Optional[bytes] = None,
         length_inclusive: bool = False,
         exists: Union[bool, Ref] = True,
+        length_before_id: bool = False,
     ):
         """Field for inserting a tokenised Block stream into the parent class.
 
@@ -748,11 +749,15 @@ class ChunkField( StreamField ):
 
         length_inclusive
             True if the length field indicates the total length of the chunk, inclusive of the ID field and the length field.
-            Defaults to False.
+            Defaults to False (i.e. length of the data only).
 
         exists
             True if this Field should be parsed and generate values, False if it should be skipped.
             Can be set programmatically as a Ref. Defaults to True.
+
+        length_before_id
+            True if the length field appears in the chunk before the ID field.
+            Defaults to False.
         """
 
         super().__init__(
@@ -786,38 +791,41 @@ class ChunkField( StreamField ):
 
         self.id_size = id_size
         self.fill = fill
+        self.length_before_id = length_before_id
 
     def get_element_from_buffer( self, offset, buffer, parent=None, index=None ):
         chunk_map = property_get( self.chunk_map, parent )
         fill = property_get( self.fill, parent )
 
-        pointer = offset
-        chunk_id = None
-        if self.id_field:
-            chunk_id = self.id_field.get_from_buffer( buffer[pointer:], parent=parent )
-            pointer += self.id_field.field_size
-        elif self.id_size:
-            chunk_id = buffer[pointer : pointer + self.id_size]
-            pointer += len( chunk_id )
-        else:
-            for test_id in chunk_map:
-                if buffer[pointer:].startswith( test_id ):
-                    chunk_id = test_id
-                    break
-            if not chunk_id:
-                raise ParseError(
-                    f"{self.get_path( parent, index )}: Could not find matching chunk at offset {pointer}"
+        def get_chunk_id( pointer: int ):
+            if self.id_field:
+                chunk_id = self.id_field.get_from_buffer(
+                    buffer[pointer:], parent=parent
                 )
-            pointer += len( chunk_id )
+                pointer += self.id_field.field_size
+            elif self.id_size:
+                chunk_id = buffer[pointer : pointer + self.id_size]
+                pointer += len( chunk_id )
+            else:
+                for test_id in chunk_map:
+                    if buffer[pointer:].startswith( test_id ):
+                        chunk_id = test_id
+                        break
+                if not chunk_id:
+                    raise ParseError(
+                        f"{self.get_path( parent, index )}: Could not find matching chunk at offset {pointer}"
+                    )
+                pointer += len( chunk_id )
+            return chunk_id, pointer
 
-        if chunk_id in chunk_map:
-            chunk_klass = chunk_map[chunk_id]
-        elif self.default_klass:
-            chunk_klass = self.default_klass
-        else:
-            raise ParseError(
-                f"{self.get_path( parent, index )}: No chunk class match for ID {chunk_id}"
-            )
+        def get_chunk_length( pointer: int ):
+            chunk_length = None
+            if self.length_field:
+                chunk_length = self.length_field.get_from_buffer(
+                    buffer[pointer:], parent=parent
+                )
+                pointer += self.length_field.field_size
+            return chunk_length, pointer
 
         def constructor( source_data ):
             try:
@@ -849,13 +857,31 @@ class ChunkField( StreamField ):
                     )
             return block
 
-        if self.length_field:
-            size = self.length_field.get_from_buffer( buffer[pointer:], parent=parent )
-            pointer += self.length_field.field_size
+        pointer = offset
+        chunk_id = None
+        chunk_length = None
+
+        if self.length_before_id:
+            chunk_length, pointer = get_chunk_length( pointer )
+            chunk_id, pointer = get_chunk_id( pointer )
+        else:
+            chunk_id, pointer = get_chunk_id( pointer )
+            chunk_length, pointer = get_chunk_length( pointer )
+
+        if chunk_id in chunk_map:
+            chunk_klass = chunk_map[chunk_id]
+        elif self.default_klass:
+            chunk_klass = self.default_klass
+        else:
+            raise ParseError(
+                f"{self.get_path( parent, index )}: No chunk class match for ID {chunk_id}"
+            )
+
+        if chunk_length is not None:
             if self.length_inclusive:
-                size -= pointer - offset
-            chunk_buffer = buffer[pointer : pointer + size]
-            pointer += size
+                chunk_length -= pointer - offset
+            chunk_buffer = buffer[pointer : pointer + chunk_length]
+            pointer += chunk_length
             if chunk_buffer == fill:
                 result = Chunk( id=chunk_id, obj=None )
                 return result, pointer
@@ -874,12 +900,32 @@ class ChunkField( StreamField ):
         fill = property_get( self.fill, parent )
         alignment = property_get( self.alignment, parent )
 
-        data = bytearray()
-        if self.id_field:
-            data.extend( b"\x00" * self.id_field.field_size )
-            self.id_field.update_buffer_with_value( element.id, data, parent=parent )
-        else:
-            data += element.id
+        def add_chunk_id( data ):
+            if self.id_field:
+                id_buf = bytearray( b"\x00" * self.id_field.field_size )
+                self.id_field.update_buffer_with_value(
+                    element.id, id_buf, parent=parent
+                )
+                data.extend( id_buf )
+            else:
+                data.extend( element.id )
+
+        def add_chunk_length( data, payload ):
+            if self.length_field:
+                length_buf = bytearray( b"\x00" * self.length_field.field_size )
+                size = len( payload )
+                if self.length_inclusive:
+                    size += len( length_buf )
+                    size += (
+                        self.id_field.field_size if self.id_field else len( element.id )
+                    )
+                width = size % alignment
+                if width:
+                    size += alignment - width
+                self.length_field.update_buffer_with_value(
+                    size, length_buf, parent=parent
+                )
+                data.extend( length_buf )
 
         if element.obj is None:
             if fill is not None:
@@ -891,20 +937,13 @@ class ChunkField( StreamField ):
         else:
             payload = element.obj.export_data()
 
-        if self.length_field:
-            length_buf = bytearray( b"\x00" * self.length_field.field_size )
-            size = len( payload )
-            if self.length_inclusive:
-                size += len( length_buf )
-                size += len( data )
-            width = size % alignment
-            if width:
-                size += alignment - width
-            self.length_field.update_buffer_with_value(
-                size, length_buf, parent=parent
-            )
-            data.extend( length_buf )
-
+        data = bytearray()
+        if self.length_before_id:
+            add_chunk_length( data, payload )
+            add_chunk_id( data )
+        else:
+            add_chunk_id( data )
+            add_chunk_length( data, payload )
         data += payload
 
         if len( buffer ) < offset + len( data ):

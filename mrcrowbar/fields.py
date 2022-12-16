@@ -1,8 +1,6 @@
 """Definition classes for common fields in binary formats."""
 from __future__ import annotations
 
-import collections
-import math
 import logging
 from mrcrowbar.transforms import Transform
 
@@ -74,17 +72,17 @@ class Field( object ):
         return None
 
     @property
-    def serialised( self ):
+    def serialised( self ) -> common.SerialiseType:
         """Tuple containing the contents of the Field."""
-        return None
+        return common.serialise( self, tuple() )
 
-    def __hash__( self ):
+    def __hash__( self ) -> int:
         serial = self.serialised
         if serial is None:
             return super().__hash__()
         return hash( self.serialised )
 
-    def __eq__( self, other: Any ):
+    def __eq__( self, other: Any ) -> bool:
         serial = self.serialised
         if serial is None:
             return super().__eq__( other )
@@ -119,7 +117,6 @@ class Field( object ):
             Parent block object where this Field is defined. Used for e.g.
             evaluating Refs.
         """
-        assert common.is_bytes( buffer )
         self.validate( value, parent )
 
     def get_start_offset(
@@ -138,7 +135,6 @@ class Field( object ):
             Index of the Python object to measure from. Used if the Field
             takes a list of objects.
         """
-        assert index is None
         return 0
 
     def get_size(
@@ -157,7 +153,6 @@ class Field( object ):
             Index of the Python object to measure from. Used if the Field
             takes a list of objects.
         """
-        assert index is None
         return 0
 
     def get_end_offset(
@@ -332,7 +327,10 @@ class StreamField( Field ):
         self.stream = stream
         self.alignment = alignment
         if stream_end is not None:
-            assert common.is_bytes( stream_end )
+            if not common.is_bytes( stream_end ):
+                raise FieldDefinitionError(
+                    f"stream_end must be of type bytes, not {stream_end.__class__}!"
+                )
         self.stream_end = stream_end
         self.stop_check = stop_check
         self.exists = exists
@@ -349,7 +347,10 @@ class StreamField( Field ):
     def get_from_buffer(
         self, buffer: common.BytesReadType, parent: Optional["Block"] = None
     ) -> Union[Any, List[Any]]:
-        assert common.is_bytes( buffer )
+        if not common.is_bytes( buffer ):
+            raise ParseError(
+                f"{self.get_path( parent )}: buffer needs to be of type bytes, not {buffer.__class__}!"
+            )
         offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         length = property_get( self.length, parent )
@@ -368,7 +369,10 @@ class StreamField( Field ):
         is_array = stream or (count is not None)
         count = count if is_array else 1
         if count is not None:
-            assert count >= 0
+            if count < 0:
+                raise ParseError(
+                    f"{self.get_path( parent )}: count can't be less than zero"
+                )
         if length is not None:
             buffer = buffer[: offset + length]
 
@@ -454,7 +458,10 @@ class StreamField( Field ):
                     f"{self.get_path( parent )}: Type {type( value )} not iterable"
                 )
             if not stream:
-                assert len( value ) <= count
+                if not len( value ) <= count:
+                    raise FieldValidationError(
+                        f"{self.get_path( parent )}: list length not less than or equal to { count }"
+                    )
         else:
             value = [value]
 
@@ -774,13 +781,19 @@ class ChunkField( StreamField ):
         )
         self.chunk_map = chunk_map
         if length_field:
-            assert issubclass( length_field, NumberField )
+            if not issubclass( length_field, NumberField ):
+                raise FieldDefinitionError(
+                    f"length_field must be a subclass of NumberField, not {length_field}!"
+                )
             self.length_field = length_field( 0x00 )
         else:
             self.length_field = None
         self.length_inclusive = length_inclusive
         if id_field:
-            assert issubclass( id_field, (NumberField) )
+            if not issubclass( id_field, (NumberField) ):
+                raise FieldDefinitionError(
+                    f"id_field must be a subclass of NumberField, not {id_field}!"
+                )
             if id_enum:
                 self.id_field = id_field( 0x00, enum=id_enum )
             else:
@@ -932,7 +945,7 @@ class ChunkField( StreamField ):
                 payload = fill
             else:
                 raise ValueError(
-                    f"{self.get_path( parent, index )}: Object part of Chunk can't be None unless there's a fill set"
+                    f"{self.get_path( parent, index )}: Object part of Chunk can't be None unless there's a fill pattern set"
                 )
         else:
             payload = element.obj.export_data()
@@ -957,21 +970,38 @@ class ChunkField( StreamField ):
         chunk_map = property_get( self.chunk_map, parent )
         fill = property_get( self.fill, parent )
 
-        assert isinstance( element, Chunk )
+        if not isinstance( element, Chunk ):
+            raise FieldValidationError(
+                f"{self.get_path( parent, index )}: Element {element} is not of type Chunk!"
+            )
+        chunk_klass: Optional[Type[Block]] = None
         if element.id in chunk_map:
             chunk_klass = chunk_map[element.id]
         elif self.default_klass:
             chunk_klass = self.default_klass
 
         if element.obj is None:
-            assert fill is not None
+            if fill is None:
+                raise FieldValidationError(
+                    f"{self.get_path( parent, index )}: Can't pass a Chunk with an empty object to a ChunkField when the fill pattern isn't defined!"
+                )
         else:
-            assert isinstance( element.obj, chunk_klass ) or (
-                not self.get_strict( parent ) and isinstance( element.obj, Unknown )
-            )
+            if not isinstance( element.obj, chunk_klass ):
+                if isinstance( element.obj, Unknown ):
+                    if self.get_strict( parent ):
+                        raise FieldValidationError(
+                            f"{self.get_path( parent, index )}: ChunkMap expected Block type {chunk_klass}, received Unknown; can't accept Unknown blocks when loaded in strict mode!"
+                        )
+                else:
+                    raise FieldValidationError(
+                        f"{self.get_path( parent, index )}: ChunkMap expected Block type {chunk_klass}, received {element.obj.__class__}!"
+                    )
 
         if self.id_size:
-            assert len( element.id ) == self.id_size
+            if len( element.id ) != self.id_size:
+                raise FieldValidationError(
+                    f"{self.get_path( parent, index )}: Chunk id is of size {len( element.id )}, expected {self.id_size}!"
+                )
 
     def get_element_size( self, element, parent=None, index=None ):
         fill = property_get( self.fill, parent )
@@ -1271,7 +1301,7 @@ class StringField( StreamField ):
         count: Optional[Union[int, Ref]] = None,
         length: Optional[Union[int, Ref]] = None,
         end_offset: Optional[Union[int, Ref]] = None,
-        stream: Union[bool, Ref] = False,
+        stream: bool = False,
         alignment: Union[int, Ref] = 1,
         stream_end: Optional[bytes] = None,
         stop_check: Optional[StopCheckType] = None,
@@ -1360,29 +1390,45 @@ class StringField( StreamField ):
         )
 
         if count is not None:
-            assert not stream
-            assert (
+            if stream:
+                raise FieldDefinitionError( "Can't define both count and stream!" )
+            if not (
                 (element_length is not None)
                 or (length_field is not None)
                 or (element_end is not None)
-            )
+            ):
+                raise FieldDefinitionError(
+                    "Given that count is defined, at least one of element_length, length_field and element_end must be defined!"
+                )
 
         elif stream:
-            assert (
+            if not (
                 (element_length is not None)
                 or (length_field is not None)
                 or (element_end is not None)
-            )
+            ):
+                raise FieldDefinitionError(
+                    "Given that stream is defined, at least one of element_length, length_field and element_end must be defined!"
+                )
 
         else:  # single element
             pass
 
         if zero_pad:
-            assert element_length is not None
+            if element_length is None:
+                raise FieldDefinitionError(
+                    "Given that zero_pad is defined, element_length must be defined!"
+                )
 
         if length_field:
-            assert element_length is None
-            assert issubclass( length_field, NumberField )
+            if element_length is not None:
+                raise FieldDefinitionError(
+                    "Can't define both length_field and element_length!"
+                )
+            if not issubclass( length_field, NumberField ):
+                raise FieldDefinitionError(
+                    f"length_field must be a subclass of NumberField, not {length_field}!"
+                )
             self.length_field = length_field( 0x00 )
         else:
             self.length_field = None
@@ -1393,7 +1439,10 @@ class StringField( StreamField ):
         self.fill = fill
         self.element_length = element_length
         if element_end:
-            assert common.is_bytes( element_end )
+            if not common.is_bytes( element_end ):
+                raise FieldDefinitionError(
+                    f"element_end must be of type bytes, not {element_end.__class__}!"
+                )
         self.element_end = element_end
 
     def _scrub_bytes( self, value, parent=None ):
@@ -1531,7 +1580,8 @@ class StringField( StreamField ):
         element_length = property_get( self.element_length, parent )
 
         if element is None:
-            assert fill is not None
+            if fill is None:
+                raise FieldValidationError( "" )
 
         if encoding:
             # try to encode string, throw UnicodeEncodeError if fails
@@ -1564,7 +1614,6 @@ class StringField( StreamField ):
         return details
 
     def get_start_offset( self, value, parent=None, index=None ):
-        assert index is None
         offset = property_get( self.offset, parent, caller=self )
         return offset
 
@@ -1712,8 +1761,12 @@ class NumberField( StreamField ):
         self.endian = endian
         self.format_range = format_range
         if bitmask is not None:
-            assert common.is_bytes( bitmask )
-            assert len( bitmask ) == field_size
+            if not common.is_bytes( bitmask ):
+                raise FieldDefinitionError( "bitmask must be a byte string!" )
+            if not len( bitmask ) == field_size:
+                raise FieldDefinitionError(
+                    f"To match field_size, bitmask must be {field_size} bytes long!"
+                )
         self.bitmask = bitmask
         self.range = range
         self.enum = enum
@@ -1730,14 +1783,17 @@ class NumberField( StreamField ):
         signedness = property_get( self.signedness, parent )
         endian = property_get( self.endian, parent )
 
-        data = buffer[offset : offset + self.field_size]
-        assert len( data ) == self.field_size
+        data = buffer[offset : offset + field_size]
+        if not len( data ) == field_size:
+            raise ParseError(
+                f"{self.get_path( parent, index )}: was expecting {field_size} bytes, only found {len(data)}!"
+            )
         if self.bitmask:
             # if a bitmask is defined, AND with it first
             data = (
                 int.from_bytes( data, byteorder="big" )
                 & int.from_bytes( self.bitmask, byteorder="big" )
-            ).to_bytes(self.field_size, byteorder="big")
+            ).to_bytes(field_size, byteorder="big")
 
         # convert bytes to Python type
         element = encoding.unpack( (format_type, field_size, signedness, endian), data )
@@ -1771,9 +1827,12 @@ class NumberField( StreamField ):
         data = encoding.pack( (format_type, field_size, signedness, endian), element )
         # force check for no data loss in the value from bitmask
         if self.bitmask:
-            assert int.from_bytes( data, byteorder="big" ) & int.from_bytes(
-                self.bitmask, byteorder="big"
-            ) == int.from_bytes(data, byteorder="big")
+            orig = int.from_bytes( data, byteorder="big" )
+            masked = orig & int.from_bytes( self.bitmask, byteorder="big" )
+            if masked != orig:
+                raise FieldValidationError(
+                    f"{self.get_path( parent, index )}: attempted to mask {data}, expected {orig} but got {masked}!"
+                )
 
             for i in range( field_size ):
                 # set bitmasked areas of target to 0
@@ -1829,7 +1888,7 @@ class NumberField( StreamField ):
         return details
 
     @property
-    def serialised( self ):
+    def serialised( self ) -> common.SerialiseType:
         return common.serialise(
             self,
             (
@@ -1918,10 +1977,15 @@ class Bits( NumberField ):
                 range( 0, 1 << 64 ),
             ),
         }
-        assert size in SIZES
-        assert type( bits ) == int
-        assert bits >= 0
-        assert bits < 1 << (8 * size)
+        if not size in SIZES:
+            raise FieldDefinitionError(
+                f"Invalid value for argument size {size} (choices: {list(SIZES.keys())})"
+            )
+        max_bit_range = range( 0, 1 << (8 * size) )
+        if bits not in max_bit_range:
+            raise FieldDefinitionError(
+                f"Argument bits must be within {max_bit_range}"
+            )
 
         self.mask_bits = bin( bits ).split( "b", 1 )[1]
         self.bits = [
@@ -1964,7 +2028,6 @@ class Bits( NumberField ):
     def update_buffer_with_element(
         self, offset, element, buffer, parent=None, index=None
     ):
-        assert element in self.check_range
         if self.enum_t:
             element = self.enum_t( element ).value
         packed = 0
@@ -1977,6 +2040,10 @@ class Bits( NumberField ):
         )
 
     def validate_element( self, value, parent=None, index=None ):
+        if value not in self.check_range:
+            raise FieldValidationError(
+                f"{self.get_path( parent, index )}: Value {value} must be within {self.check_range}"
+            )
         if self.enum_t:
             if value not in [x.value for x in self.enum_t]:
                 raise FieldValidationError(

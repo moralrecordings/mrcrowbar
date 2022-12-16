@@ -3,14 +3,16 @@ from __future__ import annotations
 
 from mrcrowbar import common
 
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING, Generic, TypeVar, Union
 
 if TYPE_CHECKING:
     from mrcrowbar.blocks import Block
     from mrcrowbar.fields import Field
 
+T = TypeVar( "T" )
 
-class Ref( object ):
+
+class Ref( Generic[T] ):
     """Base class for defining cross-references."""
 
     def __init__( self, path: str, allow_write: bool = True ):
@@ -38,7 +40,7 @@ class Ref( object ):
         Called by the parent Block constructor."""
         pass
 
-    def get( self, instance: Optional[Block], caller: Optional[Field] = None ) -> Any:
+    def get( self, instance: Block, caller: Optional[Field] = None ) -> T:
         """Return an attribute from an object using the Ref path.
 
         instance
@@ -47,11 +49,9 @@ class Ref( object ):
         target = instance
         for attr in self._path:
             target = getattr( target, attr )
-        return target
+        return target  # type: ignore
 
-    def set(
-        self, instance: Optional[Block], value: Any, caller: Optional[Field] = None
-    ) -> None:
+    def set( self, instance: Block, value: T, caller: Optional[Field] = None ) -> None:
         """Set an attribute on an object using the Ref path.
 
         instance
@@ -93,7 +93,7 @@ class Ref( object ):
         return self.serialised == other.serialised
 
 
-class ConstRef( Ref ):
+class ConstRef( Ref[T] ):
     """Shortcut for a read-only Ref."""
 
     def __init__( self, path: str ):
@@ -109,8 +109,10 @@ class ConstRef( Ref ):
 
 
 def property_get(
-    prop: Any, instance: Optional[Block], caller: Optional[Field] = None
-) -> Any:
+    prop: Union[None, T, Ref[T]],
+    instance: Optional[Block],
+    caller: Optional[Field] = None,
+) -> Optional[T]:
     """Wrapper for property reads which auto-dereferences Refs if required.
 
     prop
@@ -125,7 +127,7 @@ def property_get(
 
 
 def property_set(
-    prop: Any, instance: Optional[Block], value: Any, caller: Optional[Field] = None
+    prop: Ref[T], instance: Optional[Block], value: T, caller: Optional[Field] = None
 ) -> None:
     """Wrapper for property writes which auto-deferences Refs.
 
@@ -168,7 +170,7 @@ def view_property( prop: str ) -> property:
     return property( getter, setter )
 
 
-class EndOffset( Ref ):
+class EndOffset( Ref[int] ):
     """Cross-reference for getting the offset of the end of a Field. Used for chaining variable length Fields."""
 
     def __init__( self, path: str, neg: bool = False, align: int = 1 ):
@@ -192,7 +194,7 @@ class EndOffset( Ref ):
         self._neg = neg
         self._align = align
 
-    def get( self, instance: Optional[Block], caller: Optional[Field] = None ) -> Any:
+    def get( self, instance: Optional[Block], caller: Optional[Field] = None ) -> int:
         target = instance
         align = property_get( self._align, instance )
         for attr in self._path[:-1]:
@@ -204,7 +206,7 @@ class EndOffset( Ref ):
         return target
 
     def set(
-        self, instance: Optional[Block], value: Any, caller: Optional[Field] = None
+        self, instance: Optional[Block], value: int, caller: Optional[Field] = None
     ) -> None:
         raise AttributeError( "can't change the end offset of another field" )
 
@@ -213,11 +215,11 @@ class EndOffset( Ref ):
         return common.serialise( self, ["_path", "_allow_write", "_neg", "_align"] )
 
 
-class Chain( Ref ):
+class Chain( Ref[int] ):
     def __init__( self ) -> None:
         super().__init__( "_previous_attr" )
 
-    def get( self, instance: Block, caller: Optional[Block] = None ) -> int:
+    def get( self, instance: Block, caller: Optional[Field] = None ) -> int:
         if caller is None:
             return 0
         field_name = getattr( caller, self._path[0] )
@@ -226,7 +228,7 @@ class Chain( Ref ):
         return instance.get_field_end_offset( field_name )
 
     def set(
-        self, instance: Block, value: Any, caller: Optional[Block] = None
+        self, instance: Block, value: int, caller: Optional[Field] = None
     ) -> None:
         raise AttributeError( "can't change the end offset of another field" )
 

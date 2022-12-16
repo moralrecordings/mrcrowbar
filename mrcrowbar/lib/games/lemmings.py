@@ -389,7 +389,7 @@ class Interactive( mrc.Block ):
     mod_check = mrc.Const( mrc.UInt16_BE( 0x06, bitmask=b"\x3f\x7f" ), 0x000f )
 
     @property
-    def x( self ):
+    def x( self ) -> int:
         """The x position of the left edge."""
         return (self.x_raw - 16) - ((self.x_raw - 16) % 8)
 

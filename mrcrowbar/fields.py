@@ -89,6 +89,20 @@ class Field( object ):
             return super().__eq__( other )
         return self.serialised == other.serialised
 
+    # Overrides to disable the type checker!
+    # Unfortunately the expected input/output types
+    # for Fields are a little bit too dynamic to lock down
+    # with generics. Even if there was some way of dynamically
+    # changing the output type with overload signatures
+    # (like TypeScript lets you do), I feel there'd need to be
+    # a class split between single and array types, as too many
+    # attributes can be changed at runtime with Refs.
+    def __get__( self, instance: Block, owner: Any ) -> Any:
+        ...
+
+    def __set__( self, instance: Block, value: Any ) -> None:
+        ...
+
     def get_from_buffer(
         self, buffer: common.BytesReadType, parent: Optional[Block] = None
     ) -> Any:
@@ -1675,7 +1689,9 @@ class NumberField( StreamField ):
         format_type: Union[encoding.NumberType, Ref[encoding.NumberType]],
         field_size: Union[int, Ref[int]],
         signedness: Union[encoding.SignedEncoding, Ref[encoding.SignedEncoding]],
-        endian: Union[encoding.EndianEncoding, Ref[encoding.EndianEncoding]],
+        endian: Union[
+            None, encoding.EndianEncoding, Ref[Union[None, encoding.EndianEncoding]]
+        ],
         format_range: Optional[Sequence[int]],
         offset: OffsetType = Chain(),
         *,
@@ -1789,8 +1805,11 @@ class NumberField( StreamField ):
         index: Optional[int] = None,
     ) -> encoding.NumberType:
         format_type = property_get( self.format_type, parent )
+        assert format_type is not None
         field_size = property_get( self.field_size, parent )
+        assert field_size is not None
         signedness = property_get( self.signedness, parent )
+        assert signedness is not None
         endian = property_get( self.endian, parent )
 
         data = buffer[offset : offset + field_size]
@@ -1829,9 +1848,13 @@ class NumberField( StreamField ):
         self, offset, element, buffer, parent=None, index=None
     ):
         field_size = property_get( self.field_size, parent )
+        assert field_size is not None
         format_type = property_get( self.format_type, parent )
+        assert format_type is not None
         field_size = property_get( self.field_size, parent )
+        assert field_size is not None
         signedness = property_get( self.signedness, parent )
+        assert signedness is not None
         endian = property_get( self.endian, parent )
 
         data = encoding.pack( (format_type, field_size, signedness, endian), element )
@@ -1956,7 +1979,16 @@ class Bits( NumberField ):
         enum: Optional[IntEnum] = None,
         exists: Union[bool, int, Ref[Union[bool, int]]] = True,
     ):
-        SIZES = {
+        SIZES: Dict[
+            int,
+            Tuple[
+                encoding.NumberType,
+                int,
+                encoding.SignedEncoding,
+                Optional[encoding.EndianEncoding],
+                Sequence[int],
+            ],
+        ] = {
             1: (
                 int,
                 1,

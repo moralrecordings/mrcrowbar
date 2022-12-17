@@ -14,8 +14,8 @@ NumberType = Union[Type[int], Type[float]]
 Number = Union[int, float]
 
 SignedEncoding = Literal["signed", "unsigned"]
-EndianEncoding = Literal["big", "little", None]
-NumberEncoding = Tuple[NumberType, int, SignedEncoding, EndianEncoding]
+EndianEncoding = Literal["big", "little"]
+NumberEncoding = Tuple[NumberType, int, SignedEncoding, Optional[EndianEncoding]]
 
 # Python doesn't provide a programmatic way of fetching the supported codec list.
 # The below list is taken from the 3.7 manual.

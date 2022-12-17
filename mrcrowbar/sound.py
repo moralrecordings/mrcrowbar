@@ -1,11 +1,13 @@
-from array import array
-from enum import IntEnum
+from __future__ import annotations
+
 import itertools
 import math
 import time
+from array import array
+from enum import IntEnum
 
 from mrcrowbar import encoding
-from mrcrowbar.common import is_bytes, bounds
+from mrcrowbar.common import bounds, is_bytes
 
 try:
     import miniaudio

@@ -4,10 +4,10 @@ import logging
 
 logger = logging.getLogger( __name__ )
 
-from mrcrowbar.refs import Ref, property_get, property_set
-from mrcrowbar import common, utils
-
 from typing import TYPE_CHECKING
+
+from mrcrowbar import common, utils
+from mrcrowbar.refs import Ref, property_get, property_set
 
 if TYPE_CHECKING:
     from mrcrowbar.fields import Field

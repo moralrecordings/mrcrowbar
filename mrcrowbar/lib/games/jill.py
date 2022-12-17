@@ -1,14 +1,15 @@
 """File format classes for the games Jill of the Jungle (DOS, 1992) and 
 Xargon (DOS, 1994)."""
 
+from __future__ import annotations
+
 import itertools
 
 from mrcrowbar import models as mrc
+from mrcrowbar import utils
+from mrcrowbar.lib.audio import base as aud
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
-from mrcrowbar.lib.audio import base as aud
-from mrcrowbar import utils
-
 
 # source: Xargon source code release - https://www.classicdosgames.com/game/Xargon.html
 

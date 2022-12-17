@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.images import base as img
-from mrcrowbar.utils import from_uint32_be as Tag, to_uint32_be as TagB
+from mrcrowbar.utils import from_uint32_be as Tag
+from mrcrowbar.utils import to_uint32_be as TagB
 
 
 class RIFF( mrc.Block ):
@@ -82,10 +85,10 @@ class PALEntry( img.Colour ):
 class PALData( mrc.Block ):
     version = mrc.UInt16_LE()
     entry_count = mrc.UInt16_LE()
-    entries = mrc.BlockField( PALEntry, count=mrc.Ref( 'entry_count' ) )
+    entries = mrc.BlockField( PALEntry, count=mrc.Ref( "entry_count" ) )
 
 
 class PAL( RIFF ):
-    CHUNK_MAP = {Tag( b'data' ): PALData}
+    CHUNK_MAP = {Tag( b"data" ): PALData}
 
-    form_type = mrc.Const( mrc.Bytes( 0x08, length=4 ), b'PAL ' )
+    form_type = mrc.Const( mrc.Bytes( 0x08, length=4 ), b"PAL " )

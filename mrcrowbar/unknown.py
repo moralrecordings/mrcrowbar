@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from mrcrowbar.blocks import Block
 from mrcrowbar.fields import Bytes
 

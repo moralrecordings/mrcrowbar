@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import itertools
 import math
-from mrcrowbar.common import BytesReadType
-
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+
+from mrcrowbar.common import BytesReadType
 
 
 class BaseColour( object ):

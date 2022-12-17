@@ -7,17 +7,17 @@ import math
 import re
 import time
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
-    Sequence,
-    Union,
+    Dict,
     Iterator,
     List,
-    Optional,
-    Tuple,
-    Dict,
     Match,
-    TYPE_CHECKING,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
 )
 
 if TYPE_CHECKING:
@@ -27,9 +27,11 @@ from typing_extensions import Literal
 
 logger = logging.getLogger( __name__ )
 
-from mrcrowbar import ansi, encoding as enco, statistics
-from mrcrowbar.colour import ColourType, TEST_PALETTE, Transparent
-from mrcrowbar.common import BytesReadType, is_bytes, bounds
+from mrcrowbar import ansi
+from mrcrowbar import encoding as enco
+from mrcrowbar import statistics
+from mrcrowbar.colour import TEST_PALETTE, ColourType, Transparent
+from mrcrowbar.common import BytesReadType, bounds, is_bytes
 
 
 def enable_logging( level: str = "WARNING" ) -> None:

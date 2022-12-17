@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import array
 import math
 from collections import Counter
 from typing import List
+
 from mrcrowbar.common import BytesReadType
 
 

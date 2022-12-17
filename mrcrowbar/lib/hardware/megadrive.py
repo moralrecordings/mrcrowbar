@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 
+from __future__ import annotations
+
 import itertools
 
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.images import base as img
-
 
 # source: http://segaretro.org/Palette#Mega_Drive_Palette
 

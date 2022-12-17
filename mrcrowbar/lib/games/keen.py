@@ -20,15 +20,18 @@ Level format
 http://www.shikadi.net/moddingwiki/Commander_Keen_1-3_Level_format
 """
 
+from __future__ import annotations
+
 import itertools
 import logging
 
 logger = logging.getLogger( __name__ )
 
+from mrcrowbar import bits
 from mrcrowbar import models as mrc
+from mrcrowbar import utils
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
-from mrcrowbar import bits, utils
 
 
 class RLECompressor( mrc.Transform ):

@@ -1,6 +1,10 @@
 #!/usr/bin/python3
 
-from mrcrowbar import models as mrc, ansi, utils
+from __future__ import annotations
+
+from mrcrowbar import ansi
+from mrcrowbar import models as mrc
+from mrcrowbar import utils
 from mrcrowbar.lib.hardware import ibm_pc
 
 # map of DOS code page 437 to Unicode

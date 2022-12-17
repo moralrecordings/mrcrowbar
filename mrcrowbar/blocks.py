@@ -1,10 +1,11 @@
 """Definition classes for data blocks."""
 from __future__ import annotations
 
-from collections import OrderedDict
 import logging
+from collections import OrderedDict
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Type
+
 from mrcrowbar.encoding import EndianEncoding
-from typing import Any, Dict, List, Optional, Sequence, TYPE_CHECKING, Type
 
 logger = logging.getLogger( __name__ )
 
@@ -12,7 +13,6 @@ if TYPE_CHECKING:
     from mrcrowbar.fields import Field
     from mrcrowbar.refs import Ref
     from mrcrowbar.checks import Check
-
 
 from mrcrowbar import common, utils
 
@@ -83,9 +83,9 @@ class RefDescriptor( object ):
 class BlockMeta( type ):
     def __new__( mcs, name, bases, attrs ):
         """Metaclass for Block which detects and wraps attributes from the class definition."""
-        from mrcrowbar.refs import Ref
         from mrcrowbar.checks import Check
         from mrcrowbar.fields import Field
+        from mrcrowbar.refs import Ref
 
         # Structures used to accumulate meta info
         fields = OrderedDict()

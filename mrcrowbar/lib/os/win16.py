@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+from __future__ import annotations
+
 from enum import IntEnum
 
 from mrcrowbar import models as mrc

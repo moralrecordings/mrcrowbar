@@ -1,6 +1,10 @@
+from __future__ import annotations
+
 import itertools
 
-from mrcrowbar import models as mrc, bits, utils
+from mrcrowbar import bits
+from mrcrowbar import models as mrc
+from mrcrowbar import utils
 from mrcrowbar.lib.hardware import megadrive as md
 from mrcrowbar.lib.images import base as img
 

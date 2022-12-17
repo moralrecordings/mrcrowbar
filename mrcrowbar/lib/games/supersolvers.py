@@ -1,5 +1,8 @@
+from __future__ import annotations
+
+from mrcrowbar import bits
 from mrcrowbar import models as mrc
-from mrcrowbar import utils, bits
+from mrcrowbar import utils
 
 
 class AECompressor( mrc.Transform ):

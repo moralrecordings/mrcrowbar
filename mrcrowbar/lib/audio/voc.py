@@ -4,9 +4,12 @@ Sources:
 http://www.shikadi.net/moddingwiki/VOC_Format
 """
 
-from mrcrowbar.lib.audio import base as aud
-from mrcrowbar import models as mrc
+from __future__ import annotations
+
 import enum
+
+from mrcrowbar import models as mrc
+from mrcrowbar.lib.audio import base as aud
 
 
 class VOCCodec( enum.IntEnum ):

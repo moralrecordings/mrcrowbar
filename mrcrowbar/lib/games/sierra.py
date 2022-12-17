@@ -1,6 +1,7 @@
-from mrcrowbar.colour import TEST_PALETTE
-from mrcrowbar import models as mrc
+from __future__ import annotations
 
+from mrcrowbar import models as mrc
+from mrcrowbar.colour import TEST_PALETTE
 from mrcrowbar.lib.images import base as img
 
 

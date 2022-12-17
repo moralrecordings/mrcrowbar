@@ -1,7 +1,10 @@
-import os, re
-from collections import OrderedDict, Counter, defaultdict
-from mmap import mmap
+from __future__ import annotations
+
 import logging
+import os
+import re
+from collections import Counter, OrderedDict, defaultdict
+from mmap import mmap
 
 logger = logging.getLogger( __name__ )
 

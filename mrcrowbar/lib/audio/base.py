@@ -1,7 +1,10 @@
-from mrcrowbar import models as mrc
-from mrcrowbar import ansi, encoding, sound
+from __future__ import annotations
 
 from array import array
+
+from mrcrowbar import ansi, encoding
+from mrcrowbar import models as mrc
+from mrcrowbar import sound
 
 
 class Wave( mrc.View ):

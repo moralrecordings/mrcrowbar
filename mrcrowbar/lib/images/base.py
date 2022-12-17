@@ -1,13 +1,16 @@
+from __future__ import annotations
+
+from mrcrowbar import ansi, bits
 from mrcrowbar import models as mrc
-from mrcrowbar import ansi, utils, bits
+from mrcrowbar import utils
 from mrcrowbar.colour import (
+    TEST_PALETTE,
     BaseColour,
     Black,
-    White,
     Transparent,
+    White,
     from_palette_bytes,
     to_palette_bytes,
-    TEST_PALETTE,
 )
 
 try:
@@ -15,13 +18,13 @@ try:
 except ImportError:
     PILImage = None
 
-from array import array
-import itertools
 import collections
+import io
+import itertools
+import logging
 import math
 import sys
-import io
-import logging
+from array import array
 
 logger = logging.getLogger( __name__ )
 
@@ -135,7 +138,7 @@ class Palette( mrc.BlockField ):
             block_kwargs=block_kwargs,
             count=count,
             fill=fill,
-            **kwargs
+            **kwargs,
         )
 
     def scrub( self, value, parent=None ):

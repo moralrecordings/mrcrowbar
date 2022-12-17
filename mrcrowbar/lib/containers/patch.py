@@ -8,6 +8,8 @@ UPS
 http://individual.utoronto.ca/dmeunier/ups-spec.pdf
 """
 
+from __future__ import annotations
+
 from mrcrowbar import models as mrc
 from mrcrowbar import utils
 

@@ -1,9 +1,11 @@
 """File format classes for the Tyrian engine (DOS, 1995).
 """
 
+from __future__ import annotations
+
 from mrcrowbar import models as mrc
-from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar import utils
+from mrcrowbar.lib.hardware import ibm_pc
 
 
 class SongPatch( mrc.Block ):

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from collections import OrderedDict
 import logging
+from collections import OrderedDict
+
 from mrcrowbar.transforms import Transform
 
 logger = logging.getLogger( __name__ )
 
-from typing import Any, Dict, List, Optional, TYPE_CHECKING, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
 
 if TYPE_CHECKING:
     from mrcrowbar.blocks import Block

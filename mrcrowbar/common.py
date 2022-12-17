@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import itertools
 import mmap
 import os
-from typing import Optional, Sequence, Tuple, Union, Any, Iterator, BinaryIO
+from typing import Any, BinaryIO, Iterator, Optional, Sequence, Tuple, Union
 
 next_position_hint = itertools.count()
 

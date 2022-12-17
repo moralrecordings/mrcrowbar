@@ -1,6 +1,7 @@
-import unittest
+from __future__ import annotations
 
 import enum
+import unittest
 
 from mrcrowbar import bits
 from mrcrowbar import models as mrc

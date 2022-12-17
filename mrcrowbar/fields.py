@@ -2,32 +2,34 @@
 from __future__ import annotations
 
 import logging
+
 from typing_extensions import TypedDict
+
 from mrcrowbar.transforms import Transform
 
 logger = logging.getLogger( __name__ )
 
 from enum import IntEnum
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
+    Dict,
+    List,
     NamedTuple,
+    Optional,
     Sequence,
     Tuple,
-    List,
-    Dict,
-    Optional,
     Type,
     TypeVar,
     Union,
-    TYPE_CHECKING,
 )
 
 if TYPE_CHECKING:
     from mrcrowbar.blocks import Block
 
-from mrcrowbar.refs import Ref, Chain, property_get, property_set
 from mrcrowbar import common, encoding
+from mrcrowbar.refs import Chain, Ref, property_get, property_set
 
 OffsetType = Union[int, Ref[int]]
 

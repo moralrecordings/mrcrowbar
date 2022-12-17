@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import math
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from mrcrowbar import colour, statistics
-from mrcrowbar.common import BytesReadType, is_bytes, bounds
+from mrcrowbar.common import BytesReadType, bounds, is_bytes
 
 #: Container for ANSI escape sequences for text formatting
 ANSI_FORMAT_BASE = "\x1b[{}m"

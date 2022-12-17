@@ -1,13 +1,15 @@
 #!/usr/bin/python3
 
-import struct
+from __future__ import annotations
+
 import array
 import itertools
+import struct
 
 from mrcrowbar import models as mrc
+from mrcrowbar import utils
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
-from mrcrowbar import utils
 
 # source: http://ttf.mine.nu/techdocs.htm
 

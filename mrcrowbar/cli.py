@@ -1,10 +1,12 @@
-from mrcrowbar import common, utils
-from mrcrowbar.version import __version__
+from __future__ import annotations
 
 import argparse
+import logging
 import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-import logging
+
+from mrcrowbar import common, utils
+from mrcrowbar.version import __version__
 
 logger = logging.getLogger( __name__ )
 

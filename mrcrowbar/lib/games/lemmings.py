@@ -19,16 +19,19 @@ http://www.camanis.net/lemmings/files/docs/lemmings_vgaspecx_dat_file_format.txt
 Extra special thanks to ccexplore and Mindless
 """
 
+from __future__ import annotations
+
 import itertools
-from enum import IntEnum
 import logging
+from enum import IntEnum
 
 logger = logging.getLogger( __name__ )
 
+from mrcrowbar import bits
 from mrcrowbar import models as mrc
+from mrcrowbar import utils
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
-from mrcrowbar import bits, utils
 
 
 class DATCompressor( mrc.Transform ):

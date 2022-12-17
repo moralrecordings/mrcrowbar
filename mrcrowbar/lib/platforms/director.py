@@ -1,14 +1,15 @@
-from typing import Callable
-from mrcrowbar import models as mrc
-from mrcrowbar.common import BytesReadType
-from mrcrowbar.lib.images import base as img
-from mrcrowbar.lib.audio import base as aud
-from mrcrowbar.lib.containers import riff
-from mrcrowbar import utils
+from __future__ import annotations
 
 import math
-
 from enum import IntEnum
+from typing import Callable
+
+from mrcrowbar import models as mrc
+from mrcrowbar import utils
+from mrcrowbar.common import BytesReadType
+from mrcrowbar.lib.audio import base as aud
+from mrcrowbar.lib.containers import riff
+from mrcrowbar.lib.images import base as img
 
 DIRECTOR_PALETTE_RAW = (
     "000000111111222222444444555555777777888888aaaaaa"

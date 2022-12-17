@@ -1,9 +1,9 @@
 """Definition classes for cross-references."""
 from __future__ import annotations
 
-from mrcrowbar import common
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
 
-from typing import Any, Optional, TYPE_CHECKING, Generic, TypeVar, Union
+from mrcrowbar import common
 
 if TYPE_CHECKING:
     from mrcrowbar.blocks import Block

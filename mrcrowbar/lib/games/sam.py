@@ -10,8 +10,10 @@ Secret Agent encryption
 http://www.shikadi.net/moddingwiki/Secret_Agent_encryption
 """
 
-from mrcrowbar import models as mrc
+from __future__ import annotations
+
 from mrcrowbar import bits
+from mrcrowbar import models as mrc
 from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
 

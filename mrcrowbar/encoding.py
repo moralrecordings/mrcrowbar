@@ -1,12 +1,13 @@
+from __future__ import annotations
+
+import logging
 import re
 import struct
-
-from typing import Dict, List, Callable, Sequence, Tuple, Type, Union, Optional
-import logging
-
-from mrcrowbar.common import BytesReadType
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 from typing_extensions import Literal
+
+from mrcrowbar.common import BytesReadType
 
 logger = logging.getLogger( __name__ )
 

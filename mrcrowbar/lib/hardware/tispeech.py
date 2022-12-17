@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 from typing import Callable, List, NamedTuple, Sequence, Tuple, Union
+
 from typing_extensions import TypedDict
+
+from mrcrowbar import bits
 from mrcrowbar import models as mrc
-from mrcrowbar import bits, utils
+from mrcrowbar import utils
 from mrcrowbar.common import BytesReadType
 
 # LPC chip constants taken from mame/src/devices/sound/tms5110r.hxx

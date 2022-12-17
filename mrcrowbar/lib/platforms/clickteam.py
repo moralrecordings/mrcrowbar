@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from mrcrowbar import models as mrc
-from mrcrowbar.lib.images import base as img
-from mrcrowbar.lib.audio import base as aud
 from mrcrowbar import utils
+from mrcrowbar.lib.audio import base as aud
+from mrcrowbar.lib.images import base as img
 
 # taken from KNPS.DLL at offset 0x13772 (1236:0372), len 0x400
 

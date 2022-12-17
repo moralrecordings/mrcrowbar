@@ -1,5 +1,7 @@
 """File format classes for the games The Lost Vikings (1992) and Blackthorne (1994).
 """
+from __future__ import annotations
+
 import logging
 
 logger = logging.getLogger( __name__ )

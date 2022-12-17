@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import NamedTuple, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple, Optional
 
 if TYPE_CHECKING:
     from mrcrowbar.blocks import Block

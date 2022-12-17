@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from mrcrowbar import models as mrc
 from mrcrowbar.lib.images import base as img
-
 
 # taken from yodesk.exe at offset 0x550EF (.data:0x4572F0), len 0x400
 YODA_PALETTE_RAW = (

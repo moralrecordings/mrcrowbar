@@ -1,5 +1,6 @@
 from typing import Callable, Optional, Tuple, Union
 from mrcrowbar.common import BytesReadType, BytesWriteType
+from mrcrowbar.encoding import EndianEncoding
 
 BYTE_REVERSE = bytes.fromhex(
     "008040c020a060e0109050d030b070f0"
@@ -47,9 +48,9 @@ def read_bits(
     bit_offset: int,
     size: int,
     bytes_reverse: bool = False,
-    bit_endian: str = "big",
-    io_endian: str = "big",
-):
+    bit_endian: EndianEncoding = "big",
+    io_endian: EndianEncoding = "big",
+) -> int:
     byte_start = byte_offset
     bit_start = bit_offset
 
@@ -119,9 +120,9 @@ def write_bits(
     bit_offset: int,
     size: int,
     bytes_reverse: bool = False,
-    bit_endian: str = "big",
-    io_endian: str = "big",
-):
+    bit_endian: EndianEncoding = "big",
+    io_endian: EndianEncoding = "big",
+) -> None:
     if value not in range( 1 << size ):
         raise ValueError( f"Value {value} does not fit into {size} bits" )
 
@@ -227,17 +228,17 @@ class BitStream( object ):
     buffer: bytearray
     byte_pos: int
     bit_pos: int
-    bit_endian: str
-    io_endian: str
+    bit_endian: EndianEncoding
+    io_endian: EndianEncoding
 
     def __init__(
         self,
         buffer: Optional[BytesReadType] = None,
         start_offset: Optional[Union[int, Tuple[int, int]]] = None,
         bytes_reverse: bool = False,
-        bit_endian: str = "big",
-        io_endian: str = "big",
-    ):
+        bit_endian: EndianEncoding = "big",
+        io_endian: EndianEncoding = "big",
+    ) -> None:
         """Create a BitStream instance.
 
         buffer
@@ -284,7 +285,7 @@ class BitStream( object ):
         else:
             raise TypeError( "start_offset should be of type int or tuple" )
 
-    def tell( self ):
+    def tell( self ) -> Tuple[int, int]:
         """Get the current byte and bit position."""
         return self.byte_pos, self.bit_pos
 
@@ -319,7 +320,7 @@ class BitStream( object ):
 
         return result
 
-    def write( self, value: int, count: int ):
+    def write( self, value: int, count: int ) -> None:
         """Write an unsigned integer containing [count] bits to the source."""
         """
         x.write( 0bABC, 3 )
@@ -367,7 +368,9 @@ class BitStream( object ):
 
         self.seek( (count // 8, count % 8), origin="current" )
 
-    def seek( self, offset: Union[int, Tuple[int, int]], origin: str = "start" ):
+    def seek(
+        self, offset: Union[int, Tuple[int, int]], origin: str = "start"
+    ) -> None:
         """Seek to a location in the target.
 
         offset
@@ -410,10 +413,10 @@ class BitStream( object ):
 
         self.bit_pos = bit_diff % 8 if self.bit_endian == "big" else 7 - (bit_diff % 8)
 
-    def in_bounds( self ):
+    def in_bounds( self ) -> bool:
         """Returns True if the current position is within the bounds of the target."""
         return self.byte_pos in range( len( self.buffer ) )
 
-    def get_buffer( self ):
+    def get_buffer( self ) -> bytes:
         """Return a byte string containing the target."""
         return bytes( self.buffer )

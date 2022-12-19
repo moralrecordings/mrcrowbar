@@ -294,7 +294,7 @@ class StreamField( Field ):
         alignment: Union[int, Ref[int]] = 1,
         stream_end: Optional[bytes] = None,
         stop_check: Optional[StopCheckType] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ):
         """Base class for accessing one or more streamable elements.
 
@@ -713,7 +713,7 @@ class Chunk( ChunkBase ):
 class ChunkField( StreamField ):
     def __init__(
         self,
-        chunk_map: Dict[Union[bytes, int], Type[Block]],
+        chunk_map: Union[Dict[bytes, Type[Block]], Dict[int, Type[Block]]],
         offset: OffsetType = Chain(),
         *,
         count: Optional[Union[int, Ref[int]]] = None,
@@ -730,7 +730,7 @@ class ChunkField( StreamField ):
         length_field: Optional[Type[NumberField]] = None,
         fill: Optional[bytes] = None,
         length_inclusive: bool = False,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
         length_before_id: bool = False,
     ):
         """Field for inserting a tokenised Block stream into the parent class.
@@ -1079,7 +1079,7 @@ class BlockField( StreamField ):
         transform: Optional[Transform] = None,
         stream_end: Optional[bytes] = None,
         stop_check: Optional[StopCheckType] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ):
         """Field for inserting another Block into the parent class.
 
@@ -1341,7 +1341,7 @@ class StringField( StreamField ):
         element_length: Optional[int] = None,
         element_end: Optional[bytes] = None,
         zero_pad: bool = False,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ):
         """Field class for string data.
 
@@ -1708,7 +1708,7 @@ class NumberField( StreamField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ):
         """Base class for numeric value Fields.
 
@@ -1979,7 +1979,7 @@ class Bits( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ):
         SIZES: Dict[
             int,
@@ -2159,7 +2159,7 @@ class Bits8( Bits ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             offset=offset,
@@ -2197,7 +2197,7 @@ class Bits16( Bits ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             offset=offset,
@@ -2235,7 +2235,7 @@ class Bits32( Bits ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             offset=offset,
@@ -2273,7 +2273,7 @@ class Bits64( Bits ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             offset=offset,
@@ -2310,7 +2310,7 @@ class Int8( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2350,7 +2350,7 @@ class Int16_LE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2390,7 +2390,7 @@ class Int24_LE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2430,7 +2430,7 @@ class Int32_LE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2470,7 +2470,7 @@ class Int64_LE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2510,7 +2510,7 @@ class UInt8( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2550,7 +2550,7 @@ class UInt16_LE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2590,7 +2590,7 @@ class UInt24_LE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2630,7 +2630,7 @@ class UInt32_LE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2670,7 +2670,7 @@ class UInt64_LE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2710,7 +2710,7 @@ class Float32_LE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             float,
@@ -2750,7 +2750,7 @@ class Float64_LE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             float,
@@ -2790,7 +2790,7 @@ class Int16_BE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2830,7 +2830,7 @@ class Int24_BE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2870,7 +2870,7 @@ class Int32_BE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2910,7 +2910,7 @@ class Int64_BE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2950,7 +2950,7 @@ class UInt16_BE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2990,7 +2990,7 @@ class UInt24_BE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3030,7 +3030,7 @@ class UInt32_BE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3070,7 +3070,7 @@ class UInt64_BE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3110,7 +3110,7 @@ class Float32_BE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             float,
@@ -3150,7 +3150,7 @@ class Float64_BE( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             float,
@@ -3190,7 +3190,7 @@ class Int16_P( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3230,7 +3230,7 @@ class Int24_P( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3270,7 +3270,7 @@ class Int32_P( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3310,7 +3310,7 @@ class Int64_P( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3350,7 +3350,7 @@ class UInt16_P( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3390,7 +3390,7 @@ class UInt24_P( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3430,7 +3430,7 @@ class UInt32_P( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3470,7 +3470,7 @@ class UInt64_P( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3510,7 +3510,7 @@ class Float32_P( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             float,
@@ -3550,7 +3550,7 @@ class Float64_P( NumberField ):
         bitmask: Optional[bytes] = None,
         range: Optional[Sequence[int]] = None,
         enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[Union[bool, int]]] = True,
+        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
     ) -> None:
         super().__init__(
             float,

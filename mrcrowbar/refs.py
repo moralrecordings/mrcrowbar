@@ -1,7 +1,7 @@
 """Definition classes for cross-references."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from mrcrowbar import common
 
@@ -40,7 +40,7 @@ class Ref( Generic[T] ):
         Called by the parent Block constructor."""
         pass
 
-    def get( self, instance: Block, caller: Optional[Field] = None ) -> T:
+    def get( self, instance: Block, caller: Field | None = None ) -> T:
         """Return an attribute from an object using the Ref path.
 
         instance
@@ -51,7 +51,7 @@ class Ref( Generic[T] ):
             target = getattr( target, attr )
         return target  # type: ignore
 
-    def set( self, instance: Block, value: T, caller: Optional[Field] = None ) -> None:
+    def set( self, instance: Block, value: T, caller: Field | None = None ) -> None:
         """Set an attribute on an object using the Ref path.
 
         instance
@@ -109,10 +109,10 @@ class ConstRef( Ref[T] ):
 
 
 def property_get(
-    prop: Union[None, T, Ref[T]],
-    instance: Optional[Block],
-    caller: Optional[Field] = None,
-) -> Optional[T]:
+    prop: None | T | Ref[T],
+    instance: Block | None,
+    caller: Field | None = None,
+) -> T | None:
     """Wrapper for property reads which auto-dereferences Refs if required.
 
     prop
@@ -127,7 +127,7 @@ def property_get(
 
 
 def property_set(
-    prop: Ref[T], instance: Optional[Block], value: T, caller: Optional[Field] = None
+    prop: Ref[T], instance: Block | None, value: T, caller: Field | None = None
 ) -> None:
     """Wrapper for property writes which auto-deferences Refs.
 
@@ -194,7 +194,7 @@ class EndOffset( Ref[int] ):
         self._neg = neg
         self._align = align
 
-    def get( self, instance: Optional[Block], caller: Optional[Field] = None ) -> int:
+    def get( self, instance: Block | None, caller: Field | None = None ) -> int:
         target = instance
         align = property_get( self._align, instance )
         for attr in self._path[:-1]:
@@ -206,7 +206,7 @@ class EndOffset( Ref[int] ):
         return target
 
     def set(
-        self, instance: Optional[Block], value: int, caller: Optional[Field] = None
+        self, instance: Block | None, value: int, caller: Field | None = None
     ) -> None:
         raise AttributeError( "can't change the end offset of another field" )
 
@@ -219,7 +219,7 @@ class Chain( Ref[int] ):
     def __init__( self ) -> None:
         super().__init__( "_previous_attr" )
 
-    def get( self, instance: Block, caller: Optional[Field] = None ) -> int:
+    def get( self, instance: Block, caller: Field | None = None ) -> int:
         if caller is None:
             return 0
         field_name = getattr( caller, self._path[0] )
@@ -227,9 +227,7 @@ class Chain( Ref[int] ):
             return 0
         return instance.get_field_end_offset( field_name )
 
-    def set(
-        self, instance: Block, value: int, caller: Optional[Field] = None
-    ) -> None:
+    def set( self, instance: Block, value: int, caller: Field | None = None ) -> None:
         raise AttributeError( "can't change the end offset of another field" )
 
     def __repr__( self ) -> str:

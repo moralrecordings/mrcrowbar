@@ -96,7 +96,7 @@ class DictCompressor( mrc.Transform ):
             else:
                 index = (test - 0x101) << 1
                 if index > len( src ):
-                    print( "Out of bounds! 0x{:04x}".format( index ) )
+                    print( f"Out of bounds! 0x{index:04x}" )
                     break
                 start = utils.from_uint16_le( src[index : index + 2] )
                 end = utils.from_uint16_le( src[index + 2 : index + 4] )

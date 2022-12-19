@@ -59,7 +59,7 @@ class DATCompressor( mrc.Transform ):
 
         compressed_data = bytearray( buffer[pointer : pointer + compressed_size] )
         if checksum != self._xor_checksum( compressed_data ):
-            logger.warning( "{}: Checksum doesn't match header".format( self ) )
+            logger.warning( f"{self}: Checksum doesn't match header" )
 
         pointer += compressed_size
         total_num_bytes -= compressed_size
@@ -275,9 +275,7 @@ class SpecialCompressor( mrc.Transform ):
                 i += 2
 
         if buf_out:
-            logger.warning(
-                "{}: EOF reached before last RLE block closed".format( self )
-            )
+            logger.warning( f"{self}: EOF reached before last RLE block closed" )
             result.append( b"".join( buf_out ) )
 
         # result is a 960x160 3bpp image, divided into 4x 40 scanline segments
@@ -1009,23 +1007,23 @@ class Loader( mrc.Loader ):
 
     _LEMMINGS_FILE_CLASS_MAP = {
         _SEP + "(ADLIB).DAT$": None,
-        _SEP + "(CGAGR)(\d).DAT$": None,
+        _SEP + r"(CGAGR)(\d).DAT$": None,
         _SEP + "(CGAMAIN).DAT$": None,
-        _SEP + "(CGASPEC)(\d).DAT$": None,
-        _SEP + "(GROUND)(\d)O.DAT$": GroundDAT,
-        _SEP + "(LEVEL)00(\d).DAT$": LevelDAT,
+        _SEP + r"(CGASPEC)(\d).DAT$": None,
+        _SEP + r"(GROUND)(\d)O.DAT$": GroundDAT,
+        _SEP + r"(LEVEL)00(\d).DAT$": LevelDAT,
         _SEP + "(MAIN).DAT$": MainDAT,
         _SEP + "(ODDTABLE).DAT$": OddtableDAT,
         _SEP + "(RUSSELL).DAT$": None,
         _SEP + "(TGAMAIN).DAT$": None,
-        _SEP + "(VGAGR)(\d).DAT$": VgagrDAT,
-        _SEP + "(VGASPEC)(\d).DAT$": VgaspecDAT,
+        _SEP + r"(VGAGR)(\d).DAT$": VgagrDAT,
+        _SEP + r"(VGASPEC)(\d).DAT$": VgaspecDAT,
     }
 
     _LEMMINGS_DEPS = [
         (
-            _SEP + "(GROUND)(\d)O.DAT$",
-            _SEP + "(VGAGR)(\d).DAT$",
+            _SEP + r"(GROUND)(\d)O.DAT$",
+            _SEP + r"(VGAGR)(\d).DAT$",
             ("VGAGR", "{1}"),
             "_vgagr",
         )

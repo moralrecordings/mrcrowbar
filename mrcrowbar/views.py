@@ -7,7 +7,7 @@ from mrcrowbar.transforms import Transform
 
 logger = logging.getLogger( __name__ )
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from mrcrowbar.blocks import Block
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from mrcrowbar.refs import Ref, property_get, property_set, view_property
 
 
-class View( object ):
+class View:
     def __init__( self, parent: Block ):
         self._parent = parent
 
@@ -27,7 +27,7 @@ class View( object ):
 class Store( View ):
     def __init__(
         self,
-        parent: "Block",
+        parent: Block,
         source: Any,
         fill: bytes = b"\x00",
         base_offset: int = 0,
@@ -112,7 +112,7 @@ class Store( View ):
             fill_size = -pointer % self.align
             pointer += fill_size
             result += bytes(
-                (self.fill[j % len( self.fill )] for j in range( fill_size ))
+                self.fill[j % len( self.fill )] for j in range( fill_size )
             )
 
         self.source = bytes( result )
@@ -121,25 +121,25 @@ class Store( View ):
 class LinearStore( View ):
     def __init__(
         self,
-        parent: "Block",
+        parent: Block,
         source: Any,
-        block_klass: Type["Block"],
+        block_klass: type[Block],
         offsets: Any = None,
         sizes: Any = None,
-        base_offset: Union[int, Ref] = 0,
+        base_offset: int | Ref = 0,
         fill: bytes = b"\x00",
-        block_kwargs: Optional[Dict[str, Any]] = None,
-        transform: Optional[Transform] = None,
+        block_kwargs: dict[str, Any] | None = None,
+        transform: Transform | None = None,
     ):
         super().__init__( parent )
         self._source = source
         self._offsets = offsets
         self._sizes = sizes
-        self._base_offset: Union[int, Ref] = base_offset
+        self._base_offset: int | Ref = base_offset
         self.block_klass = block_klass
         self.block_kwargs = block_kwargs if block_kwargs else {}
         self.transform = transform
-        self._items: Optional[List["Block"]] = None
+        self._items: list[Block] | None = None
 
     source = view_property( "_source" )
     offsets = view_property( "_offsets" )
@@ -261,13 +261,13 @@ class LinearStore( View ):
 class StoreRef( Ref ):
     def __init__(
         self,
-        block_klass: Type["Block"],
+        block_klass: type[Block],
         store: Store,
         offset: int,
-        size: Optional[int] = None,
-        count: Optional[int] = None,
-        block_kwargs: Optional[Dict[str, Any]] = None,
-        transform: Optional[Transform] = None,
+        size: int | None = None,
+        count: int | None = None,
+        block_kwargs: dict[str, Any] | None = None,
+        transform: Transform | None = None,
     ):
         self.block_klass = block_klass
         self.store = store
@@ -292,7 +292,7 @@ class StoreRef( Ref ):
         store = property_get( self.store, instance )
         return store.get_object( instance, self.offset, self.size )
 
-    def set( self, instance: Any, value: "Block" ):
+    def set( self, instance: Any, value: Block ):
         store = property_get( self.store, instance )
         assert isinstance( value, self.block_klass )
         return store.set_object( instance, self.offset, self.size, value )

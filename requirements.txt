@@ -6,3 +6,4 @@ mypy >= 0.812
 git+https://github.com/moralrecordings/mrblack@e99a6fba1bbb543ef8d5ccaa41b5fc04d7e1a589#egg=black
 pre-commit >= 2.15.0
 isort == 5.11.2
+pyupgrade == 3.3.1

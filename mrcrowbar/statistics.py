@@ -3,12 +3,11 @@ from __future__ import annotations
 import array
 import math
 from collections import Counter
-from typing import List
 
 from mrcrowbar.common import BytesReadType
 
 
-class Stats( object ):
+class Stats:
     """Helper class for performing some basic statistical analysis on binary data."""
 
     def __init__( self, buffer: BytesReadType ):
@@ -27,7 +26,7 @@ class Stats( object ):
                 cover = count / self.samples
                 self.entropy += -cover * math.log2( cover )
 
-    def histogram( self, width: int ) -> List[int]:
+    def histogram( self, width: int ) -> list[int]:
         if (256 % width) != 0:
             raise ValueError( "Width of the histogram must be a divisor of 256" )
         elif width <= 0:
@@ -60,7 +59,7 @@ class Stats( object ):
             )
 
         buckets = self.histogram( width )
-        result: List[str] = []
+        result: list[str] = []
         for line in format_bar_graph_iter( buckets, width=width, height=height ):
             result.append( f" {line}\n" )
 

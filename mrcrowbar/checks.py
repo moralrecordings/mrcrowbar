@@ -6,7 +6,7 @@ logger = logging.getLogger( __name__ )
 
 from typing import TYPE_CHECKING
 
-from mrcrowbar import common, utils
+from mrcrowbar import common
 from mrcrowbar.refs import Ref, property_get, property_set
 
 if TYPE_CHECKING:
@@ -17,7 +17,7 @@ class CheckException( Exception ):
     pass
 
 
-class Check( object ):
+class Check:
     def __init__( self, raise_exception: bool = False ):
         """Base class for Checks.
 

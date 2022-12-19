@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import array
-import itertools
 import logging
 
 logger = logging.getLogger( __name__ )
@@ -11,7 +9,6 @@ logger = logging.getLogger( __name__ )
 from mrcrowbar import models as mrc
 from mrcrowbar import utils
 from mrcrowbar.lib.compressors import lzss
-from mrcrowbar.lib.hardware import ibm_pc
 from mrcrowbar.lib.images import base as img
 
 # source: http://www.shikadi.net/moddingwiki/RES_Format_%28Boppin%29
@@ -230,7 +227,7 @@ class Loader( mrc.Loader ):
     _SEP = mrc.Loader._SEP
 
     _BOPPIN_FILE_CLASS_MAP = {
-        _SEP + "(BOPPIN)(\d).(LVL)$": None,
+        _SEP + r"(BOPPIN)(\d).(LVL)$": None,
         _SEP + "(BOPPIN).(RES)$": Resource,
     }
 

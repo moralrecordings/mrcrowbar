@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Sequence
 
 from mrcrowbar import colour, statistics
 from mrcrowbar.common import BytesReadType, bounds, is_bytes
@@ -127,7 +127,7 @@ def format_escape(
         if bg_rgba[3] != 0:
             bg_format = ANSI_FORMAT_BACKGROUND_CMD.format( *bg_rgba[:3] )
 
-    colour_format: List[str] = []
+    colour_format: list[str] = []
     if fg_format is not None:
         colour_format.append( fg_format )
     if bg_format is not None:
@@ -246,7 +246,7 @@ def format_pixels(
         return " " * repeat
 
     string = "▀" * repeat
-    colour_format: List[str] = []
+    colour_format: list[str] = []
 
     if top_src == bottom_src:
         string = "█" * repeat
@@ -284,8 +284,8 @@ def format_bar_graph_iter(
     data: Sequence[int],
     width: int = 64,
     height: int = 12,
-    y_min: Optional[int] = None,
-    y_max: Optional[int] = None,
+    y_min: int | None = None,
+    y_max: int | None = None,
 ):
     if width <= 0:
         raise ValueError( "Width of the graph must be greater than zero" )
@@ -340,7 +340,7 @@ def format_bar_graph_iter(
         ]
 
     for y in range( top_height, 0, -1 ):
-        result: List[str] = []
+        result: list[str] = []
         for _, value in samples:
             if value // 8 >= y:
                 result.append( BAR_VERT[8] )
@@ -370,7 +370,7 @@ def format_image_iter(
     y_start: int = 0,
     width: int = 32,
     height: int = 32,
-    frame: Union[int, Sequence[int]] = 0,
+    frame: int | Sequence[int] = 0,
     columns: int = 1,
     downsample: int = 1,
 ):
@@ -411,9 +411,9 @@ def format_image_iter(
     rows = math.ceil( len( frames ) / columns )
     for r in range( rows ):
         for y in range( 0, height, 2 * downsample ):
-            result: List[str] = []
+            result: list[str] = []
             for c in range( min( (len( frames ) - r * columns), columns ) ):
-                row: List[Tuple[colour.ColourType, colour.ColourType]] = []
+                row: list[tuple[colour.ColourType, colour.ColourType]] = []
                 for x in range( 0, width, downsample ):
                     fr = frames[r * columns + c]
                     c1 = data_fetch( x_start + x, y_start + y, fr )
@@ -438,13 +438,13 @@ BYTE_ESCAPE_MAP = [format_escape( x ) for x in BYTE_COLOUR_MAP]
 def format_hexdump_line(
     source: BytesReadType,
     offset: int,
-    end: Optional[int] = None,
+    end: int | None = None,
     major_len: int = 8,
     minor_len: int = 4,
     colour: bool = True,
     prefix: str = "",
-    highlight_addr: Optional[int] = None,
-    highlight_map: Optional[Dict[int, colour.ColourType]] = None,
+    highlight_addr: int | None = None,
+    highlight_map: dict[int, colour.ColourType] | None = None,
     address_base_offset: int = 0,
     show_offsets: bool = True,
     show_glyphs: bool = True,
@@ -459,7 +459,7 @@ def format_hexdump_line(
         return ""
 
     def get_glyph():
-        letters: List[str] = []
+        letters: list[str] = []
         prev_colour = None
         for i in range( offset, min( offset + major_len * minor_len, end_offset ) ):
             new_colour = get_colour( i )
@@ -500,7 +500,7 @@ def format_hexdump_line(
 
 
 def format_histogram_line(
-    buckets: Sequence[int], palette: Optional[Sequence[colour.ColourType]] = None
+    buckets: Sequence[int], palette: Sequence[colour.ColourType] | None = None
 ) -> str:
     if palette is None:
         palette = colour.TEST_PALETTE
@@ -514,7 +514,7 @@ def format_histogram_line(
     buckets_norm = [
         round( 255 * (b / limit) ) if b is not None else None for b in buckets_log
     ]
-    result: List[str] = []
+    result: list[str] = []
     for b in buckets_norm:
         if b is not None:
             result.append( format_string( "█", palette[b] ) )
@@ -526,11 +526,11 @@ def format_histogram_line(
 def format_histdump_line(
     source: BytesReadType,
     offset: int,
-    length: Optional[int] = None,
-    end: Optional[int] = None,
+    length: int | None = None,
+    end: int | None = None,
     width: int = 64,
     address_base_offset: int = 0,
-    palette: Optional[Sequence[colour.ColourType]] = None,
+    palette: Sequence[colour.ColourType] | None = None,
 ):
     if length is not None:
         data = source[offset : offset + length]
@@ -547,20 +547,20 @@ def format_histdump_line(
 HIGHLIGHT_COLOUR = 9
 
 
-class HexdumpHighlightBuffer( object ):
+class HexdumpHighlightBuffer:
     def __init__(
         self,
         source: BytesReadType,
-        start: Optional[int] = None,
-        end: Optional[int] = None,
-        length: Optional[int] = None,
+        start: int | None = None,
+        end: int | None = None,
+        length: int | None = None,
         major_len: int = 8,
         minor_len: int = 4,
         use_colour: bool = True,
-        address_base: Optional[int] = None,
+        address_base: int | None = None,
         before: int = 2,
         after: int = 2,
-        title: Optional[str] = None,
+        title: str | None = None,
     ):
         assert is_bytes( source )
         self.source = source
@@ -578,9 +578,9 @@ class HexdumpHighlightBuffer( object ):
         self.after = after
         self.title = title
         self.stride = minor_len * major_len
-        self.lines: List[str] = []
+        self.lines: list[str] = []
         self.last_printed = -1
-        self.output_buffer: Dict[int, Optional[Dict[int, colour.ColourType]]] = {}
+        self.output_buffer: dict[int, dict[int, colour.ColourType] | None] = {}
         self.printed = False
 
     def update( self, marker: int ):
@@ -631,7 +631,7 @@ class HexdumpHighlightBuffer( object ):
             del self.output_buffer[key]
             self.last_printed = key
 
-    def add_span( self, span: Tuple[int, int] ):
+    def add_span( self, span: tuple[int, int] ):
         block_start = span[0] - (span[0] % self.stride)
         block_end = max( 0, (span[1] - 1) - ((span[1] - 1) % self.stride) )
         for i in range( block_start, block_end + self.stride, self.stride ):

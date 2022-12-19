@@ -6,9 +6,7 @@ from mrcrowbar import utils
 from mrcrowbar.colour import (
     TEST_PALETTE,
     BaseColour,
-    Black,
     Transparent,
-    White,
     from_palette_bytes,
     to_palette_bytes,
 )
@@ -18,9 +16,7 @@ try:
 except ImportError:
     PILImage = None
 
-import collections
 import io
-import itertools
 import logging
 import math
 import sys
@@ -327,13 +323,11 @@ class IndexedImage( Image ):
             raise AttributeError( "Image must be indexed (mode P)" )
         if change_dims:
             if self.width != image.width:
-                logger.warning(
-                    "Changing width from {} to {}".format( self.width, image.width )
-                )
+                logger.warning( f"Changing width from {self.width} to {image.width}" )
                 self.width = image.width
             if self.height != image.height:
                 logger.warning(
-                    "Changing height from {} to {}".format( self.height, image.height )
+                    f"Changing height from {self.height} to {image.height}"
                 )
                 self.height = image.height
         else:
@@ -459,10 +453,9 @@ class IndexedImage( Image ):
                 p = p if self.mask[offset] else None
             return self.palette[p] if p is not None else Transparent()
 
-        for x in ansi.format_image_iter(
+        yield from ansi.format_image_iter(
             data_fetch, x_start, y_start, width, height, frames, columns, downsample
-        ):
-            yield x
+        )
         if self.overflow:
             logger.warning(
                 "Image {} requires {} pixels but {} only has {} pixels".format(
@@ -717,7 +710,7 @@ class Planarizer( mrc.Transform ):
                     # for each group of 8 chunky pixels, use pack_bits to fill up 8 bits
                     # of the relevant bitplane
                     raw_planes[pointer + b * segment_size + i] = bits.pack_bits(
-                        (planes[i] >> b)
+                        planes[i] >> b
                     )
 
         return mrc.TransformResult( payload=raw_planes )

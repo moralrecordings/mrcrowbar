@@ -3,27 +3,12 @@ from __future__ import annotations
 
 import logging
 
-from typing_extensions import TypedDict
-
 from mrcrowbar.transforms import Transform
 
 logger = logging.getLogger( __name__ )
 
 from enum import IntEnum
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Sequence, Union
 
 if TYPE_CHECKING:
     from mrcrowbar.blocks import Block
@@ -53,7 +38,7 @@ class EmptyFieldError( Exception ):
 StopCheckType = Callable[[common.BytesReadType, int], bool]
 
 
-class Field( object ):
+class Field:
     def __init__( self, *, default: Any = None ):
         """Base class for Fields.
 
@@ -106,7 +91,7 @@ class Field( object ):
         ...
 
     def get_from_buffer(
-        self, buffer: common.BytesReadType, parent: Optional[Block] = None
+        self, buffer: common.BytesReadType, parent: Block | None = None
     ) -> Any:
         """Create a Python object from a byte string, using the field definition.
 
@@ -120,7 +105,7 @@ class Field( object ):
         return None
 
     def update_buffer_with_value(
-        self, value: Any, buffer: common.BytesWriteType, parent: Optional[Block] = None
+        self, value: Any, buffer: common.BytesWriteType, parent: Block | None = None
     ):
         """Write a Python object into a byte array, using the field definition.
 
@@ -137,7 +122,7 @@ class Field( object ):
         self.validate( value, parent )
 
     def get_start_offset(
-        self, value: Any, parent: Optional[Block] = None, index: Optional[int] = None
+        self, value: Any, parent: Block | None = None, index: int | None = None
     ) -> int:
         """Return the start offset of where the Field's data is to be stored in the Block.
 
@@ -155,7 +140,7 @@ class Field( object ):
         return 0
 
     def get_size(
-        self, value: Any, parent: Optional[Block] = None, index: Optional[int] = None
+        self, value: Any, parent: Block | None = None, index: int | None = None
     ) -> int:
         """Return the size of the Field's data (in bytes).
 
@@ -173,7 +158,7 @@ class Field( object ):
         return 0
 
     def get_end_offset(
-        self, value: Any, parent: Optional[Block] = None, index: Optional[int] = None
+        self, value: Any, parent: Block | None = None, index: int | None = None
     ) -> int:
         """Return the end offset of the Field's data. Useful for chainloading.
 
@@ -192,7 +177,7 @@ class Field( object ):
             value, parent, index
         )
 
-    def scrub( self, value: Any, parent: Optional[Block] = None ) -> Any:
+    def scrub( self, value: Any, parent: Block | None = None ) -> Any:
         """Return the value coerced to the correct type of the Field (if necessary).
 
         value
@@ -206,7 +191,7 @@ class Field( object ):
         """
         return value
 
-    def update_deps( self, value: Any, parent: Optional[Block] = None ):
+    def update_deps( self, value: Any, parent: Block | None = None ):
         """Update all dependent variables derived from the value of the Field.
 
         value
@@ -218,7 +203,7 @@ class Field( object ):
         """
         return
 
-    def validate( self, value: Any, parent: Optional[Block] = None ):
+    def validate( self, value: Any, parent: Block | None = None ):
         """Validate that a correctly-typed Python object meets the constraints for the Field.
 
         value
@@ -232,7 +217,7 @@ class Field( object ):
         """
         pass
 
-    def serialise( self, value: Any, parent: Optional[Block] = None ):
+    def serialise( self, value: Any, parent: Block | None = None ):
         """Return a value as basic Python types.
 
         value
@@ -244,9 +229,7 @@ class Field( object ):
         """
         return None
 
-    def get_path(
-        self, parent: Optional[Block] = None, index: Optional[int] = None
-    ) -> str:
+    def get_path( self, parent: Block | None = None, index: int | None = None ) -> str:
         """Return the location in the Block tree.
 
         parent
@@ -260,7 +243,7 @@ class Field( object ):
             return f"<{self.__class__.__name__}>{suffix}"
         return parent.get_field_path( self ) + suffix
 
-    def get_strict( self, parent: Optional[Block] = None ):
+    def get_strict( self, parent: Block | None = None ):
         """Return whether the parent Block is loading in strict mode.
 
         parent
@@ -270,7 +253,7 @@ class Field( object ):
             return False
         return parent._strict
 
-    def get_cache_refs( self, parent: Optional[Block] = None ):
+    def get_cache_refs( self, parent: Block | None = None ):
         """Return whether the parent Block is pre-caching all the Refs.
 
         parent
@@ -287,14 +270,14 @@ class StreamField( Field ):
         offset: OffsetType = Chain(),
         *,
         default: Any = None,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ):
         """Base class for accessing one or more streamable elements.
 
@@ -356,14 +339,14 @@ class StreamField( Field ):
         self,
         offset: int,
         buffer: common.BytesReadType,
-        parent: Optional[Block] = None,
-        index: Optional[int] = None,
+        parent: Block | None = None,
+        index: int | None = None,
     ) -> Any:
         return None  # pass
 
     def get_from_buffer(
-        self, buffer: common.BytesReadType, parent: Optional["Block"] = None
-    ) -> Union[Any, List[Any]]:
+        self, buffer: common.BytesReadType, parent: Block | None = None
+    ) -> Any | list[Any]:
         if not common.is_bytes( buffer ):
             raise ParseError(
                 f"{self.get_path( parent )}: buffer needs to be of type bytes, not {buffer.__class__}!"
@@ -398,7 +381,7 @@ class StreamField( Field ):
             buffer = buffer[: offset + length]
 
         pointer = offset
-        result: List[Any] = []
+        result: list[Any] = []
         while pointer < len( buffer ):
             start_offset = pointer
             # stop if we've hit the maximum number of items
@@ -448,16 +431,16 @@ class StreamField( Field ):
         offset: int,
         element: Any,
         buffer: common.BytesWriteType,
-        parent: Optional[Block] = None,
-        index: Optional[int] = None,
+        parent: Block | None = None,
+        index: int | None = None,
     ) -> int:
         return 0
 
     def update_buffer_with_value(
         self,
-        value: Union[Any, Sequence[Any]],
+        value: Any | Sequence[Any],
         buffer: common.BytesWriteType,
-        parent: Optional[Block] = None,
+        parent: Block | None = None,
     ):
         super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent, caller=self )
@@ -513,9 +496,7 @@ class StreamField( Field ):
         if self.stream_end is not None:
             buffer[new_size - len( self.stream_end ) : new_size] = self.stream_end
 
-    def update_deps(
-        self, value: Union[Any, Sequence[Any]], parent: Optional[Block] = None
-    ):
+    def update_deps( self, value: Any | Sequence[Any], parent: Block | None = None ):
         offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         length = property_get( self.length, parent )
@@ -551,13 +532,11 @@ class StreamField( Field ):
             property_set( self.length, parent, target_length )
 
     def validate_element(
-        self, element: Any, parent: Optional[Block] = None, index: Optional[int] = None
+        self, element: Any, parent: Block | None = None, index: int | None = None
     ):
         pass
 
-    def validate(
-        self, value: Union[Any, Sequence[Any]], parent: Optional[Block] = None
-    ):
+    def validate( self, value: Any | Sequence[Any], parent: Block | None = None ):
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         exists = property_get( self.exists, parent )
@@ -604,15 +583,15 @@ class StreamField( Field ):
             )
 
     def get_element_size(
-        self, element: Any, parent: Optional[Block] = None, index: Optional[int] = None
+        self, element: Any, parent: Block | None = None, index: int | None = None
     ) -> int:
         return 0  # pass
 
     def get_start_offset(
         self,
-        value: Union[Any, Sequence[Any]],
-        parent: Optional[Block] = None,
-        index: Optional[int] = None,
+        value: Any | Sequence[Any],
+        parent: Block | None = None,
+        index: int | None = None,
     ) -> int:
         offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
@@ -646,9 +625,9 @@ class StreamField( Field ):
 
     def get_size(
         self,
-        value: Union[Any, Sequence[Any]],
-        parent: Optional[Block] = None,
-        index: Optional[int] = None,
+        value: Any | Sequence[Any],
+        parent: Block | None = None,
+        index: int | None = None,
     ) -> int:
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
@@ -692,7 +671,7 @@ class StreamField( Field ):
 
 
 class ChunkBase( NamedTuple ):
-    id: Union[int, bytes]
+    id: int | bytes
     obj: Block
 
 
@@ -713,24 +692,24 @@ class Chunk( ChunkBase ):
 class ChunkField( StreamField ):
     def __init__(
         self,
-        chunk_map: Union[Dict[bytes, Type[Block]], Dict[int, Type[Block]]],
+        chunk_map: dict[bytes, type[Block]] | dict[int, type[Block]],
         offset: OffsetType = Chain(),
         *,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = True,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        default_klass: Optional[Type[Block]] = None,
-        id_size: Optional[int] = None,
-        id_field: Optional[Type[Field]] = None,
-        id_enum: Optional[IntEnum] = None,
-        length_field: Optional[Type[NumberField]] = None,
-        fill: Optional[bytes] = None,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = True,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        default_klass: type[Block] | None = None,
+        id_size: int | None = None,
+        id_field: type[Field] | None = None,
+        id_enum: IntEnum | None = None,
+        length_field: type[NumberField] | None = None,
+        fill: bytes | None = None,
         length_inclusive: bool = False,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
         length_before_id: bool = False,
     ):
         """Field for inserting a tokenised Block stream into the parent class.
@@ -1003,7 +982,7 @@ class ChunkField( StreamField ):
             raise FieldValidationError(
                 f"{self.get_path( parent, index )}: Element {element} is not of type Chunk!"
             )
-        chunk_klass: Optional[Type[Block]] = None
+        chunk_klass: type[Block] | None = None
         if element.id in chunk_map:
             chunk_klass = chunk_map[element.id]
         elif self.default_klass:
@@ -1064,22 +1043,22 @@ class ChunkField( StreamField ):
 class BlockField( StreamField ):
     def __init__(
         self,
-        block_klass: Union[Type[Block], Dict[Any, Type[Block]]],
+        block_klass: type[Block] | dict[Any, type[Block]],
         offset: OffsetType = Chain(),
         *,
-        block_kwargs: Optional[Dict[str, Any]] = None,
-        count: Optional[Union[int, Ref[int]]] = None,
-        fill: Optional[bytes] = None,
-        block_type: Optional[Ref[Any]] = None,
-        default_klass: Optional[Type[Block]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        transform: Optional[Transform] = None,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        block_kwargs: dict[str, Any] | None = None,
+        count: int | Ref[int] | None = None,
+        fill: bytes | None = None,
+        block_type: Ref[Any] | None = None,
+        default_klass: type[Block] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        transform: Transform | None = None,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ):
         """Field for inserting another Block into the parent class.
 
@@ -1258,7 +1237,7 @@ class BlockField( StreamField ):
                 element.update_deps()
 
     def validate_element(
-        self, element: Any, parent: Optional[Block] = None, index: Optional[int] = None
+        self, element: Any, parent: Block | None = None, index: int | None = None
     ):
         from mrcrowbar.unknown import Unknown
 
@@ -1273,7 +1252,7 @@ class BlockField( StreamField ):
                 )
 
     def get_element_size(
-        self, element: Any, parent: Optional[Block] = None, index: Optional[int] = None
+        self, element: Any, parent: Block | None = None, index: int | None = None
     ):
         fill = property_get( self.fill, parent )
         if self.transform:
@@ -1327,21 +1306,21 @@ class StringField( StreamField ):
         offset: OffsetType = Chain(),
         *,
         default: Any = None,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        transform: Optional[Transform] = None,
-        encoding: Optional[str] = None,
-        length_field: Optional[Type[NumberField]] = None,
-        fill: Optional[bytes] = None,
-        element_length: Optional[int] = None,
-        element_end: Optional[bytes] = None,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        transform: Transform | None = None,
+        encoding: str | None = None,
+        length_field: type[NumberField] | None = None,
+        fill: bytes | None = None,
+        element_length: int | None = None,
+        element_end: bytes | None = None,
         zero_pad: bool = False,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ):
         """Field class for string data.
 
@@ -1661,7 +1640,7 @@ class StringField( StreamField ):
         stream = property_get( self.stream, parent )
         is_array = stream or (count is not None)
         if is_array:
-            return (("builtins", "list"), tuple( (v for v in value) ))
+            return (("builtins", "list"), tuple( v for v in value ))
         return value
 
 
@@ -1688,27 +1667,25 @@ class PString( StringField ):
 class NumberField( StreamField ):
     def __init__(
         self,
-        format_type: Union[encoding.NumberType, Ref[encoding.NumberType]],
-        field_size: Union[int, Ref[int]],
-        signedness: Union[encoding.SignedEncoding, Ref[encoding.SignedEncoding]],
-        endian: Union[
-            None, encoding.EndianEncoding, Ref[Union[None, encoding.EndianEncoding]]
-        ],
-        format_range: Optional[Sequence[int]],
+        format_type: encoding.NumberType | Ref[encoding.NumberType],
+        field_size: int | Ref[int],
+        signedness: encoding.SignedEncoding | Ref[encoding.SignedEncoding],
+        endian: (None | encoding.EndianEncoding | Ref[None | encoding.EndianEncoding]),
+        format_range: Sequence[int] | None,
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ):
         """Base class for numeric value Fields.
 
@@ -1803,8 +1780,8 @@ class NumberField( StreamField ):
         self,
         offset: int,
         buffer: common.BytesReadType,
-        parent: Optional[Block] = None,
-        index: Optional[int] = None,
+        parent: Block | None = None,
+        index: int | None = None,
     ) -> encoding.NumberType:
         format_type = property_get( self.format_type, parent )
         assert format_type is not None
@@ -1946,7 +1923,7 @@ class NumberField( StreamField ):
             ),
         )
 
-    def serialise( self, value: Any, parent: Optional[Block] = None ):
+    def serialise( self, value: Any, parent: Block | None = None ):
         self.validate( value, parent )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
@@ -1967,27 +1944,27 @@ class Bits( NumberField ):
         bits: int = 0,
         *,
         size: int = 1,
-        endian: Optional[encoding.EndianEncoding] = None,
+        endian: encoding.EndianEncoding | None = None,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ):
-        SIZES: Dict[
+        SIZES: dict[
             int,
-            Tuple[
+            tuple[
                 encoding.NumberType,
                 int,
                 encoding.SignedEncoding,
-                Optional[encoding.EndianEncoding],
+                encoding.EndianEncoding | None,
                 Sequence[int],
             ],
         ] = {
@@ -2061,8 +2038,8 @@ class Bits( NumberField ):
         self,
         offset: int,
         buffer: common.BytesReadType,
-        parent: Optional["Block"] = None,
-        index: Optional[int] = None,
+        parent: Block | None = None,
+        index: int | None = None,
     ) -> int:
         result, end_offset = super().get_element_from_buffer(
             offset, buffer, parent, index=index
@@ -2149,17 +2126,17 @@ class Bits8( Bits ):
         bits: int = 0,
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             offset=offset,
@@ -2187,17 +2164,17 @@ class Bits16( Bits ):
         bits: int = 0,
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             offset=offset,
@@ -2225,17 +2202,17 @@ class Bits32( Bits ):
         bits: int = 0,
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             offset=offset,
@@ -2263,17 +2240,17 @@ class Bits64( Bits ):
         bits: int = 0,
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             offset=offset,
@@ -2300,17 +2277,17 @@ class Int8( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2340,17 +2317,17 @@ class Int16_LE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2380,17 +2357,17 @@ class Int24_LE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2420,17 +2397,17 @@ class Int32_LE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2460,17 +2437,17 @@ class Int64_LE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2500,17 +2477,17 @@ class UInt8( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2540,17 +2517,17 @@ class UInt16_LE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2580,17 +2557,17 @@ class UInt24_LE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2620,17 +2597,17 @@ class UInt32_LE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2660,17 +2637,17 @@ class UInt64_LE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2700,17 +2677,17 @@ class Float32_LE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             float,
@@ -2740,17 +2717,17 @@ class Float64_LE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             float,
@@ -2780,17 +2757,17 @@ class Int16_BE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2820,17 +2797,17 @@ class Int24_BE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2860,17 +2837,17 @@ class Int32_BE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2900,17 +2877,17 @@ class Int64_BE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2940,17 +2917,17 @@ class UInt16_BE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -2980,17 +2957,17 @@ class UInt24_BE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3020,17 +2997,17 @@ class UInt32_BE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3060,17 +3037,17 @@ class UInt64_BE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3100,17 +3077,17 @@ class Float32_BE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             float,
@@ -3140,17 +3117,17 @@ class Float64_BE( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             float,
@@ -3180,17 +3157,17 @@ class Int16_P( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3220,17 +3197,17 @@ class Int24_P( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3260,17 +3237,17 @@ class Int32_P( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3300,17 +3277,17 @@ class Int64_P( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3340,17 +3317,17 @@ class UInt16_P( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3380,17 +3357,17 @@ class UInt24_P( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3420,17 +3397,17 @@ class UInt32_P( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3460,17 +3437,17 @@ class UInt64_P( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             int,
@@ -3500,17 +3477,17 @@ class Float32_P( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             float,
@@ -3540,17 +3517,17 @@ class Float64_P( NumberField ):
         offset: OffsetType = Chain(),
         *,
         default: int = 0,
-        count: Optional[Union[int, Ref[int]]] = None,
-        length: Optional[Union[int, Ref[int]]] = None,
-        end_offset: Optional[Union[int, Ref[int]]] = None,
-        stream: Union[bool, Ref[bool]] = False,
-        alignment: Union[int, Ref[int]] = 1,
-        stream_end: Optional[bytes] = None,
-        stop_check: Optional[StopCheckType] = None,
-        bitmask: Optional[bytes] = None,
-        range: Optional[Sequence[int]] = None,
-        enum: Optional[IntEnum] = None,
-        exists: Union[bool, int, Ref[bool], Ref[int]] = True,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        bitmask: bytes | None = None,
+        range: Sequence[int] | None = None,
+        enum: IntEnum | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
     ) -> None:
         super().__init__(
             float,

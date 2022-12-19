@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 from enum import IntEnum
 from typing import Callable
 
@@ -302,7 +301,7 @@ class BitmapCompressor( mrc.Transform ):
             length = test + 1
             if test & 0x80:
                 length = ((test ^ 0xff) & 0xff) + 2
-                result.extend( (buffer[pointer] for i in range( length )) )
+                result.extend( buffer[pointer] for i in range( length ) )
                 pointer += 1
             else:
                 result.extend( buffer[pointer : pointer + length] )
@@ -690,7 +689,7 @@ LINGO_V4_LIST = [
 ]
 
 # add stubs for missing instructions
-LINGO_COVERAGE = set( (x[1] for x in LINGO_V4_LIST) )
+LINGO_COVERAGE = {x[1] for x in LINGO_V4_LIST}
 for i in range( 0x00, 0x40 ):
     if i not in LINGO_COVERAGE:
         LINGO_V4_LIST.append( (f"UNK_{i:02X}", i, Blank) )
@@ -1137,7 +1136,7 @@ class MV93_V5( mrc.Block ):
     )
 
 
-class DirectorV4Parser( object ):
+class DirectorV4Parser:
     def __init__( self, dirfile ):
         self.dirfile = dirfile
         self.map_offset = dirfile.get_field_start_offset(
@@ -1299,9 +1298,7 @@ class DirectorV4Parser( object ):
                             LingoV4.PUSH_OBJECT,
                             LingoV4.PUSH_NAME,
                         ):
-                            print(
-                                "{} # {}".format( inst, name_lookup( inst.obj.value ) )
-                            )
+                            print( f"{inst} # {name_lookup( inst.obj.value )}" )
                         elif inst.id in (LingoV4.PUSH_CONST,):
                             print(
                                 "{} # {}".format(
@@ -1319,7 +1316,7 @@ class DirectorV4Parser( object ):
                                         f.args.name_index[inst.obj.value // 6]
                                     )
                                     if f.args.name_index
-                                    else "unk_{}".format( inst.obj.value // 6 ),
+                                    else f"unk_{inst.obj.value // 6}",
                                 )
                             )
                         elif inst.id in (
@@ -1333,7 +1330,7 @@ class DirectorV4Parser( object ):
                                         f.vars.name_index[inst.obj.value // 6]
                                     )
                                     if f.vars.name_index
-                                    else "unk_{}".format( inst.obj.value // 6 ),
+                                    else f"unk_{inst.obj.value // 6}",
                                 )
                             )
                         else:

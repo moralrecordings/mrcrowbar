@@ -6,19 +6,7 @@ import logging
 import math
 import re
 import time
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Iterator,
-    List,
-    Match,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Match, Sequence
 
 if TYPE_CHECKING:
     from mrcrowbar.blocks import Block
@@ -103,7 +91,7 @@ def grep(
     fixed_string: bool = False,
     hex_format: bool = False,
     ignore_case: bool = False,
-) -> List[Match[bytes]]:
+) -> list[Match[bytes]]:
     """Find the contents of a byte string that matches a regular expression pattern.
 
     pattern
@@ -130,14 +118,14 @@ def grep(
 
 
 def find_iter(
-    substring: Union[str, BytesReadType, Sequence[BytesReadType], Sequence[str]],
-    source: Union[str, BytesReadType],
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    substring: str | BytesReadType | Sequence[BytesReadType] | Sequence[str],
+    source: str | BytesReadType,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     overlap: bool = False,
     ignore_case: bool = False,
-    encodings: Union[List[str], Literal["all"]] = ["utf_8"],
+    encodings: list[str] | Literal["all"] = ["utf_8"],
     brute: bool = False,
     char_size: int = 1,
 ) -> Iterator[Any]:
@@ -287,10 +275,10 @@ def find_iter(
                 if len( subs ) == 1:
                     continue
                 # find the letter mappings that appear in all substrings
-                mappings = set( m[3][letter] for m in matches[subs[0]] )
+                mappings = {m[3][letter] for m in matches[subs[0]]}
                 for sub_id in subs[1:]:
                     mappings.intersection_update(
-                        set( m[3][letter] for m in matches[sub_id] )
+                        {m[3][letter] for m in matches[sub_id]}
                     )
 
                 # remove the letter mappings which are unique
@@ -307,14 +295,14 @@ def find_iter(
 
 
 def find(
-    substring: Union[str, BytesReadType, Sequence[str], Sequence[BytesReadType]],
-    source: Union[str, BytesReadType],
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    substring: str | BytesReadType | Sequence[str] | Sequence[BytesReadType],
+    source: str | BytesReadType,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     overlap: bool = False,
     ignore_case: bool = False,
-    encodings: Union[List[str], Literal["all"]] = ["utf_8"],
+    encodings: list[str] | Literal["all"] = ["utf_8"],
     brute: bool = False,
     char_size: int = 1,
 ):
@@ -370,9 +358,9 @@ def find(
 def grepdump_iter(
     pattern: str,
     source: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     encoding: str = "utf8",
     fixed_string: bool = False,
     hex_format: bool = False,
@@ -380,10 +368,10 @@ def grepdump_iter(
     major_len: int = 8,
     minor_len: int = 4,
     colour: bool = True,
-    address_base: Optional[int] = None,
+    address_base: int | None = None,
     before: int = 2,
     after: int = 2,
-    title: Optional[str] = None,
+    title: str | None = None,
     format: Literal["hex", "text", "json"] = "hex",
 ) -> Iterator[str]:
     """Return an iterator that finds the contents of a byte string that matches a regular expression pattern and renders the result.
@@ -511,9 +499,9 @@ def grepdump_iter(
 def grepdump(
     pattern: str,
     source: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     encoding: str = "utf8",
     fixed_string: bool = False,
     hex_format: bool = False,
@@ -521,10 +509,10 @@ def grepdump(
     major_len: int = 8,
     minor_len: int = 4,
     colour: bool = True,
-    address_base: Optional[int] = None,
+    address_base: int | None = None,
     before: int = 2,
     after: int = 2,
-    title: Optional[str] = None,
+    title: str | None = None,
     format: Literal["hex", "text", "json"] = "hex",
 ) -> None:
     """Find the contents of a byte string that matches a regular expression pattern and renders the result.
@@ -607,9 +595,9 @@ def grepdump(
 
 def search_iter(
     pattern: str,
-    source: "Block",
+    source: Block,
     prefix: str = "source",
-    depth: Optional[int] = None,
+    depth: int | None = None,
     encoding: str = "utf8",
     fixed_string: bool = False,
     hex_format: bool = False,
@@ -654,7 +642,7 @@ def search_iter(
     fields = source.get_field_names()
 
     def check_field(
-        offset: int, size: int, data: Union[Block, Chunk], pref: str
+        offset: int, size: int, data: Block | Chunk, pref: str
     ) -> Iterator[str]:
         for match in match_list:
             if offset <= match[0] < offset + size or offset <= match[1] < offset + size:
@@ -714,14 +702,14 @@ def search_iter(
 
 def search(
     pattern: str,
-    source: "Block",
+    source: Block,
     prefix: str = "source",
-    depth: Optional[int] = None,
+    depth: int | None = None,
     encoding: str = "utf8",
     fixed_string: bool = False,
     hex_format: bool = False,
     ignore_case: bool = False,
-) -> List[str]:
+) -> list[str]:
     """Find the Fields inside a Block that match a regular expression pattern.
 
     pattern
@@ -757,23 +745,23 @@ def search(
 
 
 def finddump_iter(
-    substring: Union[str, BytesReadType, Sequence[BytesReadType], Sequence[str]],
-    source: Union[str, BytesReadType],
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    substring: str | BytesReadType | Sequence[BytesReadType] | Sequence[str],
+    source: str | BytesReadType,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     overlap: bool = False,
     ignore_case: bool = False,
-    encodings: Union[List[str], Literal["all"]] = ["utf_8"],
+    encodings: list[str] | Literal["all"] = ["utf_8"],
     brute: bool = False,
     char_size: int = 1,
     major_len: int = 8,
     minor_len: int = 4,
     colour: bool = True,
-    address_base: Optional[int] = None,
+    address_base: int | None = None,
     before: int = 2,
     after: int = 2,
-    title: Optional[str] = None,
+    title: str | None = None,
     format: Literal["hex", "text", "json"] = "hex",
 ):
     """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings, and renders the result.
@@ -927,23 +915,23 @@ def finddump_iter(
 
 
 def finddump(
-    substring: Union[str, BytesReadType, Sequence[BytesReadType], Sequence[str]],
-    source: Union[str, BytesReadType],
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    substring: str | BytesReadType | Sequence[BytesReadType] | Sequence[str],
+    source: str | BytesReadType,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     overlap: bool = False,
     ignore_case: bool = False,
-    encodings: Union[List[str], Literal["all"]] = ["utf_8"],
+    encodings: list[str] | Literal["all"] = ["utf_8"],
     brute: bool = False,
     char_size: int = 1,
     major_len: int = 8,
     minor_len: int = 4,
     colour: bool = True,
-    address_base: Optional[int] = None,
+    address_base: int | None = None,
     before: int = 2,
     after: int = 2,
-    title: Optional[str] = None,
+    title: str | None = None,
     format: Literal["hex", "text", "json"] = "hex",
 ) -> None:
     """Return an iterator that finds every location of a substring in a source byte string, checking against multiple encodings, and renders the result.
@@ -1028,9 +1016,9 @@ def finddump(
 def diff_iter(
     source1: BytesReadType,
     source2: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-) -> Iterator[Tuple[int, int]]:
+    start: int | None = None,
+    end: int | None = None,
+) -> Iterator[tuple[int, int]]:
     """Perform a diff between two equal-sized binary strings and
     return an iterator of (offset, size) tuples denoting the differences.
 
@@ -1069,9 +1057,9 @@ def diff_iter(
 def diff(
     source1: BytesReadType,
     source2: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-) -> List[Tuple[int, int]]:
+    start: int | None = None,
+    end: int | None = None,
+) -> list[tuple[int, int]]:
     """Perform a diff between two equal-sized binary strings and
     return a list of (offset, size) tuples denoting the differences.
 
@@ -1091,8 +1079,8 @@ def diff(
 
 
 def objdiff_iter(
-    source1: Any, source2: Any, prefix: str = "source", depth: Optional[int] = None
-) -> Iterator[Tuple[str, Any, Any]]:
+    source1: Any, source2: Any, prefix: str = "source", depth: int | None = None
+) -> Iterator[tuple[str, Any, Any]]:
     """Return an iterator that finds differences between two objects.
 
     source1
@@ -1162,8 +1150,8 @@ def objdiff_iter(
 
 
 def objdiff(
-    source1: Any, source2: Any, prefix: str = "source", depth: Optional[int] = None
-) -> List[Tuple[str, Any, Any]]:
+    source1: Any, source2: Any, prefix: str = "source", depth: int | None = None
+) -> list[tuple[str, Any, Any]]:
     """Find differences between two objects.
 
     source1
@@ -1182,7 +1170,7 @@ def objdiff(
 
 
 def objdiffdump_iter(
-    source1: Any, source2: Any, prefix: str = "source", depth: Optional[int] = None
+    source1: Any, source2: Any, prefix: str = "source", depth: int | None = None
 ) -> Iterator[str]:
     """Return an iterator that renders a list of differences between two objects.
 
@@ -1215,7 +1203,7 @@ def objdiffdump_iter(
 
 
 def objdiffdump(
-    source1: Any, source2: Any, prefix: str = "source", depth: Optional[int] = None
+    source1: Any, source2: Any, prefix: str = "source", depth: int | None = None
 ) -> None:
     """Print a list of differences between two objects.
 
@@ -1237,12 +1225,12 @@ def objdiffdump(
 
 def histdump_iter(
     source: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     samples: int = 0x10000,
     width: int = 64,
-    address_base: Optional[int] = None,
+    address_base: int | None = None,
 ) -> Iterator[str]:
     """Return an iterator that renders a histogram of a byte string.
 
@@ -1288,12 +1276,12 @@ def histdump_iter(
 
 def histdump(
     source: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     samples: int = 0x10000,
     width: int = 64,
-    address_base: Optional[int] = None,
+    address_base: int | None = None,
 ) -> None:
     """Print a histogram of a byte string.
 
@@ -1326,13 +1314,13 @@ def histdump(
 
 def hexdump_iter(
     source: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     major_len: int = 8,
     minor_len: int = 4,
     colour: bool = True,
-    address_base: Optional[int] = None,
+    address_base: int | None = None,
     show_offsets: bool = True,
     show_glyphs: bool = True,
 ) -> Iterator[str]:
@@ -1394,13 +1382,13 @@ def hexdump_iter(
 
 def hexdump(
     source: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     major_len: int = 8,
     minor_len: int = 4,
     colour: bool = True,
-    address_base: Optional[int] = None,
+    address_base: int | None = None,
     show_offsets: bool = True,
     show_glyphs: bool = True,
 ) -> None:
@@ -1456,15 +1444,15 @@ def hexdump(
 def diffdump_iter(
     source1: BytesReadType,
     source2: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     major_len: int = 8,
     minor_len: int = 4,
     colour: bool = True,
     before: int = 2,
     after: int = 2,
-    address_base: Optional[int] = None,
+    address_base: int | None = None,
 ) -> Iterator[str]:
     """Return an iterator that renders the differences between two byte strings.
 
@@ -1511,7 +1499,7 @@ def diffdump_iter(
     end = min( end, max( len( source1 ), len( source2 ) ) )
     address_base_offset = address_base - start if address_base is not None else 0
 
-    diff_lines: List[int] = []
+    diff_lines: list[int] = []
     for offset in range( start, end, stride ):
         if source1[offset : offset + stride] != source2[offset : offset + stride]:
             diff_lines.append( offset )
@@ -1538,7 +1526,7 @@ def diffdump_iter(
             yield "..."
             skip = False
         if show_lines[offset] == 2:
-            highlights: Dict[int, ColourType] = {}
+            highlights: dict[int, ColourType] = {}
             for (o, l) in diff_iter(
                 source1, source2, start=offset, end=offset + stride
             ):
@@ -1595,15 +1583,15 @@ def diffdump_iter(
 def diffdump(
     source1: BytesReadType,
     source2: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     major_len: int = 8,
     minor_len: int = 4,
     colour: bool = True,
     before: int = 2,
     after: int = 2,
-    address_base: Optional[int] = None,
+    address_base: int | None = None,
 ) -> None:
     """Print the differences between two byte strings.
 
@@ -1660,9 +1648,9 @@ def diffdump(
 
 def stats(
     source: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     width: int = 64,
     height: int = 12,
 ) -> None:
@@ -1691,12 +1679,12 @@ def stats(
 
 def pixdump_iter(
     source: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     width: int = 64,
-    height: Optional[int] = None,
-    palette: Optional[Sequence[ColourType]] = None,
+    height: int | None = None,
+    palette: Sequence[ColourType] | None = None,
 ) -> Iterator[str]:
     """Return an iterator which renders the contents of a byte string as a 256 colour image.
 
@@ -1754,12 +1742,12 @@ def pixdump_iter(
 
 def pixdump(
     source: BytesReadType,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
     width: int = 64,
-    height: Optional[int] = None,
-    palette: Optional[Sequence[ColourType]] = None,
+    height: int | None = None,
+    palette: Sequence[ColourType] | None = None,
 ) -> None:
     """Print the contents of a byte string as a 256 colour image.
 
@@ -1793,11 +1781,11 @@ def pixdump_sweep(
     source: BytesReadType,
     range: Sequence[int] = (64,),
     delay: int = 0,
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    length: Optional[int] = None,
-    height: Optional[int] = None,
-    palette: Optional[Sequence[ColourType]] = None,
+    start: int | None = None,
+    end: int | None = None,
+    length: int | None = None,
+    height: int | None = None,
+    palette: Sequence[ColourType] | None = None,
 ) -> None:
     """Test printing the contents of a byte string as a 256 colour image for a range of widths.
 
@@ -1900,32 +1888,32 @@ to_int24_le: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 3, "signed", "littl
 to_uint24_le: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 3, "unsigned", "little")]  # type: ignore
 to_int24_be: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 3, "signed", "big")]  # type: ignore
 to_uint24_be: Callable[[int], bytes] = enco.TO_RAW_TYPE[(int, 3, "unsigned", "big")]  # type: ignore
-from_uint8_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "unsigned", None)]  # type: ignore
-from_uint8_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "unsigned", "little")]  # type: ignore
-from_uint8_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "unsigned", "big")]  # type: ignore
-from_int8_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "signed", None)]  # type: ignore
-from_int8_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "signed", "little")]  # type: ignore
-from_int8_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "signed", "big")]  # type: ignore
-from_uint16_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "unsigned", "little")]  # type: ignore
-from_uint16_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "unsigned", "big")]  # type: ignore
-from_int16_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "signed", "little")]  # type: ignore
-from_int16_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "signed", "big")]  # type: ignore
-from_uint32_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "unsigned", "little")]  # type: ignore
-from_uint32_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "unsigned", "big")]  # type: ignore
-from_int32_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "signed", "little")]  # type: ignore
-from_int32_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "signed", "big")]  # type: ignore
-from_uint64_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "unsigned", "little")]  # type: ignore
-from_uint64_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "unsigned", "big")]  # type: ignore
-from_int64_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "signed", "little")]  # type: ignore
-from_int64_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "signed", "big")]  # type: ignore
-from_float32_le_array: Callable[[BytesReadType], List[float]] = enco.FROM_RAW_TYPE_ARRAY[(float, 4, "signed", "little")]  # type: ignore
-from_float32_be_array: Callable[[BytesReadType], List[float]] = enco.FROM_RAW_TYPE_ARRAY[(float, 4, "signed", "big")]  # type: ignore
-from_float64_le_array: Callable[[BytesReadType], List[float]] = enco.FROM_RAW_TYPE_ARRAY[(float, 8, "signed", "little")]  # type: ignore
-from_float64_be_array: Callable[[BytesReadType], List[float]] = enco.FROM_RAW_TYPE_ARRAY[(float, 8, "signed", "big")]  # type: ignore
-from_int24_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "signed", "little")]  # type: ignore
-from_uint24_le_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "unsigned", "little")]  # type: ignore
-from_int24_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "signed", "big")]  # type: ignore
-from_uint24_be_array: Callable[[BytesReadType], List[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "unsigned", "big")]  # type: ignore
+from_uint8_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "unsigned", None)]  # type: ignore
+from_uint8_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "unsigned", "little")]  # type: ignore
+from_uint8_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "unsigned", "big")]  # type: ignore
+from_int8_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "signed", None)]  # type: ignore
+from_int8_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "signed", "little")]  # type: ignore
+from_int8_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 1, "signed", "big")]  # type: ignore
+from_uint16_le_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "unsigned", "little")]  # type: ignore
+from_uint16_be_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "unsigned", "big")]  # type: ignore
+from_int16_le_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "signed", "little")]  # type: ignore
+from_int16_be_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 2, "signed", "big")]  # type: ignore
+from_uint32_le_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "unsigned", "little")]  # type: ignore
+from_uint32_be_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "unsigned", "big")]  # type: ignore
+from_int32_le_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "signed", "little")]  # type: ignore
+from_int32_be_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 4, "signed", "big")]  # type: ignore
+from_uint64_le_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "unsigned", "little")]  # type: ignore
+from_uint64_be_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "unsigned", "big")]  # type: ignore
+from_int64_le_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "signed", "little")]  # type: ignore
+from_int64_be_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 8, "signed", "big")]  # type: ignore
+from_float32_le_array: Callable[[BytesReadType], list[float]] = enco.FROM_RAW_TYPE_ARRAY[(float, 4, "signed", "little")]  # type: ignore
+from_float32_be_array: Callable[[BytesReadType], list[float]] = enco.FROM_RAW_TYPE_ARRAY[(float, 4, "signed", "big")]  # type: ignore
+from_float64_le_array: Callable[[BytesReadType], list[float]] = enco.FROM_RAW_TYPE_ARRAY[(float, 8, "signed", "little")]  # type: ignore
+from_float64_be_array: Callable[[BytesReadType], list[float]] = enco.FROM_RAW_TYPE_ARRAY[(float, 8, "signed", "big")]  # type: ignore
+from_int24_le_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "signed", "little")]  # type: ignore
+from_uint24_le_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "unsigned", "little")]  # type: ignore
+from_int24_be_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "signed", "big")]  # type: ignore
+from_uint24_be_array: Callable[[BytesReadType], list[int]] = enco.FROM_RAW_TYPE_ARRAY[(int, 3, "unsigned", "big")]  # type: ignore
 to_uint8_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 1, "unsigned", None)]  # type: ignore
 to_uint8_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 1, "unsigned", "little")]  # type: ignore
 to_uint8_array: Callable[[Sequence[int]], bytes] = enco.TO_RAW_TYPE_ARRAY[(int, 1, "unsigned", "big")]  # type: ignore

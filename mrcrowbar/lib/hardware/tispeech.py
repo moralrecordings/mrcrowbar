@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, List, NamedTuple, Sequence, Tuple, Union
+from typing import Callable, NamedTuple, Sequence, Union
 
 from typing_extensions import TypedDict
 
@@ -11,7 +11,7 @@ from mrcrowbar.common import BytesReadType
 
 # LPC chip constants taken from mame/src/devices/sound/tms5110r.hxx
 
-TI_0280_PATENT_ENERGY: Tuple[int, ...] = (
+TI_0280_PATENT_ENERGY: tuple[int, ...] = (
     0,
     0,
     1,
@@ -29,7 +29,7 @@ TI_0280_PATENT_ENERGY: Tuple[int, ...] = (
     86,
     0,
 )
-TI_028X_LATER_ENERGY: Tuple[int, ...] = (
+TI_028X_LATER_ENERGY: tuple[int, ...] = (
     0,
     1,
     2,
@@ -47,7 +47,7 @@ TI_028X_LATER_ENERGY: Tuple[int, ...] = (
     114,
     0,
 )
-TI_0280_2801_PATENT_PITCH: Tuple[int, ...] = (
+TI_0280_2801_PATENT_PITCH: tuple[int, ...] = (
     0,
     41,
     43,
@@ -81,7 +81,7 @@ TI_0280_2801_PATENT_PITCH: Tuple[int, ...] = (
     147,
     153,
 )
-TI_5110_PITCH: Tuple[int, ...] = (
+TI_5110_PITCH: tuple[int, ...] = (
     0,
     15,
     16,
@@ -115,7 +115,7 @@ TI_5110_PITCH: Tuple[int, ...] = (
     144,
     159,
 )
-TI_5220_PITCH: Tuple[int, ...] = (
+TI_5220_PITCH: tuple[int, ...] = (
     0,
     15,
     16,
@@ -181,7 +181,7 @@ TI_5220_PITCH: Tuple[int, ...] = (
     153,
     159,
 )
-TI_0280_PATENT_LPC: Tuple[Tuple[int, ...], ...] = (
+TI_0280_PATENT_LPC: tuple[tuple[int, ...], ...] = (
     # K1
     (
         -501,
@@ -320,7 +320,7 @@ TI_0280_PATENT_LPC: Tuple[Tuple[int, ...], ...] = (
     # K10
     (-179, -122, -61, 1, 62, 123, 179, 231),
 )
-TI_5110_5220_LPC: Tuple[Tuple[int, ...], ...] = (
+TI_5110_5220_LPC: tuple[tuple[int, ...], ...] = (
     # K1
     (
         -501,
@@ -428,7 +428,7 @@ TI_5110_5220_LPC: Tuple[Tuple[int, ...], ...] = (
 
 
 find_closest_index: Callable[
-    [Tuple[int, ...], int], int
+    [tuple[int, ...], int], int
 ] = lambda source, value: source.index(
     sorted( source, key=lambda x: abs( x - value ) )[0]
 )
@@ -504,14 +504,14 @@ class SpeakAndSpellROM( mrc.Block ):
 
 
 class TISpeechSample( TypedDict ):
-    frames: List[FrameType]
+    frames: list[FrameType]
     size: int
 
 
 class TISpeechROM( TypedDict ):
-    index: List[int]
-    segments: List[bytes]
-    streams: List[TISpeechSample]
+    index: list[int]
+    segments: list[bytes]
+    streams: list[TISpeechSample]
 
 
 def parse_tms5110_rom( buffer: BytesReadType ) -> TISpeechROM:
@@ -536,15 +536,15 @@ def parse_tms5220_rom( buffer: BytesReadType ) -> TISpeechROM:
     return TISpeechROM( index=index, segments=segments, streams=streams )
 
 
-class TMSBase( object ):
+class TMSBase:
     ENERGY_BITS: int
     REPEAT_BITS: int
     PITCH_BITS: int
-    K_BITS: Tuple[int, ...]
-    ENERGY_LUT: Tuple[int, ...]
+    K_BITS: tuple[int, ...]
+    ENERGY_LUT: tuple[int, ...]
     ENERGY_LUT_FLOOR: int
-    PITCH_LUT: Tuple[int, ...]
-    K_LUT: Tuple[Tuple[int, ...], ...]
+    PITCH_LUT: tuple[int, ...]
+    K_LUT: tuple[tuple[int, ...], ...]
 
     @classmethod
     def dump_stream( cls, frames: Sequence[FrameType] ) -> bytes:
@@ -637,7 +637,7 @@ class TMSBase( object ):
     @classmethod
     def parse_stream( cls, buffer: BytesReadType ) -> TISpeechSample:
 
-        frames: List[FrameType] = []
+        frames: list[FrameType] = []
         reader = bits.BitStream( buffer, io_endian="big", bit_endian="little" )
 
         while not reader.tell() == (len( buffer ), 0):

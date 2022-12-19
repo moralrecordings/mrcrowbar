@@ -22,7 +22,6 @@ http://www.shikadi.net/moddingwiki/Commander_Keen_1-3_Level_format
 
 from __future__ import annotations
 
-import itertools
 import logging
 
 logger = logging.getLogger( __name__ )
@@ -86,7 +85,7 @@ class LZWCompressor( mrc.Transform ):
 
         def add_to_lookup( state, entry ):
             if len( lookup ) < (1 << max_bits):
-                logger.debug( "lookup[{}] = {}".format( len( lookup ), entry ) )
+                logger.debug( f"lookup[{len( lookup )}] = {entry}" )
                 lookup.append( entry )
                 if len( lookup ) == (1 << state["usebits"]) - 1:
                     state["usebits"] = min( state["usebits"] + 1, max_bits )
@@ -95,11 +94,11 @@ class LZWCompressor( mrc.Transform ):
 
         fcode = bs.read( state["usebits"] )
         match = lookup[fcode]
-        logger.debug( "fcode={},match={}".format( fcode, match ) )
+        logger.debug( f"fcode={fcode},match={match}" )
         output.extend( match )
         while True:
             ncode = bs.read( state["usebits"] )
-            logger.debug( "ncode={}".format( ncode ) )
+            logger.debug( f"ncode={ncode}" )
             if ncode == 257:
                 # end of data
                 break
@@ -110,8 +109,8 @@ class LZWCompressor( mrc.Transform ):
                 nmatch = lookup[ncode]
             else:
                 nmatch = match + match[0:1]
-            logger.debug( "match={}".format( match ) )
-            logger.debug( "nmatch={}".format( nmatch ) )
+            logger.debug( f"match={match}" )
+            logger.debug( f"nmatch={nmatch}" )
             output.extend( nmatch )
 
             # add code to lookup

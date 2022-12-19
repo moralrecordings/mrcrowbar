@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import itertools
 import math
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Union
 
 from mrcrowbar.common import BytesReadType
 
 
-class BaseColour( object ):
+class BaseColour:
     r = 0.0
     g = 0.0
     b = 0.0
@@ -56,7 +56,7 @@ class BaseColour( object ):
         return 0.299 * self.r + 0.587 * self.g + 0.114 * self.b
 
     @property
-    def rgba( self ) -> Tuple[int, int, int, int]:
+    def rgba( self ) -> tuple[int, int, int, int]:
         return (self.r_8, self.g_8, self.b_8, self.a_8)
 
     def set_rgb( self, r_8: int, g_8: int, b_8: int ) -> BaseColour:
@@ -87,7 +87,7 @@ class BaseColour( object ):
     def repr( self ) -> str:
         return f"#{self.r_8:02X}{self.g_8:02X}{self.b_8:02X}{self.a_8:02X}"
 
-    def ansi_format( self, text: Optional[str] = None ) -> str:
+    def ansi_format( self, text: str | None = None ) -> str:
         from mrcrowbar.ansi import format_string
 
         if text is None:
@@ -95,7 +95,7 @@ class BaseColour( object ):
         colour = White() if self.luma < 0.5 else Black()
         return format_string( text, colour, self )
 
-    def print( self, text: Optional[str] = None ) -> None:
+    def print( self, text: str | None = None ) -> None:
         print( self.ansi_format( text ) )
 
     def __eq__( self, other: Any ) -> bool:
@@ -130,7 +130,7 @@ ColourType = Optional[
 ]
 
 
-def normalise_rgba( raw_colour: ColourType ) -> Tuple[int, int, int, int]:
+def normalise_rgba( raw_colour: ColourType ) -> tuple[int, int, int, int]:
     if raw_colour is None:
         return (0, 0, 0, 0)
     elif isinstance( raw_colour, BaseColour ):
@@ -149,7 +149,7 @@ def to_palette_bytes(
 ) -> bytes:
     assert stride >= max( order )
     assert min( order ) >= 0
-    blanks = tuple( (0 for _ in range( stride - max( order ) - 1 )) )
+    blanks = tuple( 0 for _ in range( stride - max( order ) - 1 ) )
 
     def channel( colour: BaseColour, order: int ) -> int:
         if order == 0:
@@ -164,7 +164,7 @@ def to_palette_bytes(
 
     return bytes(
         itertools.chain(
-            *(tuple( (channel( c, o ) for o in order) ) + blanks for c in palette)
+            *(tuple( channel( c, o ) for o in order ) + blanks for c in palette)
         )
     )
 
@@ -172,16 +172,18 @@ def to_palette_bytes(
 def from_palette_bytes(
     palette_bytes: BytesReadType,
     stride: int = 3,
-    order: Union[Tuple[int], Tuple[int, int, int], Tuple[int, int, int, int]] = (
+    order: tuple[int]
+    | tuple[int, int, int]
+    | tuple[int, int, int, int] = (
         0,
         1,
         2,
     ),
-) -> List[BaseColour]:
+) -> list[BaseColour]:
     assert stride >= max( order )
     assert min( order ) >= 0
     assert len( order ) in (1, 3, 4)
-    result: List[BaseColour] = []
+    result: list[BaseColour] = []
     for i in range( math.floor( len( palette_bytes ) / stride ) ):
         if len( order ) == 1:
             result.append(
@@ -211,11 +213,11 @@ def from_palette_bytes(
     return result
 
 
-def mix( a: Union[int, float], b: Union[int, float], alpha: float ) -> float:
+def mix( a: int | float, b: int | float, alpha: float ) -> float:
     return (b - a) * alpha + a
 
 
-def mix_line( points: Sequence[Union[int, float]], alpha: float ) -> float:
+def mix_line( points: Sequence[int | float], alpha: float ) -> float:
     count = len( points ) - 1
     if alpha == 1:
         return points[-1]
@@ -246,7 +248,7 @@ def mix_colour_line( points: Sequence[BaseColour], alpha: float ) -> BaseColour:
     )
 
 
-TEST_PALETTE_POINTS: List[BaseColour] = [
+TEST_PALETTE_POINTS: list[BaseColour] = [
     BaseColour().set_rgb( 0x00, 0x00, 0x00 ),
     BaseColour().set_rgb( 0x70, 0x34, 0x00 ),
     BaseColour().set_rgb( 0xe8, 0x6c, 0x00 ),
@@ -257,7 +259,7 @@ TEST_PALETTE_POINTS: List[BaseColour] = [
 
 def gradient_to_palette(
     points: Sequence[BaseColour] = TEST_PALETTE_POINTS, size: int = 256
-) -> List[BaseColour]:
+) -> list[BaseColour]:
     return [mix_colour_line( points, i / max( size - 1, 1 ) ) for i in range( size )]
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Tuple, Union
 
 from mrcrowbar import common, utils
 from mrcrowbar.version import __version__
@@ -304,7 +304,7 @@ ARGS_FIND: ArgsType = {
 
 
 def get_parser(
-    args: ArgsType, description: Optional[str] = None, epilog: Optional[str] = None
+    args: ArgsType, description: str | None = None, epilog: str | None = None
 ):
     parser = argparse.ArgumentParser( description=description, epilog=epilog )
     for arg, spec in args.items():
@@ -387,7 +387,7 @@ def mrcdiff():
 
     before = raw_args.before if not raw_args.show_all else None
     after = raw_args.after if not raw_args.show_all else None
-    sources: List[Tuple[str, str]] = []
+    sources: list[tuple[str, str]] = []
     if os.path.isdir( raw_args.source1 ) and os.path.isdir( raw_args.source2 ):
         for f in os.listdir( raw_args.source1 ):
             fx = os.path.join( raw_args.source1, f )

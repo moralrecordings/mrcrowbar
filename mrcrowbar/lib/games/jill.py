@@ -3,13 +3,8 @@ Xargon (DOS, 1994)."""
 
 from __future__ import annotations
 
-import itertools
-
 from mrcrowbar import models as mrc
-from mrcrowbar import utils
 from mrcrowbar.lib.audio import base as aud
-from mrcrowbar.lib.hardware import ibm_pc
-from mrcrowbar.lib.images import base as img
 
 # source: Xargon source code release - https://www.classicdosgames.com/game/Xargon.html
 
@@ -240,12 +235,12 @@ class JillLoader( mrc.Loader ):
     _SEP = mrc.Loader._SEP
 
     _JILL_FILE_CLASS_MAP = {
-        _SEP + "JN([1-3])(SAVE)\.([0-9])$": None,
-        _SEP + "(JILL)([1-3])\.(VCL)$": VCLFile,
-        _SEP + "(JILL)([1-3])\.(SHA)$": SHAFile,
-        _SEP + "(JILL)\.(DMA)$": None,
-        _SEP + "(.*)\.(DDT)$": None,
-        _SEP + "(.*)\.JN([1-3])$": None,
+        _SEP + r"JN([1-3])(SAVE)\.([0-9])$": None,
+        _SEP + r"(JILL)([1-3])\.(VCL)$": VCLFile,
+        _SEP + r"(JILL)([1-3])\.(SHA)$": SHAFile,
+        _SEP + r"(JILL)\.(DMA)$": None,
+        _SEP + r"(.*)\.(DDT)$": None,
+        _SEP + r"(.*)\.JN([1-3])$": None,
     }
 
     def __init__( self ):

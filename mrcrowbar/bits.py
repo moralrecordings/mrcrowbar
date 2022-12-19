@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable
 
 from mrcrowbar.common import BytesReadType, BytesWriteType
 from mrcrowbar.encoding import EndianEncoding
@@ -227,7 +227,7 @@ def pack_bits( longbits: int ) -> int:
     return byte
 
 
-class BitStream( object ):
+class BitStream:
     buffer: bytearray
     byte_pos: int
     bit_pos: int
@@ -236,8 +236,8 @@ class BitStream( object ):
 
     def __init__(
         self,
-        buffer: Optional[BytesReadType] = None,
-        start_offset: Optional[Union[int, Tuple[int, int]]] = None,
+        buffer: BytesReadType | None = None,
+        start_offset: int | tuple[int, int] | None = None,
         bytes_reverse: bool = False,
         bit_endian: EndianEncoding = "big",
         io_endian: EndianEncoding = "big",
@@ -288,7 +288,7 @@ class BitStream( object ):
         else:
             raise TypeError( "start_offset should be of type int or tuple" )
 
-    def tell( self ) -> Tuple[int, int]:
+    def tell( self ) -> tuple[int, int]:
         """Get the current byte and bit position."""
         return self.byte_pos, self.bit_pos
 
@@ -371,9 +371,7 @@ class BitStream( object ):
 
         self.seek( (count // 8, count % 8), origin="current" )
 
-    def seek(
-        self, offset: Union[int, Tuple[int, int]], origin: str = "start"
-    ) -> None:
+    def seek( self, offset: int | tuple[int, int], origin: str = "start" ) -> None:
         """Seek to a location in the target.
 
         offset

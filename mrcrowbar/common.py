@@ -3,12 +3,12 @@ from __future__ import annotations
 import itertools
 import mmap
 import os
-from typing import Any, BinaryIO, Iterator, Optional, Sequence, Tuple, Union
+from typing import Any, BinaryIO, Iterator, Sequence, Tuple, Union
 
 next_position_hint = itertools.count()
 
 BytesReadType = Union[bytes, bytearray, mmap.mmap, memoryview]
-BytesWriteType = Union[bytearray]
+BytesWriteType = bytearray
 
 
 def is_bytes( obj: Any ) -> bool:
@@ -26,8 +26,8 @@ def read( fp: BinaryIO ) -> BytesReadType:
 
 
 def bounds(
-    start: Optional[int], end: Optional[int], length: Optional[int], src_size: int
-) -> Tuple[int, int]:
+    start: int | None, end: int | None, length: int | None, src_size: int
+) -> tuple[int, int]:
     if length is not None and length < 0:
         raise ValueError( "Length can't be a negative number!" )
     start = 0 if (start is None) else start

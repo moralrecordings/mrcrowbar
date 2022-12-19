@@ -9,7 +9,7 @@ from mmap import mmap
 logger = logging.getLogger( __name__ )
 
 
-class Archive( object ):
+class Archive:
     def __init__( self ):
         pass
 
@@ -76,7 +76,7 @@ class FileSystem( Archive ):
         return open( self._from_internal( path ), "r+b" )
 
 
-class Loader( object ):
+class Loader:
     _SEP = re.escape( os.path.sep )
 
     def __init__(

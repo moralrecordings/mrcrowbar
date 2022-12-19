@@ -99,7 +99,7 @@ class LZSS( mrc.Transform ):
         while True:
             cx >>= 1
             if cx < 0x100:
-                logger.debug( "@ new pattern: {:08b}".format( buffer[data_p] ) )
+                logger.debug( f"@ new pattern: {buffer[data_p]:08b}" )
                 cx = buffer[data_p] + 0xff00
                 data_p += 1
 
@@ -139,9 +139,7 @@ class LZSS( mrc.Transform ):
                     break
 
             else:
-                logger.debug(
-                    "# work_ram[0x{:04x}] = buffer[0x{:04x}]".format( bx, data_p )
-                )
+                logger.debug( f"# work_ram[0x{bx:04x}] = buffer[0x{data_p:04x}]" )
                 logger.debug(
                     "! output[0x{:04x}] = buffer[0x{:04x}]".format(
                         len( output ), data_p

@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import array
-import itertools
-import struct
-
 from mrcrowbar import models as mrc
 from mrcrowbar import utils
 from mrcrowbar.lib.hardware import ibm_pc

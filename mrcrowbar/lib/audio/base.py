@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from array import array
-
-from mrcrowbar import ansi, encoding
+from mrcrowbar import ansi
 from mrcrowbar import models as mrc
 from mrcrowbar import sound
 
@@ -73,7 +71,7 @@ class Wave( mrc.View ):
         for line in ansi.format_bar_graph_iter(
             audio, width=width, height=height, y_min=-1, y_max=1
         ):
-            result.append( "{}\n".format( line ) )
+            result.append( f"{line}\n" )
         return "".join( result )
 
     def print( self, *args, **kwargs ):

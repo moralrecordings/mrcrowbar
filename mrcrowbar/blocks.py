@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Any, Sequence
 
 from mrcrowbar.encoding import EndianEncoding
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 from mrcrowbar import common, utils
 
 
-class FieldDescriptor( object ):
+class FieldDescriptor:
     def __init__( self, name: str ):
         """Attribute wrapper class for Fields.
 
@@ -26,7 +26,7 @@ class FieldDescriptor( object ):
         """
         self.name = name
 
-    def __get__( self, instance: Block, cls: Type[Block] ) -> Any:
+    def __get__( self, instance: Block, cls: type[Block] ) -> Any:
         try:
             if instance is None:
                 return cls._fields[self.name]
@@ -34,7 +34,7 @@ class FieldDescriptor( object ):
         except KeyError:
             raise AttributeError( self.name )
 
-    def __set__( self, instance: "Block", value: Any ):
+    def __set__( self, instance: Block, value: Any ):
         if instance is None:
             return
         instance._field_data[self.name] = value
@@ -48,7 +48,7 @@ class FieldDescriptor( object ):
         del instance._fields[self.name]
 
 
-class RefDescriptor( object ):
+class RefDescriptor:
     def __init__( self, name: str ):
         """Attribute wrapper class for Refs.
 
@@ -57,7 +57,7 @@ class RefDescriptor( object ):
         """
         self.name = name
 
-    def __get__( self, instance: "Block", cls ):
+    def __get__( self, instance: Block, cls ):
         try:
             if instance is None:
                 return cls._refs[self.name]
@@ -159,29 +159,29 @@ class BlockMeta( type ):
         return cls._checks
 
 
-class Block( object, metaclass=BlockMeta ):
-    _parent: Optional[Block] = None
-    _endian: Optional[EndianEncoding] = None
+class Block( metaclass=BlockMeta ):
+    _parent: Block | None = None
+    _endian: EndianEncoding | None = None
     _cache_bytes = False
     _bytes = None
-    _repr_values: Optional[List[str]] = None
+    _repr_values: list[str] | None = None
 
     _fields: OrderedDict[str, Field]
     _refs: OrderedDict[str, Ref]
     _checks: OrderedDict[str, Check]
     _cache_refs: bool
-    _field_data: Dict[str, Any]
-    _ref_cache: Dict[str, Any]
+    _field_data: dict[str, Any]
+    _ref_cache: dict[str, Any]
 
     def __init__(
         self,
-        source_data: Optional[common.BytesReadType] = None,
+        source_data: common.BytesReadType | None = None,
         *,
-        parent: Optional[Block] = None,
-        preload_attrs: Optional[Dict[str, Any]] = None,
+        parent: Block | None = None,
+        preload_attrs: dict[str, Any] | None = None,
         endian: EndianEncoding = None,
         cache_bytes: bool = False,
-        path_hint: Optional[str] = None,
+        path_hint: str | None = None,
         strict: bool = False,
         cache_refs: bool = True,
     ):
@@ -265,16 +265,16 @@ class Block( object, metaclass=BlockMeta ):
         return f"<{self.__class__.__name__}: {desc}>"
 
     @property
-    def repr( self ) -> Optional[str]:
+    def repr( self ) -> str | None:
         """Plaintext summary of the Block."""
-        value_map: Dict[str, Any] = {}
+        value_map: dict[str, Any] = {}
         if self._repr_values and isinstance( self._repr_values, list ):
             value_map = {
                 x: getattr( self, x ) for x in self._repr_values if hasattr( self, x )
             }
         else:
             value_map = {k: v for k, v in self._field_data.items()}
-        values: List[str] = []
+        values: list[str] = []
         for name, value in value_map.items():
             output = ""
             if isinstance( value, str ):
@@ -312,7 +312,7 @@ class Block( object, metaclass=BlockMeta ):
         for name in klass._fields:
             self._field_data[name] = getattr( source, name )
 
-    def update_data( self, source: Dict[str, Any] ) -> None:
+    def update_data( self, source: dict[str, Any] ) -> None:
         """Update data from a dictionary.
 
         source
@@ -323,7 +323,7 @@ class Block( object, metaclass=BlockMeta ):
             assert hasattr( self, attr )
             setattr( self, attr, value )
 
-    def import_data( self, raw_buffer: Optional[common.BytesReadType] ) -> None:
+    def import_data( self, raw_buffer: common.BytesReadType | None ) -> None:
         """Import data from a byte array.
 
         raw_buffer
@@ -480,7 +480,7 @@ class Block( object, metaclass=BlockMeta ):
         klass = self.__class__
         return next( name for name, value in klass._fields.items() if value == field )
 
-    def get_field_names( self ) -> List[str]:
+    def get_field_names( self ) -> list[str]:
         """Get the list of Fields associated with this Block class."""
         klass = self.__class__
         return list( klass._fields.keys() )
@@ -527,7 +527,7 @@ class Block( object, metaclass=BlockMeta ):
         return self._path_hint if self._path_hint else ""
 
     def get_field_start_offset(
-        self, field_name: str, index: Optional[int] = None
+        self, field_name: str, index: int | None = None
     ) -> int:
         """Return the start offset of where a Field's data is to be stored in the Block.
 
@@ -543,7 +543,7 @@ class Block( object, metaclass=BlockMeta ):
             self._field_data[field_name], parent=self, index=index
         )
 
-    def get_field_size( self, field_name: str, index: Optional[int] = None ) -> int:
+    def get_field_size( self, field_name: str, index: int | None = None ) -> int:
         """Return the size of a Field's data (in bytes).
 
         field_name
@@ -558,9 +558,7 @@ class Block( object, metaclass=BlockMeta ):
             self._field_data[field_name], parent=self, index=index
         )
 
-    def get_field_end_offset(
-        self, field_name: str, index: Optional[int] = None
-    ) -> int:
+    def get_field_end_offset( self, field_name: str, index: int | None = None ) -> int:
         """Return the end offset of a Field's data. Useful for chainloading.
 
         field_name
@@ -628,13 +626,13 @@ class Block( object, metaclass=BlockMeta ):
     def hexdump(
         self,
         *,
-        start: Optional[int] = None,
-        end: Optional[int] = None,
-        length: Optional[int] = None,
+        start: int | None = None,
+        end: int | None = None,
+        length: int | None = None,
         major_len: int = 8,
         minor_len: int = 4,
         colour: bool = True,
-        address_base: Optional[int] = None,
+        address_base: int | None = None,
         show_offsets: bool = True,
         show_glyphs: bool = True,
     ):
@@ -685,12 +683,12 @@ class Block( object, metaclass=BlockMeta ):
     def histdump(
         self,
         *,
-        start: Optional[int] = None,
-        end: Optional[int] = None,
-        length: Optional[int] = None,
+        start: int | None = None,
+        end: int | None = None,
+        length: int | None = None,
         samples: int = 0x10000,
         width: int = 64,
-        address_base: Optional[int] = None,
+        address_base: int | None = None,
     ):
         """Print the histogram of the exported data.
 

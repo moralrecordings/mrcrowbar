@@ -85,12 +85,12 @@ class BlockMeta( type ):
         """Metaclass for Block which detects and wraps attributes from the class definition."""
         from mrcrowbar.checks import Check
         from mrcrowbar.fields import Field
-        from mrcrowbar.refs import Ref
+        from mrcrowbar.refs import Coda, Ref
 
         # Structures used to accumulate meta info
-        fields = OrderedDict()
-        refs = OrderedDict()
-        checks = OrderedDict()
+        fields: OrderedDict[str, Field] = OrderedDict()
+        refs: OrderedDict[str, Ref[Any]] = OrderedDict()
+        checks: OrderedDict[str, Check] = OrderedDict()
 
         # add base class attributes to structs
         for base in bases:
@@ -128,6 +128,34 @@ class BlockMeta( type ):
                     check_fields._previous_attr = previous
                     previous = key
 
+        # sieve out coda fields
+        coda_field_names: list[str] = []
+        coda_enabled: bool = False
+        coda_chain_size: int = 0
+        coda_size: int = 0
+        for key, value in fields.items():
+            if hasattr( value, "offset" ):
+                if isinstance( value.offset, Coda ):
+                    if not value.is_fixed_size():
+                        raise AttributeError(
+                            f"Coda can only be used with Fields that are of a fixed size; {key} is not fixed"
+                        )
+                    coda_field_names.append( key )
+                    coda_enabled = True
+                    coda_size = max( coda_size, coda_chain_size )
+                    coda_chain_size += value.get_fixed_size() or 0
+                elif coda_enabled and isinstance( value.offset, refs.Chain ):
+                    if not value.is_fixed_size():
+                        raise AttributeError(
+                            f"Coda can only be used with Fields that are of a fixed size; {key} is not fixed"
+                        )
+                    coda_field_names.append( key )
+                    coda_chain_size += value.get_fixed_size() or 0
+                else:
+                    coda_enabled = False
+
+        coda_size = max( coda_size, coda_chain_size )
+
         # Convert list of types into fields for new klass
         for key, field in fields.items():
             attrs[key] = FieldDescriptor( key )
@@ -138,6 +166,8 @@ class BlockMeta( type ):
         attrs["_fields"] = fields
         attrs["_refs"] = refs
         attrs["_checks"] = checks
+        attrs["_coda_field_names"] = coda_field_names
+        attrs["_coda_size"] = coda_size
 
         klass = type.__new__( mcs, name, bases, attrs )
 
@@ -167,11 +197,14 @@ class Block( metaclass=BlockMeta ):
     _repr_values: list[str] | None = None
 
     _fields: OrderedDict[str, Field]
-    _refs: OrderedDict[str, Ref]
+    _refs: OrderedDict[str, Ref[Any]]
     _checks: OrderedDict[str, Check]
+    _coda_size: int
+    _coda_field_names: list[str]
     _cache_refs: bool
     _field_data: dict[str, Any]
     _ref_cache: dict[str, Any]
+    _strict: bool
 
     def __init__(
         self,
@@ -323,6 +356,32 @@ class Block( metaclass=BlockMeta ):
             assert hasattr( self, attr )
             setattr( self, attr, value )
 
+    def _import_from_field( self, buffer, field_name ):
+        klass = self.__class__
+        if logger.isEnabledFor( logging.DEBUG ):
+            logger.debug( f"{field_name} [{klass._fields[field_name]}]: input buffer" )
+        self._field_data[field_name] = klass._fields[field_name].get_from_buffer(
+            buffer, parent=self
+        )
+        if logger.isEnabledFor( logging.DEBUG ):
+            if isinstance( self._field_data[field_name], str ):
+                logger.debug(
+                    f"Result for {field_name} [{klass._fields[field_name]}]: str[{len(self._field_data[field_name])}]"
+                )
+
+            elif common.is_bytes( self._field_data[field_name] ):
+                logger.debug(
+                    f"Result for {field_name} [{klass._fields[field_name]}]: bytes[{len(self._field_data[field_name])}]"
+                )
+            elif isinstance( self._field_data[field_name], Sequence ):
+                logger.debug(
+                    f"Result for {field_name} [{klass._fields[field_name]}]: list[{len(self._field_data[field_name])}]"
+                )
+            else:
+                logger.debug(
+                    f"Result for {field_name} [{klass._fields[field_name]}]: {self._field_data[field_name]}"
+                )
+
     def import_data( self, raw_buffer: common.BytesReadType | None ) -> None:
         """Import data from a byte array.
 
@@ -330,9 +389,11 @@ class Block( metaclass=BlockMeta ):
             Byte array to import from.
         """
         klass = self.__class__
+        raw_buffer_partial: common.BytesReadType | None = raw_buffer
         if raw_buffer is not None:
             assert common.is_bytes( raw_buffer )
-        #            raw_buffer = memoryview( raw_buffer )
+            if self._coda_size:
+                raw_buffer_partial = raw_buffer[: -self._coda_size]
 
         self._field_data = {}
 
@@ -345,30 +406,15 @@ class Block( metaclass=BlockMeta ):
                     logger.debug( x )
 
         for name in klass._fields:
-            if raw_buffer is not None:
-                if logger.isEnabledFor( logging.DEBUG ):
-                    logger.debug( f"{name} [{klass._fields[name]}]: input buffer" )
-                self._field_data[name] = klass._fields[name].get_from_buffer(
-                    raw_buffer, parent=self
-                )
-                if logger.isEnabledFor( logging.DEBUG ):
-                    if isinstance( self._field_data[name], str ):
-                        logger.debug(
-                            f"Result for {name} [{klass._fields[name]}]: str[{len(self._field_data[name])}]"
-                        )
+            if name not in klass._coda_field_names:
+                if raw_buffer_partial is not None:
+                    self._import_from_field( raw_buffer_partial, name )
+                else:
+                    self._field_data[name] = klass._fields[name].default
 
-                    elif common.is_bytes( self._field_data[name] ):
-                        logger.debug(
-                            f"Result for {name} [{klass._fields[name]}]: bytes[{len(self._field_data[name])}]"
-                        )
-                    elif isinstance( self._field_data[name], Sequence ):
-                        logger.debug(
-                            f"Result for {name} [{klass._fields[name]}]: list[{len(self._field_data[name])}]"
-                        )
-                    else:
-                        logger.debug(
-                            f"Result for {name} [{klass._fields[name]}]: {self._field_data[name]}"
-                        )
+        for name in klass._coda_field_names:
+            if raw_buffer is not None:
+                self._import_from_field( raw_buffer, name )
             else:
                 self._field_data[name] = klass._fields[name].default
 
@@ -410,7 +456,6 @@ class Block( metaclass=BlockMeta ):
         # this is important to ensure that any dependent fields
         # are updated beforehand, e.g. a count referenced
         # in a BlockField
-        queue = []
         for name in klass._fields:
             self.scrub_field( name )
             self.validate_field( name )
@@ -452,6 +497,24 @@ class Block( metaclass=BlockMeta ):
         klass = self.__class__
         size = 0
         for name in klass._fields:
+            size = max(
+                size,
+                klass._fields[name].get_end_offset(
+                    self._field_data[name], parent=self
+                ),
+            )
+        for check in klass._checks.values():
+            size = max( size, check.get_end_offset( parent=self ) )
+        return size
+
+    @property
+    def _coda_offset( self ) -> int:
+        # same as get_size, but assume there's no coda
+        klass = self.__class__
+        size = 0
+        for name in klass._fields:
+            if name in klass._coda_field_names:
+                continue
             size = max(
                 size,
                 klass._fields[name].get_end_offset(

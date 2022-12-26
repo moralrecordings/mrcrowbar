@@ -341,6 +341,21 @@ class TestBlockField( unittest.TestCase ):
         self.assertEqual( test.extra, b"\x09\x09\x09" )
         self.assertEqual( test.export_data(), payload )
 
+    def test_coda( self ) -> None:
+        class Test( mrc.Block ):
+            field1 = mrc.Bytes()
+            field2 = mrc.UInt16_LE( mrc.Coda() )
+
+        in_payload = b"\x01\x02\x03\x04\x05\x06"
+        out_payload1 = b"\x01\x02\x03\x04"
+        out_payload2 = 0x605
+        test = Test( in_payload )
+        self.assertEqual( test.field1, out_payload1 )
+        self.assertEqual( test.field2, out_payload2 )
+
+        output = test.export_data()
+        self.assertEqual( output, in_payload )
+
 
 class TestStreamField( unittest.TestCase ):
     def test_length( self ):

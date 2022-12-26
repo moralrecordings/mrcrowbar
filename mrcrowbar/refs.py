@@ -232,3 +232,14 @@ class Chain( Ref[int] ):
 
     def __repr__( self ) -> str:
         return "<Chain>"
+
+
+class Coda( Ref[int] ):
+    def __init__( self ) -> None:
+        super().__init__( "_coda_offset" )
+
+    def set( self, instance: Block, value: int, caller: Field | None = None ) -> None:
+        raise AttributeError( "can't change the start offset of a Coda" )
+
+    def __repr__( self ) -> str:
+        return "<Coda>"

@@ -4,12 +4,13 @@ import logging
 
 logger = logging.getLogger( __name__ )
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from mrcrowbar import common
 from mrcrowbar.refs import Ref, property_get, property_set
 
 if TYPE_CHECKING:
+    from mrcrowbar.blocks import Block
     from mrcrowbar.fields import Field
 
 
@@ -27,14 +28,14 @@ class Check:
         self._position_hint = next( common.next_position_hint )
         self.raise_exception = raise_exception
 
-    def check_buffer( self, buffer: common.BytesReadType, parent=None ):
+    def check_buffer( self, buffer: common.BytesReadType, parent: Block | None = None ):
         """Check if the import buffer passes the check.
 
         Throws CheckException if raise_exception = True and the buffer doesn't match.
         """
         pass
 
-    def update_deps( self, parent=None ):
+    def update_deps( self, parent: Block | None = None ):
         """Update all dependent variables derived from this Check."""
         pass
 
@@ -48,15 +49,15 @@ class Check:
         """Return None, a single field, or a dictionary of Fields embedded within the Check."""
         return None
 
-    def get_start_offset( self, parent=None ):
+    def get_start_offset( self, parent: Block | None = None ):
         """Return the start offset of where the Check inspects the Block."""
         return 0
 
-    def get_size( self, parent=None ):
+    def get_size( self, parent: Block | None = None ):
         """Return the size of the checked data (in bytes)."""
         return 0
 
-    def get_end_offset( self, parent=None ):
+    def get_end_offset( self, parent: Block | None = None ):
         """Return the end offset of where the Check inspects the Block."""
         return self.get_start_offset( parent ) + self.get_size( parent )
 
@@ -64,7 +65,9 @@ class Check:
 
 
 class Const( Check ):
-    def __init__( self, field: Field, target, *args, **kwargs ):
+    def __init__(
+        self, field: Field, target: Any | Ref[Any], raise_exception: bool = False
+    ):
         """Check for ensuring a Field matches a particular constant.
 
         On import, the value is tested. On export, the value is copied
@@ -75,12 +78,15 @@ class Const( Check ):
 
         target
             Target to copy from on export.
+
+        raise_exception
+            Whether to raise an exception if the check fails.
         """
-        super().__init__( *args, **kwargs )
+        super().__init__( raise_exception=raise_exception )
         self.field = field
         self.target = target
 
-    def get_fields( self ):
+    def get_fields( self ) -> Field:
         return self.field
 
     def check_buffer( self, buffer, parent=None ):

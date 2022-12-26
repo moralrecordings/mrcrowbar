@@ -60,6 +60,7 @@ from mrcrowbar.fields import (
 from mrcrowbar.loaders import Loader
 from mrcrowbar.refs import (
     Chain,
+    Coda,
     ConstRef,
     EndOffset,
     Ref,
@@ -132,6 +133,7 @@ __all__ = [
     "UInt64_P",
     "Loader",
     "Chain",
+    "Coda",
     "ConstRef",
     "EndOffset",
     "Ref",

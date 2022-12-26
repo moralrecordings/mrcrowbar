@@ -39,7 +39,7 @@ StopCheckType = Callable[[common.BytesReadType, int], bool]
 
 
 class Field:
-    def __init__( self, *, default: Any = None ):
+    def __init__( self, *, default: Any = None ) -> None:
         """Base class for Fields.
 
         default
@@ -48,14 +48,14 @@ class Field:
         self._position_hint = next( common.next_position_hint )
         self.default = default
 
-    def __repr__( self ):
+    def __repr__( self ) -> str:
         desc = f"0x{id( self ):016x}"
         if hasattr( self, "repr" ) and isinstance( self.repr, str ):
             desc = self.repr
         return f"<{self.__class__.__name__}: {desc}>"
 
     @property
-    def repr( self ):
+    def repr( self ) -> str | None:
         """Plaintext summary of the Field."""
         return None
 
@@ -106,7 +106,7 @@ class Field:
 
     def update_buffer_with_value(
         self, value: Any, buffer: common.BytesWriteType, parent: Block | None = None
-    ):
+    ) -> None:
         """Write a Python object into a byte array, using the field definition.
 
         value
@@ -191,7 +191,7 @@ class Field:
         """
         return value
 
-    def update_deps( self, value: Any, parent: Block | None = None ):
+    def update_deps( self, value: Any, parent: Block | None = None ) -> None:
         """Update all dependent variables derived from the value of the Field.
 
         value
@@ -203,7 +203,7 @@ class Field:
         """
         return
 
-    def validate( self, value: Any, parent: Block | None = None ):
+    def validate( self, value: Any, parent: Block | None = None ) -> None:
         """Validate that a correctly-typed Python object meets the constraints for the Field.
 
         value
@@ -217,7 +217,7 @@ class Field:
         """
         pass
 
-    def serialise( self, value: Any, parent: Block | None = None ):
+    def serialise( self, value: Any, parent: Block | None = None ) -> None:
         """Return a value as basic Python types.
 
         value
@@ -243,7 +243,7 @@ class Field:
             return f"<{self.__class__.__name__}>{suffix}"
         return parent.get_field_path( self ) + suffix
 
-    def get_strict( self, parent: Block | None = None ):
+    def get_strict( self, parent: Block | None = None ) -> bool:
         """Return whether the parent Block is loading in strict mode.
 
         parent
@@ -253,7 +253,7 @@ class Field:
             return False
         return parent._strict
 
-    def get_cache_refs( self, parent: Block | None = None ):
+    def get_cache_refs( self, parent: Block | None = None ) -> bool:
         """Return whether the parent Block is pre-caching all the Refs.
 
         parent
@@ -262,6 +262,14 @@ class Field:
         if parent is None:
             return False
         return parent._cache_refs
+
+    def is_fixed_size( self ) -> bool:
+        """Returns whether the size of this Field can be determined by the definition alone."""
+        return False
+
+    def get_fixed_size( self ) -> int | None:
+        """Returns the fixed Field size calculated from the definition, or None if this is impossible."""
+        return None
 
 
 class StreamField( Field ):
@@ -278,7 +286,7 @@ class StreamField( Field ):
         stream_end: bytes | None = None,
         stop_check: StopCheckType | None = None,
         exists: bool | int | Ref[bool] | Ref[int] = True,
-    ):
+    ) -> None:
         """Base class for accessing one or more streamable elements.
 
         offset
@@ -441,7 +449,7 @@ class StreamField( Field ):
         value: Any | Sequence[Any],
         buffer: common.BytesWriteType,
         parent: Block | None = None,
-    ):
+    ) -> None:
         super().update_buffer_with_value( value, buffer, parent )
         offset = property_get( self.offset, parent, caller=self )
         if offset is None:
@@ -496,29 +504,32 @@ class StreamField( Field ):
         if self.stream_end is not None:
             buffer[new_size - len( self.stream_end ) : new_size] = self.stream_end
 
-    def update_deps( self, value: Any | Sequence[Any], parent: Block | None = None ):
+    def update_deps(
+        self, value: Any | Sequence[Any], parent: Block | None = None
+    ) -> None:
         offset = property_get( self.offset, parent, caller=self )
         count = property_get( self.count, parent )
         length = property_get( self.length, parent )
         end_offset = property_get( self.end_offset, parent )
         exists = property_get( self.exists, parent )
+        assert offset is not None
 
         if exists and value is None:
             if not isinstance( self.exists, Ref ):
                 # non-programmatic exists gets a free pass
                 pass
-            elif isinstance( exists, int ):
+            elif isinstance( exists, int ) and exists != 1:
                 property_set( self.exists, parent, 1 )
-            elif isinstance( exists, bool ):
+            elif isinstance( exists, bool ) and exists != True:
                 property_set( self.exists, parent, True )
         elif not exists and value is not None:
             if not isinstance( self.exists, Ref ):
                 raise FieldValidationError(
                     "f{self.get_path( parent )}: Attribute exists is a constant, can't set!"
                 )
-            elif isinstance( exists, int ):
+            elif isinstance( exists, int ) and exists != 0:
                 property_set( self.exists, parent, 0 )
-            elif isinstance( exists, bool ):
+            elif isinstance( exists, bool ) and exists != False:
                 property_set( self.exists, parent, False )
 
         if count is not None and count != len( value ):
@@ -533,10 +544,12 @@ class StreamField( Field ):
 
     def validate_element(
         self, element: Any, parent: Block | None = None, index: int | None = None
-    ):
+    ) -> None:
         pass
 
-    def validate( self, value: Any | Sequence[Any], parent: Block | None = None ):
+    def validate(
+        self, value: Any | Sequence[Any], parent: Block | None = None
+    ) -> None:
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
         exists = property_get( self.exists, parent )
@@ -1138,8 +1151,9 @@ class BlockField( StreamField ):
         stream = property_get( self.stream, parent )
         fill = property_get( self.fill, parent )
         klass = self.get_klass( parent )
+        assert klass is not None
 
-        def constructor( source_data ):
+        def constructor( source_data: common.BytesReadType ):
             try:
                 block = klass(
                     source_data=source_data,
@@ -1270,7 +1284,7 @@ class BlockField( StreamField ):
         else:
             return element.get_size()
 
-    def get_klass( self, parent=None ):
+    def get_klass( self, parent: Block | None = None ):
         block_klass = property_get( self.block_klass, parent )
         if isinstance( block_klass, dict ):
             block_type = property_get( self.block_type, parent )
@@ -1284,7 +1298,7 @@ class BlockField( StreamField ):
                 )
         return block_klass
 
-    def serialise( self, value, parent=None ):
+    def serialise( self, value, parent: Block | None = None ):
         self.validate( value, parent )
         count = property_get( self.count, parent )
         stream = property_get( self.stream, parent )
@@ -1644,24 +1658,132 @@ class StringField( StreamField ):
         return value
 
 
-class Bytes( StringField ):
-    def __init__( self, offset=Chain(), **kwargs ):
-        super().__init__( offset=offset, **kwargs )
+Bytes = StringField
 
 
 class CString( StringField ):
-    def __init__( self, offset=Chain(), **kwargs ):
-        super().__init__( offset=offset, element_end=b"\x00", **kwargs )
+    def __init__(
+        self,
+        offset: OffsetType = Chain(),
+        *,
+        default: Any = None,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        transform: Transform | None = None,
+        encoding: str | None = None,
+        length_field: type[NumberField] | None = None,
+        fill: bytes | None = None,
+        element_length: int | None = None,
+        zero_pad: bool = False,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
+    ):
+        super().__init__(
+            offset=offset,
+            default=default,
+            count=count,
+            length=length,
+            end_offset=end_offset,
+            stream=stream,
+            alignment=alignment,
+            stream_end=stream_end,
+            stop_check=stop_check,
+            transform=transform,
+            encoding=encoding,
+            length_field=length_field,
+            fill=fill,
+            element_length=element_length,
+            element_end=b"\x00",
+            zero_pad=zero_pad,
+            exists=exists,
+        )
 
 
 class CStringN( StringField ):
-    def __init__( self, offset=Chain(), **kwargs ):
-        super().__init__( offset=offset, element_end=b"\x00", zero_pad=True, **kwargs )
+    def __init__(
+        self,
+        offset: OffsetType = Chain(),
+        *,
+        default: Any = None,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        transform: Transform | None = None,
+        encoding: str | None = None,
+        length_field: type[NumberField] | None = None,
+        fill: bytes | None = None,
+        element_length: int | None = None,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
+    ):
+        super().__init__(
+            offset=offset,
+            default=default,
+            count=count,
+            length=length,
+            end_offset=end_offset,
+            stream=stream,
+            alignment=alignment,
+            stream_end=stream_end,
+            stop_check=stop_check,
+            transform=transform,
+            encoding=encoding,
+            length_field=length_field,
+            fill=fill,
+            element_length=element_length,
+            element_end=b"\x00",
+            zero_pad=True,
+            exists=exists,
+        )
 
 
 class PString( StringField ):
-    def __init__( self, offset=Chain(), **kwargs ):
-        super().__init__( offset=offset, length_field=UInt8, **kwargs )
+    def __init__(
+        self,
+        offset: OffsetType = Chain(),
+        *,
+        default: Any = None,
+        count: int | Ref[int] | None = None,
+        length: int | Ref[int] | None = None,
+        end_offset: int | Ref[int] | None = None,
+        stream: bool | Ref[bool] = False,
+        alignment: int | Ref[int] = 1,
+        stream_end: bytes | None = None,
+        stop_check: StopCheckType | None = None,
+        transform: Transform | None = None,
+        encoding: str | None = None,
+        fill: bytes | None = None,
+        element_length: int | None = None,
+        element_end: bytes | None = None,
+        zero_pad: bool = False,
+        exists: bool | int | Ref[bool] | Ref[int] = True,
+    ):
+        super().__init__(
+            offset=offset,
+            default=default,
+            count=count,
+            length=length,
+            end_offset=end_offset,
+            stream=stream,
+            alignment=alignment,
+            stream_end=stream_end,
+            stop_check=stop_check,
+            transform=transform,
+            encoding=encoding,
+            length_field=UInt8,
+            fill=fill,
+            element_length=element_length,
+            element_end=element_end,
+            zero_pad=zero_pad,
+            exists=exists,
+        )
 
 
 class NumberField( StreamField ):
@@ -1718,7 +1840,7 @@ class NumberField( StreamField ):
         length
             Maximum size of the buffer to read in.
 
-        length
+        end_offset
             Maximum end offset of the buffer to read in.
 
         stream
@@ -1931,6 +2053,33 @@ class NumberField( StreamField ):
         if is_array:
             return (("builtins", "list"), tuple( value ))
         return value
+
+    def is_fixed_size( self ) -> bool:
+        result = True
+        # StreamField parameters can't be dynamic
+        result &= not isinstance( self.count, Ref )
+        result &= not isinstance( self.length, Ref )
+        result &= not isinstance( self.end_offset, Ref )
+        result &= not isinstance( self.stream, Ref )
+        result &= not isinstance( self.alignment, Ref )
+        result &= not isinstance( self.exists, Ref )
+        # NumberField parameters can't be dynamic
+        result &= not isinstance( self.format_type, Ref )
+        result &= not isinstance( self.field_size, Ref )
+        result &= not isinstance( self.signedness, Ref )
+        result &= not isinstance( self.endian, Ref )
+        # can't be streaming
+        result &= self.stream is not None
+        return result
+
+    def get_fixed_size( self ) -> int | None:
+        if not self.is_fixed_size():
+            return None
+        if not isinstance( self.field_size, int ):
+            return None
+        if isinstance( self.count, int ):
+            return self.field_size * self.count
+        return self.field_size
 
 
 # TODO: Maybe revisit the constructor boilerplate once PEP-0692 arrives

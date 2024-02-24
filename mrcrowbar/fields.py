@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import logging
 
+from typing_extensions import Literal
+
 from mrcrowbar.transforms import Transform
 
 logger = logging.getLogger( __name__ )
@@ -773,7 +775,7 @@ class ChunkField( StreamField ):
             Field class used to parse the Chunk data length. For use when a Chunk consists of an ID followed by the size of the data.
 
         fill
-            Exact byte sequence that denotes an empty Chunk object.
+            Exact byte sequence that denotes an empty Chunk.
 
         length_inclusive
             True if the length field indicates the total length of the chunk, inclusive of the ID field and the length field.
@@ -895,6 +897,9 @@ class ChunkField( StreamField ):
         chunk_id = None
         chunk_length = None
 
+        if fill and buffer[offset : offset + len( fill )] == fill:
+            return None, offset + len( fill )
+
         if self.length_before_id:
             chunk_length, pointer = get_chunk_length( pointer )
             chunk_id, pointer = get_chunk_id( pointer )
@@ -916,9 +921,6 @@ class ChunkField( StreamField ):
                 chunk_length -= pointer - offset
             chunk_buffer = buffer[pointer : pointer + chunk_length]
             pointer += chunk_length
-            if chunk_buffer == fill:
-                result = Chunk( id=chunk_id, obj=None )
-                return result, pointer
             chunk = constructor( chunk_buffer )
         else:
             chunk = constructor( buffer[pointer:] )
@@ -961,15 +963,15 @@ class ChunkField( StreamField ):
                 )
                 data.extend( length_buf )
 
-        if element.obj is None:
+        if element is None:
             if fill is not None:
-                payload = fill
+                buffer[offset : offset + len( fill )] = fill
+                return offset + len( fill )
             else:
                 raise ValueError(
-                    f"{self.get_path( parent, index )}: Object part of Chunk can't be None unless there's a fill pattern set"
+                    f"{self.get_path( parent, index )}: Chunk can't be None unless there's a fill pattern set"
                 )
-        else:
-            payload = element.obj.export_data()
+        payload = element.obj.export_data()
 
         data = bytearray()
         if self.length_before_id:
@@ -991,7 +993,13 @@ class ChunkField( StreamField ):
         chunk_map = property_get( self.chunk_map, parent )
         fill = property_get( self.fill, parent )
 
-        if not isinstance( element, Chunk ):
+        if element is None:
+            if fill is None:
+                raise FieldValidationError(
+                    f"{self.get_path( parent, index )}: Can't pass a Chunk with an empty object to a ChunkField when the fill pattern isn't defined!"
+                )
+            return
+        elif not isinstance( element, Chunk ):
             raise FieldValidationError(
                 f"{self.get_path( parent, index )}: Element {element} is not of type Chunk!"
             )
@@ -1001,22 +1009,16 @@ class ChunkField( StreamField ):
         elif self.default_klass:
             chunk_klass = self.default_klass
 
-        if element.obj is None:
-            if fill is None:
-                raise FieldValidationError(
-                    f"{self.get_path( parent, index )}: Can't pass a Chunk with an empty object to a ChunkField when the fill pattern isn't defined!"
-                )
-        else:
-            if not isinstance( element.obj, chunk_klass ):
-                if isinstance( element.obj, Unknown ):
-                    if self.get_strict( parent ):
-                        raise FieldValidationError(
-                            f"{self.get_path( parent, index )}: ChunkMap expected Block type {chunk_klass}, received Unknown; can't accept Unknown blocks when loaded in strict mode!"
-                        )
-                else:
+        if not isinstance( element.obj, chunk_klass ):
+            if isinstance( element.obj, Unknown ):
+                if self.get_strict( parent ):
                     raise FieldValidationError(
-                        f"{self.get_path( parent, index )}: ChunkMap expected Block type {chunk_klass}, received {element.obj.__class__}!"
+                        f"{self.get_path( parent, index )}: ChunkMap expected Block type {chunk_klass}, received Unknown; can't accept Unknown blocks when loaded in strict mode!"
                     )
+            else:
+                raise FieldValidationError(
+                    f"{self.get_path( parent, index )}: ChunkMap expected Block type {chunk_klass}, received {element.obj.__class__}!"
+                )
 
         if self.id_size:
             if len( element.id ) != self.id_size:
@@ -1028,15 +1030,15 @@ class ChunkField( StreamField ):
         fill = property_get( self.fill, parent )
 
         size = 0
-        if self.id_field:
-            size += self.id_field.field_size
-        else:
-            size += len( element.id )
-        if self.length_field:
-            size += self.length_field.field_size
-        if element.obj is None:
+        if element is None:
             size += len( fill )
         else:
+            if self.id_field:
+                size += self.id_field.field_size
+            else:
+                size += len( element.id )
+            if self.length_field:
+                size += self.length_field.field_size
             size += element.obj.get_size()
         return size
 
@@ -1056,7 +1058,9 @@ class ChunkField( StreamField ):
 class BlockField( StreamField ):
     def __init__(
         self,
-        block_klass: type[Block] | dict[Any, type[Block]],
+        block_klass: type[Block]
+        | Literal["self"]
+        | dict[Any, type[Block] | Literal["self"]],
         offset: OffsetType = Chain(),
         *,
         block_kwargs: dict[str, Any] | None = None,
@@ -1076,7 +1080,7 @@ class BlockField( StreamField ):
         """Field for inserting another Block into the parent class.
 
         block_klass
-            Block class to use, or a dict mapping between type and block class.
+            Block class to use, the string "self" to indicate the parent block class, or a dict mapping between type and block class.
 
         offset
             Position of data, relative to the start of the parent block. Defaults to
@@ -1289,13 +1293,15 @@ class BlockField( StreamField ):
         if isinstance( block_klass, dict ):
             block_type = property_get( self.block_type, parent )
             if block_type in block_klass:
-                return block_klass[block_type]
+                block_klass = block_klass[block_type]
             elif self.default_klass:
-                return self.default_klass
+                block_klass = self.default_klass
             else:
                 raise ParseError(
                     f"{self.get_path( parent )}: No block klass match for type {block_type}"
                 )
+        if block_klass == "self":
+            return type( parent )
         return block_klass
 
     def serialise( self, value, parent: Block | None = None ):
@@ -2312,6 +2318,7 @@ class Bits16( Bits ):
         offset: OffsetType = Chain(),
         bits: int = 0,
         *,
+        endian: encoding.EndianEncoding | None = None,
         default: int = 0,
         count: int | Ref[int] | None = None,
         length: int | Ref[int] | None = None,
@@ -2329,6 +2336,7 @@ class Bits16( Bits ):
             offset=offset,
             bits=bits,
             size=2,
+            endian=endian,
             default=default,
             count=count,
             length=length,
@@ -2350,6 +2358,7 @@ class Bits32( Bits ):
         offset: OffsetType = Chain(),
         bits: int = 0,
         *,
+        endian: encoding.EndianEncoding | None = None,
         default: int = 0,
         count: int | Ref[int] | None = None,
         length: int | Ref[int] | None = None,
@@ -2367,6 +2376,7 @@ class Bits32( Bits ):
             offset=offset,
             bits=bits,
             size=4,
+            endian=endian,
             default=default,
             count=count,
             length=length,
@@ -2388,6 +2398,7 @@ class Bits64( Bits ):
         offset: OffsetType = Chain(),
         bits: int = 0,
         *,
+        endian: encoding.EndianEncoding | None = None,
         default: int = 0,
         count: int | Ref[int] | None = None,
         length: int | Ref[int] | None = None,
@@ -2405,6 +2416,7 @@ class Bits64( Bits ):
             offset=offset,
             bits=bits,
             size=8,
+            endian=endian,
             default=default,
             count=count,
             length=length,

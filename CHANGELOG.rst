@@ -25,6 +25,7 @@ Unreleased
 - fields.StreamField: Add end_offset as an alternative to length
 - fields.ChunkField: Add length_before_id option
 - refs.Coda: Add experimental feature for attaching Fields to the end of Blocks
+- fields.Bits: Add endianness support
 
 0.9.0 - 2021-01-14
 ==================

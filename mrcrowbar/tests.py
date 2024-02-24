@@ -59,7 +59,7 @@ class TestBlock( unittest.TestCase ):
         self.assertEqual( test.offset, 0x02 )
 
 
-class TestChunk( unittest.TestCase ):
+class TestChunkField( unittest.TestCase ):
     def test_chunk( self ):
         class Data1( mrc.Block ):
             length = mrc.UInt8( 0x00 )
@@ -116,24 +116,20 @@ class TestChunk( unittest.TestCase ):
             )
             bonus = mrc.Bytes( mrc.EndOffset( "data" ) )
 
-        payload = b"\x12\x04abcd\x34\x06efghij\x12\x01\x00\x12\x01\x00\x12\x02kl\xffend"
+        payload = b"\x12\x04abcd\x34\x06efghij\x00\x00\x12\x02kl\xffend"
 
         test = Test( payload )
         self.assertEqual( len( test.data ), 5 )
         self.assertIsInstance( test.data[0], mrc.Chunk )
         self.assertIsInstance( test.data[1], mrc.Chunk )
-        self.assertIsInstance( test.data[2], mrc.Chunk )
-        self.assertIsInstance( test.data[3], mrc.Chunk )
+        self.assertIsNone( test.data[2] )
+        self.assertIsNone( test.data[3] )
         self.assertIsInstance( test.data[4], mrc.Chunk )
         self.assertEqual( test.data[0].id, 0x12 )
         self.assertEqual( test.data[1].id, 0x34 )
-        self.assertEqual( test.data[2].id, 0x12 )
-        self.assertEqual( test.data[3].id, 0x12 )
         self.assertEqual( test.data[4].id, 0x12 )
         self.assertIsInstance( test.data[0].obj, Data1 )
         self.assertIsInstance( test.data[1].obj, Data2 )
-        self.assertIsNone( test.data[2].obj )
-        self.assertIsNone( test.data[3].obj )
         self.assertIsInstance( test.data[4].obj, Data1 )
         self.assertEqual( test.data[0].obj.payload, b"abcd" )
         self.assertEqual( test.data[1].obj.payload, b"efghij" )
@@ -165,24 +161,20 @@ class TestChunk( unittest.TestCase ):
             )
             bonus = mrc.Bytes( mrc.EndOffset( "data" ) )
 
-        payload = b"\x04\x12abcd\x06\x34efghij\x01\x12\x00\x01\x12\x00\x02\x12kl\xffend"
+        payload = b"\x04\x12abcd\x06\x34efghij\x00\x00\x02\x12kl\xffend"
 
         test = Test( payload )
         self.assertEqual( len( test.data ), 5 )
         self.assertIsInstance( test.data[0], mrc.Chunk )
         self.assertIsInstance( test.data[1], mrc.Chunk )
-        self.assertIsInstance( test.data[2], mrc.Chunk )
-        self.assertIsInstance( test.data[3], mrc.Chunk )
+        self.assertIsNone( test.data[2] )
+        self.assertIsNone( test.data[3] )
         self.assertIsInstance( test.data[4], mrc.Chunk )
         self.assertEqual( test.data[0].id, 0x12 )
         self.assertEqual( test.data[1].id, 0x34 )
-        self.assertEqual( test.data[2].id, 0x12 )
-        self.assertEqual( test.data[3].id, 0x12 )
         self.assertEqual( test.data[4].id, 0x12 )
         self.assertIsInstance( test.data[0].obj, Data1 )
         self.assertIsInstance( test.data[1].obj, Data2 )
-        self.assertIsNone( test.data[2].obj )
-        self.assertIsNone( test.data[3].obj )
         self.assertIsInstance( test.data[4].obj, Data1 )
         self.assertEqual( test.data[0].obj.payload, b"abcd" )
         self.assertEqual( test.data[1].obj.payload, b"efghij" )
@@ -627,6 +619,51 @@ class TestStore( unittest.TestCase ):
 
 
 class TestBits( unittest.TestCase ):
+    def test_bits_field( self ):
+        class Test( mrc.Block ):
+            b1 = mrc.Bits32( offset=0, bits=0xfff00000 )
+            b2 = mrc.Bits32( offset=0, bits=0x000fff00 )
+            b3 = mrc.Bits32( offset=0, bits=0x000000ff )
+            b4 = mrc.Bits8( bits=0xf0 )
+            b5 = mrc.Bits8( offset=4, bits=0x0f )
+
+        payload = b"\xf0\xf0\xf0\xf0\xf0"
+        test = Test( payload )
+        self.assertEqual( test.b1, 0xf0f )
+        self.assertEqual( test.b2, 0x0f0 )
+        self.assertEqual( test.b3, 0xf0 )
+        self.assertEqual( test.b4, 0xf )
+        self.assertEqual( test.b5, 0x0 )
+
+    def test_bits_field_endian( self ):
+        class TestBig( mrc.Block ):
+            b8 = mrc.Bits8( bits=0xff )
+            b16 = mrc.Bits16( bits=0xffff )
+            b32 = mrc.Bits32( bits=0xffffffff )
+            b64 = mrc.Bits64( bits=0xffffffffffffffff )
+
+        payload = b"\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff"
+        test = TestBig( payload )
+        self.assertEqual( test.b8, 0x11 )
+        self.assertEqual( test.b16, 0x2233 )
+        self.assertEqual( test.b32, 0x44556677 )
+        self.assertEqual( test.b64, 0x8899aabbccddeeff )
+        self.assertEqual( test.export_data(), payload )
+
+        class TestLittle( mrc.Block ):
+            b8 = mrc.Bits8( bits=0xff )
+            b16 = mrc.Bits16( bits=0xffff, endian="little" )
+            b32 = mrc.Bits32( bits=0xffffffff, endian="little" )
+            b64 = mrc.Bits64( bits=0xffffffffffffffff, endian="little" )
+
+        payload = b"\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff"
+        test = TestLittle( payload )
+        self.assertEqual( test.b8, 0x11 )
+        self.assertEqual( test.b16, 0x3322 )
+        self.assertEqual( test.b32, 0x77665544 )
+        self.assertEqual( test.b64, 0xffeeddccbbaa9988 )
+        self.assertEqual( test.export_data(), payload )
+
     def test_bits_read( self ):
         data = bytes( [0b10010010, 0b01001010, 0b10101010, 0b10111111] )
 

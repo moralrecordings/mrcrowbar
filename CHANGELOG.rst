@@ -26,6 +26,7 @@ Unreleased
 - fields.ChunkField: Add length_before_id option
 - refs.Coda: Add experimental feature for attaching Fields to the end of Blocks
 - fields.Bits: Add endianness support
+- setup: Fix packages definition for Python 3.12
 
 0.9.0 - 2021-01-14
 ==================

@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 from os import path
-from setuptools import setup, find_packages
+
+from setuptools import setup
+
 from mrcrowbar.version import __version__
 
 # Get the long description from the README file
@@ -37,7 +41,18 @@ setup(
         "images": ["Pillow >= 2.8.1"],
         "audio": ["miniaudio >= 1.41"],
     },
-    packages=find_packages( exclude=["doc"] ),
+    packages=[
+        "mrcrowbar",
+        "mrcrowbar.lib",
+        "mrcrowbar.lib.audio",
+        "mrcrowbar.lib.compressors",
+        "mrcrowbar.lib.containers",
+        "mrcrowbar.lib.games",
+        "mrcrowbar.lib.hardware",
+        "mrcrowbar.lib.images",
+        "mrcrowbar.lib.os",
+        "mrcrowbar.lib.platforms",
+    ],
     entry_points={
         "console_scripts": [
             "mrcdiff = mrcrowbar.cli:mrcdiff",

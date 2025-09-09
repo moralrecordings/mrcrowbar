@@ -24,9 +24,9 @@ class ResourceTIM( mrc.Block ):
 
 
 class TIMFileEntry( mrc.Block ):
-    _file = mrc.StoreRef(
-        TIMFile, mrc.Ref( "_parent._resource.store" ), mrc.Ref( "offset" )
-    )
+    # _file = mrc.StoreRef(
+    #    TIMFile, mrc.Ref( "_parent._resource.store" ), mrc.Ref( "offset" )
+    # )
 
     name_hash = mrc.Int32_LE()
     offset = mrc.UInt32_LE()

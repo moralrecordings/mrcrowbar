@@ -1337,7 +1337,7 @@ class StringField( StreamField ):
         encoding: str | None = None,
         length_field: type[NumberField] | None = None,
         fill: bytes | None = None,
-        element_length: int | None = None,
+        element_length: int | Ref[int] | None = None,
         element_end: bytes | None = None,
         zero_pad: bool = False,
         exists: bool | int | Ref[bool] | Ref[int] = True,
@@ -1444,9 +1444,14 @@ class StringField( StreamField ):
 
         if zero_pad:
             if element_length is None:
-                raise FieldDefinitionError(
-                    "Given that zero_pad is defined, element_length must be defined!"
-                )
+                if length is not None:
+                    element_length = length
+                elif length_field is not None:
+                    pass
+                else:
+                    raise FieldDefinitionError(
+                        "Given that zero_pad is defined, element_length must be defined!"
+                    )
 
         if length_field:
             if element_length is not None:
@@ -1647,11 +1652,16 @@ class StringField( StreamField ):
 
     def get_element_size( self, element, parent=None, index=None ):
         fill = property_get( self.fill, parent )
+        element_length = property_get( self.element_length, parent )
+        zero_pad = property_get( self.zero_pad, parent )
 
         size = 0
         if self.length_field:
             size += self.length_field.field_size
-        size += len( self._scrub_bytes( element, parent=parent ) )
+        if zero_pad:
+            size += element_length
+        else:
+            size += len( self._scrub_bytes( element, parent=parent ) )
         return size
 
     def serialise( self, value, parent=None ):

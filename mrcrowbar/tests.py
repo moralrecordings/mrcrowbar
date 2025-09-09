@@ -427,6 +427,42 @@ class TestStringField( unittest.TestCase ):
         self.assertEqual( test.field[2], b"gh" )
         self.assertEqual( test.export_data(), payload )
 
+    def test_cstring_length_field( self ):
+        payload = b"\x00\x05abcd\x00ef"
+
+        class Test( mrc.Block ):
+            field = mrc.CString( length_field=mrc.UInt16_BE )
+            tail = mrc.Bytes()
+
+        test = Test( payload )
+        self.assertEqual( test.field, b"abcd" )
+        self.assertEqual( test.tail, b"ef" )
+        self.assertEqual( test.export_data(), payload )
+
+    def test_cstring_fixed_length( self ):
+        payload = b"abcde\x00\x00\x00\xaa"
+
+        class Test( mrc.Block ):
+            field = mrc.CStringN( length=0x8 )
+            end = mrc.UInt8()
+
+        test = Test( payload )
+        self.assertEqual( test.field, b"abcde" )
+        self.assertEqual( test.end, 0xaa )
+        self.assertEqual( test.export_data(), payload )
+
+    def test_cstring_stacked( self ):
+        payload = b"abcd\x00efg\x00"
+
+        class Test( mrc.Block ):
+            field1 = mrc.CString()
+            field2 = mrc.CString()
+
+        test = Test( payload )
+        self.assertEqual( test.field1, b"abcd" )
+        self.assertEqual( test.field2, b"efg" )
+        self.assertEqual( test.export_data(), payload )
+
     def test_length_field( self ):
         payload = b"\x04\x02ab\x03cde\x04fghi\x01j"
 

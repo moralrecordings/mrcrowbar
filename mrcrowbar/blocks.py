@@ -38,6 +38,7 @@ class FieldDescriptor:
         if instance is None:
             return
         instance._field_data[self.name] = value
+        instance._dirty = True
         return
 
     def __delete__( self, instance ):
@@ -46,6 +47,7 @@ class FieldDescriptor:
                 f"{type( instance ).__name__} has no attribute {self.name}"
             )
         del instance._fields[self.name]
+        instance._dirty = True
 
 
 class RefDescriptor:
@@ -202,9 +204,14 @@ class Block( metaclass=BlockMeta ):
     _coda_size: int
     _coda_field_names: list[str]
     _cache_refs: bool
+    _size: int
     _field_data: dict[str, Any]
+    _field_size: dict[str, int]
+    _field_start_offset: dict[str, int]
     _ref_cache: dict[str, Any]
     _strict: bool
+    _dirty: bool
+    _initial_load: bool
 
     def __init__(
         self,
@@ -254,7 +261,12 @@ class Block( metaclass=BlockMeta ):
             Pre-cache all the Refs. Defaults to True.
         """
         self._field_data = {}
+        self._field_size = {}
+        self._field_start_offset = {}
+        self._size = 0
         self._ref_cache = {}
+        self._dirty = False
+        self._initial_load = True
         if parent is not None:
             assert isinstance( parent, Block )
         self._parent = parent
@@ -285,6 +297,10 @@ class Block( metaclass=BlockMeta ):
             self.update_data( source_data )
         else:
             self.import_data( source_data )
+
+        self._initial_load = False
+        self._dirty = True
+        self.recalculate_fields()
 
         # cache all refs
         if self._cache_refs:
@@ -492,20 +508,54 @@ class Block( metaclass=BlockMeta ):
             self.validate_field( name )
         return
 
-    def get_size( self ) -> int:
-        """Get the projected size (in bytes) of the exported data from this Block instance."""
+    def set_dirty( self ):
+        self._dirty = True
+        if self._parent:
+            self._parent.set_dirty()
+
+    def recalculate_fields( self ):
+        self._initial_load = True
         klass = self.__class__
-        size = 0
-        for name in klass._fields:
-            size = max(
-                size,
-                klass._fields[name].get_end_offset(
-                    self._field_data[name], parent=self
-                ),
+        for field_name in klass._fields:
+            self._field_size[field_name] = klass._fields[field_name].get_size(
+                self._field_data[field_name], parent=self
+            )
+            self._field_start_offset[field_name] = klass._fields[
+                field_name
+            ].get_start_offset(self._field_data[field_name], parent=self)
+
+        # precalculate size of whole block
+        self._size = 0
+        for field_name in klass._fields:
+            self._size = max(
+                self._size,
+                self._field_start_offset[field_name] + self._field_size[field_name],
             )
         for check in klass._checks.values():
-            size = max( size, check.get_end_offset( parent=self ) )
-        return size
+            self._size = max( self._size, check.get_end_offset( parent=self ) )
+        self._dirty = False
+        self._initial_load = False
+        return
+
+    def get_size( self ) -> int:
+        """Get the projected size (in bytes) of the exported data from this Block instance."""
+        if self._initial_load:
+            klass = self.__class__
+            size = 0
+            for name in klass._fields:
+                size = max(
+                    size,
+                    klass._fields[name].get_end_offset(
+                        self._field_data[name], parent=self
+                    ),
+                )
+            for check in klass._checks.values():
+                size = max( size, check.get_end_offset( parent=self ) )
+            return size
+
+        if self._dirty:
+            self.recalculate_fields()
+        return self._size
 
     @property
     def _coda_offset( self ) -> int:
@@ -602,9 +652,13 @@ class Block( metaclass=BlockMeta ):
             takes a list of objects.
         """
         klass = self.__class__
-        return klass._fields[field_name].get_start_offset(
-            self._field_data[field_name], parent=self, index=index
-        )
+        if self._initial_load or index is not None:
+            return klass._fields[field_name].get_start_offset(
+                self._field_data[field_name], parent=self, index=index
+            )
+        if self._dirty:
+            self.recalculate_fields()
+        return self._field_start_offset[field_name]
 
     def get_field_size( self, field_name: str, index: int | None = None ) -> int:
         """Return the size of a Field's data (in bytes).
@@ -617,9 +671,13 @@ class Block( metaclass=BlockMeta ):
             takes a list of objects.
         """
         klass = self.__class__
-        return klass._fields[field_name].get_size(
-            self._field_data[field_name], parent=self, index=index
-        )
+        if self._initial_load or index is not None:
+            return klass._fields[field_name].get_size(
+                self._field_data[field_name], parent=self, index=index
+            )
+        if self._dirty:
+            self.recalculate_fields()
+        return self._field_size[field_name]
 
     def get_field_end_offset( self, field_name: str, index: int | None = None ) -> int:
         """Return the end offset of a Field's data. Useful for chainloading.
@@ -632,9 +690,13 @@ class Block( metaclass=BlockMeta ):
             takes a list of objects.
         """
         klass = self.__class__
-        return klass._fields[field_name].get_end_offset(
-            self._field_data[field_name], parent=self, index=index
-        )
+        if self._initial_load or index is not None:
+            return klass._fields[field_name].get_end_offset(
+                self._field_data[field_name], parent=self, index=index
+            )
+        if self._dirty:
+            self.recalculate_fields()
+        return self._field_start_offset[field_name] + self._field_size[field_name]
 
     def scrub_field( self, field_name: str ) -> Any:
         """Return a Field's data coerced to the correct type (if necessary).

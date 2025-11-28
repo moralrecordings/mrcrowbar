@@ -47,6 +47,7 @@ setup(
         "mrcrowbar.lib.audio",
         "mrcrowbar.lib.compressors",
         "mrcrowbar.lib.containers",
+        "mrcrowbar.lib.fonts",
         "mrcrowbar.lib.games",
         "mrcrowbar.lib.hardware",
         "mrcrowbar.lib.images",

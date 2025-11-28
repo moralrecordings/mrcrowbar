@@ -38,7 +38,7 @@ class FieldDescriptor:
         if instance is None:
             return
         instance._field_data[self.name] = value
-        instance._dirty = True
+        instance.set_dirty()
         return
 
     def __delete__( self, instance ):
@@ -47,7 +47,7 @@ class FieldDescriptor:
                 f"{type( instance ).__name__} has no attribute {self.name}"
             )
         del instance._fields[self.name]
-        instance._dirty = True
+        instance.set_dirty()
 
 
 class RefDescriptor:

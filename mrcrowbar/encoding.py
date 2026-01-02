@@ -120,7 +120,7 @@ CODECS = [
     "utf_8_sig",
 ]
 
-REGEX_CHARS = """()[]{}?*+-|^$\\.&~#="""
+REGEX_CHARS = """()[]{}:?*+-|^$\\.&~#="""
 byte_escape: Callable[[int], bytes] = lambda char: f"\\x{char:02x}".encode()
 
 
